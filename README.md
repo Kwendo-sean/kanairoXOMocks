@@ -1,3 +1,3 @@
-# kanairoxo
+# KANAIROXO
 
-A new Flutter project.
+Meet, Connect, Experience
