@@ -22,19 +22,19 @@ class _EventMemoriesScreenState extends State<EventMemoriesScreen>
   
   final List<Map<String, dynamic>> _photos = [
     {
-      'url': 'https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?w=400&h=300&fit=crop',
+      'url': 'assets/images/kanairoxo_logo.png',
       'user': 'Sofia',
       'likes': 24,
       'comments': 5,
     },
     {
-      'url': 'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=400&h=300&fit=crop',
+      'url': 'assets/images/kanairoxo_logo.png',
       'user': 'Marcus',
       'likes': 42,
       'comments': 8,
     },
     {
-      'url': 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=400&h=300&fit=crop',
+      'url': 'assets/images/kanairoxo_logo.png',
       'user': 'You',
       'likes': 18,
       'comments': 3,
@@ -47,14 +47,14 @@ class _EventMemoriesScreenState extends State<EventMemoriesScreen>
       'rating': 5,
       'comment': 'Amazing conversations! Met some really interesting people.',
       'time': '2 days ago',
-      'userImage': 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w-100&h=100&fit=crop',
+      'userImage': 'assets/images/kanairoxo_logo.png',
     },
     {
       'user': 'Marcus',
       'rating': 4,
       'comment': 'Great coffee and even better company. Will definitely attend again!',
       'time': '3 days ago',
-      'userImage': 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
+      'userImage': 'assets/images/kanairoxo_logo.png',
     },
   ];
   
@@ -290,7 +290,13 @@ class _EventMemoriesScreenState extends State<EventMemoriesScreen>
                         ),
                         child: Container(
                           color: AppConstants.lightGray,
-                          child: Image.network(
+                          child: photo['url'].startsWith('http') 
+                          ? Image.network(
+                            photo['url'],
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                          )
+                          : Image.asset(
                             photo['url'],
                             fit: BoxFit.cover,
                             width: double.infinity,
@@ -374,7 +380,9 @@ class _EventMemoriesScreenState extends State<EventMemoriesScreen>
                       children: [
                         CircleAvatar(
                           radius: 20,
-                          backgroundImage: NetworkImage(review['userImage']),
+                          backgroundImage: review['userImage'].startsWith('http')
+                              ? NetworkImage(review['userImage'])
+                              : AssetImage(review['userImage']) as ImageProvider,
                         ),
                         const SizedBox(width: 12),
                         Expanded(

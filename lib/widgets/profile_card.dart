@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:kanairoxo/utils/constants.dart';
 import '../models/data_models.dart';
 
 
@@ -61,24 +62,70 @@ class ProfileCard extends StatelessWidget {
               topLeft: Radius.circular(24),
               topRight: Radius.circular(24),
             ),
-            child: Image.network(
-              profile.imageUrl,
-              height: 400,
-              width: double.infinity,
-              fit: BoxFit.cover,
-              loadingBuilder: (context, child, loadingProgress) {
-                if (loadingProgress == null) return child;
-                return Container(
-                  height: 400,
-                  color: const Color(0xFFF0ECE4),
-                  child: const Center(
-                    child: CircularProgressIndicator(
-                      color: Color(0xFF8B0000),
+            child: profile.imageUrl.startsWith('http') 
+            ? Image.network(
+                profile.imageUrl,
+                height: 400,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 400,
+                    width: double.infinity,
+                    color: AppConstants.lightGray,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.broken_image,
+                          size: 48,
+                          color: AppConstants.secondaryGray,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Could not load image',
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            color: AppConstants.secondaryGray,
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                );
-              },
-            ),
+                  );
+                },
+                loadingBuilder: (context, child, loadingProgress) {
+                  if (loadingProgress == null) return child;
+                  return Container(
+                    height: 400,
+                    color: AppConstants.lightGray,
+                    child: const Center(
+                      child: CircularProgressIndicator(
+                        color: AppConstants.primaryRed,
+                      ),
+                    ),
+                  );
+                },
+              )
+            : Image.asset(
+                profile.imageUrl,
+                height: 400,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  // Fallback to a placeholder if asset is missing
+                  return Container(
+                    height: 400,
+                    width: double.infinity,
+                    color: AppConstants.lightGray,
+                    child: const Center(
+                      child: Icon(
+                        Icons.person,
+                        size: 64,
+                        color: AppConstants.secondaryGray,
+                      ),
+                    ),
+                  );
+                },
+              ),
           ),
           
           // Profile Info
@@ -99,7 +146,7 @@ class ProfileCard extends StatelessWidget {
                     Text(
                       '${profile.age}',
                       style: theme.textTheme.displayMedium?.copyWith(
-                        color: const Color(0xFF8B7355),
+                        color: AppConstants.secondaryGray,
                       ),
                     ),
                   ],
@@ -108,7 +155,7 @@ class ProfileCard extends StatelessWidget {
                 Text(
                   profile.location,
                   style: theme.textTheme.bodyMedium?.copyWith(
-                    color: const Color(0xFF8B7355),
+                    color: AppConstants.secondaryGray,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -128,13 +175,13 @@ class ProfileCard extends StatelessWidget {
                     Icon(
                       _getMoodIcon(profile.moodIcon),
                       size: 18,
-                      color: const Color(0xFF8B7355),
+                      color: AppConstants.secondaryGray,
                     ),
                     const SizedBox(width: 8),
                     Text(
                       profile.mood,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF8B7355),
+                        color: AppConstants.secondaryGray,
                       ),
                     ),
                   ],
@@ -153,13 +200,13 @@ class ProfileCard extends StatelessWidget {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF5F1EA),
+                        color: AppConstants.primaryBeige,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
                         interest,
                         style: theme.textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF8B7355),
+                          color: AppConstants.secondaryGray,
                         ),
                       ),
                     ))
@@ -184,7 +231,7 @@ class ProfileCard extends StatelessWidget {
                           child: Text(
                             item,
                             style: theme.textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFF8B0000),
+                              color: AppConstants.primaryRed,
                             ),
                           ),
                         );
@@ -201,6 +248,14 @@ class ProfileCard extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: onConnect,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppConstants.primaryRed,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
                         child: const Text('Connect'),
                       ),
                     ),
@@ -211,7 +266,9 @@ class ProfileCard extends StatelessWidget {
                         onPressed: onNotNow,
                         child: Text(
                           'Not now',
-                          style: theme.textTheme.labelLarge,
+                          style: theme.textTheme.labelLarge?.copyWith(
+                             color: AppConstants.secondaryGray,
+                          ),
                         ),
                       ),
                     ),

@@ -115,6 +115,16 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       },
     );
   }
+
+  ImageProvider _getProfileImage(String? url) {
+    if (url == null || url.isEmpty) {
+      return const AssetImage('assets/images/kanairoxo_logo.png');
+    }
+    if (url.startsWith('http')) {
+      return NetworkImage(url);
+    }
+    return AssetImage(url);
+  }
   
   @override
   Widget build(BuildContext context) {
@@ -170,10 +180,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     ),
                     child: CircleAvatar(
                       radius: 60,
-                      backgroundImage: NetworkImage(
-                        widget.user.profileImageUrl ?? 
-                        'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop',
-                      ),
+                      backgroundImage: _getProfileImage(widget.user.profileImageUrl),
                     ),
                   ),
                   Positioned(

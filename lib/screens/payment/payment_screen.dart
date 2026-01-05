@@ -452,70 +452,72 @@ class _PaymentScreenState extends State<PaymentScreen> {
   
   Widget _buildSuccessScreen() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            width: 120,
-            height: 120,
-            decoration: BoxDecoration(
-              color: AppConstants.successGreen.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              PhosphorIcons.checkCircle(),
-              size: 60,
-              color: AppConstants.successGreen,
-            ),
-          ),
-          const SizedBox(height: 32),
-          Text(
-            'Payment Successful!',
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-              fontSize: 24,
-            ),
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'KES ${widget.amount.toStringAsFixed(0)}',
-            style: Theme.of(context).textTheme.displayLarge?.copyWith(
-              color: AppConstants.successGreen,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'has been deducted from your account',
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: AppConstants.secondaryGray,
-            ),
-          ),
-          const SizedBox(height: 32),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 48),
-            child: Text(
-              'Your ticket is being generated. You will be redirected to download it shortly.',
-              textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
-          const SizedBox(height: 40),
-          SizedBox(
-            width: 200,
-            child: ElevatedButton(
-              onPressed: () {
-                // Already navigating automatically
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryRed,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
-                ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                color: AppConstants.successGreen.withOpacity(0.1),
+                shape: BoxShape.circle,
               ),
-              child: const Text('Download Ticket'),
+              child: Icon(
+                PhosphorIcons.checkCircle(),
+                size: 60,
+                color: AppConstants.successGreen,
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 32),
+            Text(
+              'Payment Successful!',
+              style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                fontSize: 24,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'KES ${widget.amount.toStringAsFixed(0)}',
+              style: Theme.of(context).textTheme.displayLarge?.copyWith(
+                color: AppConstants.successGreen,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'has been deducted from your account',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: AppConstants.secondaryGray,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 48),
+              child: Text(
+                'Your ticket is being generated. You will be redirected to download it shortly.',
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+            const SizedBox(height: 40),
+            SizedBox(
+              width: 200,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Already navigating automatically
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConstants.primaryRed,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                  ),
+                ),
+                child: const Text('Download Ticket'),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

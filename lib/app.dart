@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:kanairoxo/screens/auth/splash_screen.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/auth/signup_screen.dart';
@@ -18,7 +19,6 @@ import 'package:kanairoxo/screens/event_memories_screen.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/models/message_model.dart';
-import 'package:kanairoxo/models/notification_model.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/material.dart' show Badge;
@@ -50,7 +50,9 @@ class KanairoXOApp extends StatelessWidget {
           elevation: 0,
           centerTitle: true,
         ),
-        fontFamily: 'Inter',
+        textTheme: GoogleFonts.nunitoTextTheme(
+          Theme.of(context).textTheme,
+        ),
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: '/',
@@ -83,8 +85,7 @@ class KanairoXOApp extends StatelessWidget {
                 id: '1',
                 userId: 'user1',
                 userName: 'Sofia',
-                userImage:
-                    'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=400&fit=crop',
+                userImage: 'assets/images/kanairoxo_logo.png',
                 lastMessage: 'Looking forward to seeing you!',
                 lastMessageTime: DateTime.now(),
                 unreadCount: 2,
@@ -101,8 +102,7 @@ class KanairoXOApp extends StatelessWidget {
                 phoneNumber: '0712345678',
                 gender: 'Male',
                 createdAt: DateTime.now(),
-                profileImageUrl:
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop',
+                profileImageUrl: 'assets/images/kanairoxo_logo.png',
                 interests: ['Coffee', 'Art', 'Travel'],
                 location: 'Nairobi, Kenya',
               ),

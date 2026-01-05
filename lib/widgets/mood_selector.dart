@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:kanairoxo/utils/constants.dart';
 import '../models/data_models.dart';
-
 
 class MoodSelector extends StatefulWidget {
   final List<Mood> moods;
@@ -18,131 +17,63 @@ class MoodSelector extends StatefulWidget {
 }
 
 class _MoodSelectorState extends State<MoodSelector> {
-  late List<Mood> _moods;
+  String? _selectedMoodName;
 
   @override
   void initState() {
     super.initState();
-    _moods = List.of(widget.moods);
+    // Find the initially selected mood, if any
+    final selectedMood = widget.moods.firstWhere(
+      (mood) => mood.isSelected,
+      orElse: () => widget.moods.first, // Default to first if none are selected
+    );
+    _selectedMoodName = selectedMood.name;
   }
 
-  IconData _getMoodIcon(String iconName) {
-    switch (iconName) {
-      case 'bolt':
-        return PhosphorIcons.belt();
-      case 'brain':
-        return PhosphorIcons.brain();
-      case 'compass':
-        return PhosphorIcons.compass();
-      case 'waves':
-        return PhosphorIcons.waves();
-      case 'eye':
-        return PhosphorIcons.eye();
-      case 'paint-brush':
-        return PhosphorIcons.paintBrush();
-      default:
-        return PhosphorIcons.star();
-    }
-  }
-
-  void _selectMood(int index) {
+  void _selectMood(Mood mood) {
     setState(() {
-      _moods = _moods.map((mood) => Mood(
-        name: mood.name,
-        icon: mood.icon,
-        isSelected: false,
-      )).toList();
-      
-      _moods[index] = Mood(
-        name: _moods[index].name,
-        icon: _moods[index].icon,
-        isSelected: true,
-      );
+      _selectedMoodName = mood.name;
     });
-    
-    widget.onMoodSelected(_moods[index]);
+    widget.onMoodSelected(mood);
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Text(
-            'How are you feeling right now?',
-            style: theme.textTheme.displayMedium?.copyWith(
-              fontSize: 24,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(), // Let parent scroll
+      itemCount: widget.moods.length,
+      itemBuilder: (context, index) {
+        final mood = widget.moods[index];
+        final isSelected = mood.name == _selectedMoodName;
         
-        // Mood Grid
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            childAspectRatio: 3,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          itemCount: _moods.length,
-          itemBuilder: (context, index) {
-            final mood = _moods[index];
-            return GestureDetector(
-              onTap: () => _selectMood(index),
-              child: Container(
-                decoration: BoxDecoration(
-                  color: mood.isSelected ? const Color(0xFF8B0000) : Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: mood.isSelected ? const Color(0xFF8B0000) : const Color(0xFFE0D7CC),
-                    width: 1,
-                  ),
-                  boxShadow: mood.isSelected
-                      ? [
-                          BoxShadow(
-                            color: const Color(0xFF8B0000).withOpacity(0.2),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ]
-                      : [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.05),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      _getMoodIcon(mood.icon),
-                      size: 20,
-                      color: mood.isSelected ? Colors.white : const Color(0xFF8B7355),
-                    ),
-                    const SizedBox(width: 12),
-                    Text(
-                      mood.name,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: mood.isSelected ? Colors.white : const Color(0xFF1A1A1A),
-                      ),
-                    ),
-                  ],
+        return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          child: ElevatedButton(
+            onPressed: () => _selectMood(mood),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isSelected ? AppConstants.primaryRed : AppConstants.primaryBeige,
+              foregroundColor: isSelected ? Colors.white : AppConstants.primaryBlack,
+              minimumSize: const Size(double.infinity, 64),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(32),
+                side: BorderSide(
+                  color: isSelected ? AppConstants.primaryRed : AppConstants.lightGray,
+                  width: 1.5,
                 ),
               ),
-            );
-          },
-        ),
-      ],
+              elevation: isSelected ? 4 : 0,
+              shadowColor: AppConstants.primaryRed.withOpacity(0.3),
+            ),
+            child: Text(
+              mood.name,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

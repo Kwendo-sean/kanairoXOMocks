@@ -46,6 +46,8 @@ class _LoginScreenState extends State<LoginScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
       body: SafeArea(
@@ -67,8 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Title
                 Text(
                   'Welcome Back',
-                  style: GoogleFonts.nunito(
-                    fontSize: 32,
+                  style: theme.textTheme.displaySmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppConstants.primaryBlack,
                   ),
@@ -76,9 +77,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 8),
                 Text(
                   'Sign in to continue your journey',
-                  style: GoogleFonts.nunito(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w400,
+                  style: theme.textTheme.bodyLarge?.copyWith(
                     color: AppConstants.secondaryGray,
                   ),
                 ),
@@ -140,8 +139,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                     child: Text(
                       AppStrings.forgotPassword,
-                      style: GoogleFonts.nunito(
-                        fontSize: 14,
+                      style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppConstants.primaryRed,
                       ),
@@ -176,9 +174,9 @@ class _LoginScreenState extends State<LoginScreen> {
                           )
                         : Text(
                             'Log In',
-                            style: GoogleFonts.nunito(
-                              fontSize: 16,
+                            style: theme.textTheme.titleMedium?.copyWith(
                               fontWeight: FontWeight.w600,
+                              color: Colors.white,
                             ),
                           ),
                   ),
@@ -195,9 +193,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'or continue with',
-                        style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
+                        style: theme.textTheme.bodySmall?.copyWith(
                           color: AppConstants.secondaryGray,
                         ),
                       ),
@@ -255,9 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     children: [
                       Text(
                         AppStrings.noAccount,
-                        style: GoogleFonts.nunito(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
+                        style: theme.textTheme.bodyMedium?.copyWith(
                           color: AppConstants.primaryBlack,
                         ),
                       ),
@@ -265,8 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         onPressed: widget.onSignupTap,
                         child: Text(
                           'Sign Up',
-                          style: GoogleFonts.nunito(
-                            fontSize: 14,
+                          style: theme.textTheme.labelLarge?.copyWith(
                             fontWeight: FontWeight.w600,
                             color: AppConstants.primaryRed,
                           ),
