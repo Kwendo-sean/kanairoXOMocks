@@ -1,53 +1,82 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/auth/auth_input_field.dart';
+import 'package:kanairoxo/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
   final VoidCallback onSignupTap;
-  
+
   const LoginScreen({
     super.key,
     required this.onLoginSuccess,
     required this.onSignupTap,
   });
-  
+
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   bool _obscurePassword = true;
-  
+  String? _errorMessage;
+
   Future<void> _handleLogin() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isLoading = true);
-    
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() => _isLoading = false);
-    widget.onLoginSuccess();
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = AuthService();
+
+      // Format phone number (ensure it starts with +254)
+      String phoneNumber = _phoneController.text.trim();
+      if (!phoneNumber.startsWith('+')) {
+        if (phoneNumber.startsWith('0')) {
+          phoneNumber = '+254${phoneNumber.substring(1)}';
+        } else if (phoneNumber.startsWith('7')) {
+          phoneNumber = '+254$phoneNumber';
+        }
+      }
+
+      final response = await authService.login(
+        phoneNumber: phoneNumber,
+        password: _passwordController.text,
+      );
+
+      // Store user data if needed
+      // await _storeUserData(response.user);
+
+      setState(() => _isLoading = false);
+      widget.onLoginSuccess();
+
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = e.toString().replaceAll('Exception: ', '');
+      });
+    }
   }
-  
+
   @override
   void dispose() {
-    _emailController.dispose();
+    _phoneController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
+
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
       body: SafeArea(
@@ -61,11 +90,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Back button
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(PhosphorIcons.arrowLeft()),
+                  icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
                   color: AppConstants.primaryBlack,
                 ),
                 const SizedBox(height: 40),
-                
+
                 // Title
                 Text(
                   'Welcome Back',
@@ -82,39 +111,72 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 48),
-                
-                // Email field
+
+                // Error message
+                if (_errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        PhosphorIcon(
+                          PhosphorIcons.warningCircle(PhosphorIconsStyle.regular),
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_errorMessage != null) const SizedBox(height: 20),
+
+                // Phone field
                 AuthInputField(
-                  controller: _emailController,
-                  label: AppStrings.email,
-                  hintText: 'you@example.com',
-                  prefixIcon: PhosphorIcons.envelope(),
-                  keyboardType: TextInputType.emailAddress,
+                  controller: _phoneController,
+                  label: 'Phone Number',
+                  hintText: '+254700123456',
+                  prefixIcon: PhosphorIcon(PhosphorIcons.phone(PhosphorIconsStyle.regular)),
+                  keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
+                      return 'Please enter your phone number';
                     }
-                    if (!value.contains('@')) {
-                      return 'Please enter a valid email';
+                    // Basic phone validation
+                    final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
+                    if (!phoneRegex.hasMatch(value.replaceAll(' ', ''))) {
+                      return 'Please enter a valid phone number';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Password field
                 AuthInputField(
                   controller: _passwordController,
                   label: AppStrings.password,
                   hintText: '••••••••',
-                  prefixIcon: PhosphorIcons.lock(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)),
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
-                    icon: Icon(
-                      _obscurePassword ? PhosphorIcons.eye() : PhosphorIcons.eyeSlash(),
+                    icon: PhosphorIcon(
+                      _obscurePassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular),
                       size: 20,
                     ),
                   ),
@@ -129,7 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                 ),
                 const SizedBox(height: 8),
-                
+
                 // Forgot password
                 Align(
                   alignment: Alignment.centerRight,
@@ -138,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       // Navigate to forgot password
                     },
                     child: Text(
-                      AppStrings.forgotPassword,
+                      'Forgot Password?',
                       style: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: AppConstants.primaryRed,
@@ -147,7 +209,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Login button
                 SizedBox(
                   width: double.infinity,
@@ -165,24 +227,24 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                         : Text(
-                            'Log In',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
-                            ),
-                          ),
+                      'Log In',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Divider
                 Row(
                   children: [
@@ -204,7 +266,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ],
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Social login buttons
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -219,8 +281,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         padding: const EdgeInsets.all(16),
                       ),
-                      icon: Icon(
-                        PhosphorIcons.googleLogo(),
+                      icon: PhosphorIcon(
+                        PhosphorIcons.googleLogo(PhosphorIconsStyle.regular),
                         color: AppConstants.primaryBlack,
                       ),
                     ),
@@ -235,22 +297,22 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         padding: const EdgeInsets.all(16),
                       ),
-                      icon: Icon(
-                        PhosphorIcons.appleLogo(),
+                      icon: PhosphorIcon(
+                        PhosphorIcons.appleLogo(PhosphorIconsStyle.regular),
                         color: AppConstants.primaryBlack,
                       ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Sign up link
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        AppStrings.noAccount,
+                        'Don\'t have an account? ',
                         style: theme.textTheme.bodyMedium?.copyWith(
                           color: AppConstants.primaryBlack,
                         ),

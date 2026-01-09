@@ -28,24 +28,25 @@ class AppConstants {
 }
 
 class AppStrings {
-  static const String appTagline = 'Meaningful connections, curated moments';
-  static const String discoverTitle = 'Discover';
-  static const String eventsTitle = 'Experiences';
-  static const String moodTitle = 'Mood';
-  static const String messagesTitle = 'Messages';
-  static const String notificationsTitle = 'Notifications';
-  static const String profileTitle = 'Profile';
-  
   // Auth
-  static const String login = 'Log In';
-  static const String signup = 'Sign Up';
-  static const String email = 'Email';
-  static const String password = 'Password';
-  static const String confirmPassword = 'Confirm Password';
   static const String firstName = 'First Name';
   static const String lastName = 'Last Name';
   static const String phoneNumber = 'Phone Number';
-  static const String forgotPassword = 'Forgot Password?';
-  static const String noAccount = 'Don\'t have an account? ';
-  static const String hasAccount = 'Already have an account? ';
+  static const String password = 'Password';
+  static const String confirmPassword = 'Confirm Password';
+  static const String termsAndConditions = 'Terms & Conditions';
+  static const String privacyPolicy = 'Privacy Policy';
+  static const String acceptTerms = 'I agree to the Terms & Conditions';
+  static const String acceptPrivacy = 'I agree to the Privacy Policy';
+  static const String gender = 'Gender';
+  static const String dateOfBirth = 'Date of Birth';
+  static const String optional = 'Optional';
+
+  // Notifications
+  static const String notificationsTitle = 'Notifications';
+
+  // Validation messages
+  static const String passwordMismatch = 'Passwords do not match';
+  static const String acceptTermsError = 'You must accept terms and privacy policy';
+  static const String phoneValidation = 'Please enter a valid Kenyan phone number';
 }

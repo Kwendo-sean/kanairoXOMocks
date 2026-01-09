@@ -5,13 +5,13 @@ class AuthInputField extends StatelessWidget {
   final TextEditingController controller;
   final String label;
   final String hintText;
-  final IconData prefixIcon;
+  final Widget prefixIcon;
   final Widget? suffixIcon;
   final bool obscureText;
   final TextInputType keyboardType;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
-  
+
   const AuthInputField({
     super.key,
     required this.controller,
@@ -24,7 +24,7 @@ class AuthInputField extends StatelessWidget {
     this.validator,
     this.onChanged,
   });
-  
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -33,9 +33,9 @@ class AuthInputField extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-            color: AppConstants.secondaryGray,
-            fontWeight: FontWeight.w500,
-          ),
+                color: AppConstants.secondaryGray,
+                fontWeight: FontWeight.w500,
+              ),
         ),
         const SizedBox(height: 8),
         TextFormField(
@@ -48,13 +48,9 @@ class AuthInputField extends StatelessWidget {
           decoration: InputDecoration(
             hintText: hintText,
             hintStyle: Theme.of(context).textTheme.bodyLarge?.copyWith(
-              color: AppConstants.lightGray,
-            ),
-            prefixIcon: Icon(
-              prefixIcon,
-              size: 20,
-              color: AppConstants.secondaryGray,
-            ),
+                  color: AppConstants.lightGray,
+                ),
+            prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
             fillColor: Colors.white,

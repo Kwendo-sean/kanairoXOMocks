@@ -6,9 +6,9 @@ import 'package:kanairoxo/models/user_model.dart';
 
 class ProfileEditorScreen extends StatefulWidget {
   final User user;
-  
+
   const ProfileEditorScreen({super.key, required this.user});
-  
+
   @override
   State<ProfileEditorScreen> createState() => _ProfileEditorScreenState();
 }
@@ -24,7 +24,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     'Meditation', 'Technology', 'Fashion', 'Sports',
     'Movies', 'Writing', 'Dancing', 'Cooking'
   ];
-  
+
   @override
   void initState() {
     super.initState();
@@ -33,7 +33,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     _interestsController = TextEditingController();
     _selectedInterests.addAll(widget.user.interests);
   }
-  
+
   @override
   void dispose() {
     _bioController.dispose();
@@ -41,7 +41,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     _interestsController.dispose();
     super.dispose();
   }
-  
+
   void _saveProfile() {
     // Save profile logic
     ScaffoldMessenger.of(context).showSnackBar(
@@ -52,7 +52,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     );
     Navigator.pop(context);
   }
-  
+
   void _addInterest(String interest) {
     if (!_selectedInterests.contains(interest)) {
       setState(() {
@@ -61,13 +61,13 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       _interestsController.clear();
     }
   }
-  
+
   void _removeInterest(String interest) {
     setState(() {
       _selectedInterests.remove(interest);
     });
   }
-  
+
   void _showImagePicker() {
     showModalBottomSheet(
       context: context,
@@ -81,7 +81,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
             mainAxisSize: MainAxisSize.min,
             children: [
               ListTile(
-                leading: Icon(PhosphorIcons.camera(), color: AppConstants.primaryRed),
+                leading: PhosphorIcon(PhosphorIcons.camera(PhosphorIconsStyle.regular), color: AppConstants.primaryRed),
                 title: const Text('Take Photo'),
                 onTap: () {
                   Navigator.pop(context);
@@ -89,7 +89,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                 },
               ),
               ListTile(
-                leading:  Icon(PhosphorIcons.image(), color: AppConstants.primaryRed),
+                leading:  PhosphorIcon(PhosphorIcons.image(PhosphorIconsStyle.regular), color: AppConstants.primaryRed),
                 title: const Text('Choose from Gallery'),
                 onTap: () {
                   Navigator.pop(context);
@@ -97,7 +97,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                 },
               ),
               ListTile(
-                leading:  Icon(PhosphorIcons.trash(), color: Colors.red),
+                leading:  PhosphorIcon(PhosphorIcons.trash(PhosphorIconsStyle.regular), color: Colors.red),
                 title: const Text('Remove Photo'),
                 onTap: () {
                   Navigator.pop(context);
@@ -125,7 +125,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     }
     return AssetImage(url);
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -135,7 +135,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: Icon(PhosphorIcons.arrowLeft()),
+          icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
           color: AppConstants.primaryBlack,
         ),
         title: Text(
@@ -194,8 +194,8 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                         shape: BoxShape.circle,
                         border: Border.all(color: Colors.white, width: 3),
                       ),
-                      child:  Icon(
-                        PhosphorIcons.camera(),
+                      child:  PhosphorIcon(
+                        PhosphorIcons.camera(PhosphorIconsStyle.regular),
                         color: Colors.white,
                         size: 18,
                       ),
@@ -213,7 +213,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               ),
             ),
             const SizedBox(height: 32),
-            
+
             // Name and Age
             Container(
               padding: const EdgeInsets.all(20),
@@ -310,26 +310,26 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            
+
             // Bio
             AuthInputField(
               controller: _bioController,
               label: 'Bio',
               hintText: 'Tell people about yourself...',
-              prefixIcon: PhosphorIcons.user(),
+              prefixIcon: PhosphorIcon(PhosphorIcons.user(PhosphorIconsStyle.regular)),
               keyboardType: TextInputType.multiline,
             ),
             const SizedBox(height: 20),
-            
+
             // Location
             AuthInputField(
               controller: _locationController,
               label: 'Location',
               hintText: 'Where are you based?',
-              prefixIcon: PhosphorIcons.mapPin(),
+              prefixIcon: PhosphorIcon(PhosphorIcons.mapPin(PhosphorIconsStyle.regular)),
             ),
             const SizedBox(height: 20),
-            
+
             // Interests
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -350,8 +350,8 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                     return Chip(
                       label: Text(interest),
                       backgroundColor: AppConstants.primaryRed.withOpacity(0.1),
-                      deleteIcon: Icon(
-                        PhosphorIcons.x(),
+                      deleteIcon: PhosphorIcon(
+                        PhosphorIcons.x(PhosphorIconsStyle.regular),
                         size: 14,
                       ),
                       onDeleted: () => _removeInterest(interest),
@@ -370,7 +370,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                           _addInterest(_interestsController.text);
                         }
                       },
-                      icon: Icon(PhosphorIcons.plus()),
+                      icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
                     ),
                   ),
                   onSubmitted: (value) {
@@ -396,7 +396,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               ],
             ),
             const SizedBox(height: 32),
-            
+
             // Preferences section
             Container(
               padding: const EdgeInsets.all(20),
@@ -414,7 +414,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                   const SizedBox(height: 16),
                   Row(
                     children: [
-                      Icon(PhosphorIcons.users(), size: 20, color: AppConstants.secondaryGray),
+                      PhosphorIcon(PhosphorIcons.users(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -437,7 +437,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(PhosphorIcons.eye(), size: 20, color: AppConstants.secondaryGray),
+                      PhosphorIcon(PhosphorIcons.eye(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
@@ -455,7 +455,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      Icon(PhosphorIcons.mapPin(), size: 20, color: AppConstants.secondaryGray),
+                      PhosphorIcon(PhosphorIcons.mapPin(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(

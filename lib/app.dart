@@ -58,6 +58,11 @@ class KanairoXOApp extends StatelessWidget {
       initialRoute: '/',
       routes: {
         '/': (context) => const AppWrapper(),
+        '/onboarding': (context) => OnboardingScreen(
+          onComplete: () {
+            Navigator.pushReplacementNamed(context, '/main');
+          },
+        ),
         '/login': (context) => LoginScreen(
               onLoginSuccess: () {
                 Navigator.pushReplacementNamed(context, '/main');
@@ -72,11 +77,6 @@ class KanairoXOApp extends StatelessWidget {
               },
               onLoginTap: () {
                 Navigator.pushNamed(context, '/login');
-              },
-            ),
-        '/onboarding': (context) => OnboardingScreen(
-              onComplete: () {
-                Navigator.pushReplacementNamed(context, '/main');
               },
             ),
         '/main': (context) => const MainAppScreen(),
@@ -145,11 +145,11 @@ class _AppWrapperState extends State<AppWrapper> {
   Future<void> _checkAuthState() async {
     // Simulate network check
     await Future.delayed(const Duration(seconds: 2));
-    
+
     // TODO: Replace with actual auth check
     final isLoggedIn = false; // Change based on actual auth state
     final hasCompletedOnboarding = false; // Check from shared preferences
-    
+
     setState(() {
       _isLoading = false;
       _isLoggedIn = isLoggedIn;
@@ -213,23 +213,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
 
   List<Widget> _buildScreens(BuildContext context) {
     return [
-      DiscoveryScreen(
-        onConnect: () {
-          // Handle connect action
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Connection request sent'),
-              backgroundColor: AppConstants.primaryRed,
-            ),
-          );
-        },
-        onNotNow: () {
-          // Handle not now action
-        },
-        onNextProfile: () {
-          // Handle next profile action
-        },
-      ),
+      const DiscoveryScreen(),
       EventsScreen(
         onJoinExperience: _handleJoinExperience,
         onExperienceSelected: (experience) {
@@ -250,13 +234,13 @@ class _MainAppScreenState extends State<MainAppScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              CircleAvatar(
+              const CircleAvatar(
                 radius: 60,
-                backgroundImage: NetworkImage(
-                    'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400&h=400&fit=crop'),
+                backgroundImage: AssetImage(
+                    'assets/images/kanairoxo_logo.png'),
               ),
               const SizedBox(height: 20),
-              Text(
+              const Text(
                 'Your Profile',
                 style: TextStyle(
                   fontSize: 24,
@@ -265,7 +249,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
                 ),
               ),
               const SizedBox(height: 12),
-              Text(
+              const Text(
                 'Tap to view and edit your profile',
                 style: TextStyle(
                   color: AppConstants.secondaryGray,
@@ -409,7 +393,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
                       children: [
                         IconButton(
                           onPressed: _closeMessages,
-                          icon:  Icon(PhosphorIcons.x()),
+                          icon:  PhosphorIcon(PhosphorIcons.x(PhosphorIconsStyle.regular)),
                           color: AppConstants.primaryBlack,
                         ),
                         const SizedBox(width: 12),
@@ -425,7 +409,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
                           onPressed: () {
                             // New message
                           },
-                          icon: Icon(PhosphorIcons.plus()),
+                          icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
                           color: AppConstants.primaryBlack,
                         ),
                       ],
@@ -465,8 +449,8 @@ class _MainAppScreenState extends State<MainAppScreen> {
                       label: const Text('3'),
                       child: Container(
                         padding: const EdgeInsets.all(4),
-                        child: Icon(
-                          PhosphorIcons.chats(),
+                        child: PhosphorIcon(
+                          PhosphorIcons.chats(PhosphorIconsStyle.regular),
                           color: AppConstants.primaryBlack,
                         ),
                       ),
@@ -504,8 +488,8 @@ class _MainAppScreenState extends State<MainAppScreen> {
                         label: const Text('12'),
                         child: Container(
                           padding: const EdgeInsets.all(4),
-                          child: Icon(
-                            PhosphorIcons.bell(),
+                          child: PhosphorIcon(
+                            PhosphorIcons.bell(PhosphorIconsStyle.regular),
                             color: AppConstants.primaryBlack,
                           ),
                         ),
@@ -522,7 +506,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
               onPressed: _navigateToPostStory,
               backgroundColor: AppConstants.primaryRed,
               foregroundColor: Colors.white,
-              icon:  Icon(PhosphorIcons.plus()),
+              icon:  PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
               label: const Text('New Story'),
             )
           : null,
@@ -547,10 +531,10 @@ class _MainAppScreenState extends State<MainAppScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavItem(0, PhosphorIcons.compass(), 'Discover'),
-          _buildNavItem(1, PhosphorIcons.calendar(), 'Events'),
-          _buildNavItem(2, PhosphorIcons.moon(), 'Mood'),
-          _buildNavItem(3, PhosphorIcons.user(), 'Profile'),
+          _buildNavItem(0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover'),
+          _buildNavItem(1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events'),
+          _buildNavItem(2, PhosphorIcons.moon(PhosphorIconsStyle.regular), 'Mood'),
+          _buildNavItem(3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile'),
         ],
       ),
     );
@@ -571,7 +555,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            PhosphorIcon(
               icon,
               size: 22,
               color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
@@ -646,22 +630,6 @@ class DiscoveryScreenWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DiscoveryScreen(
-      currentProfileIndex: 0,
-      onConnect: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Connection request sent'),
-            backgroundColor: AppConstants.primaryRed,
-          ),
-        );
-      },
-      onNotNow: () {
-        // Move to next profile
-      },
-      onNextProfile: () {
-        // Next profile logic
-      },
-    );
+    return const DiscoveryScreen();
   }
 }

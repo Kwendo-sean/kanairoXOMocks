@@ -2,17 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/auth/auth_input_field.dart';
+import 'package:kanairoxo/services/auth_service.dart';
 
 class SignupScreen extends StatefulWidget {
   final VoidCallback onSignupSuccess;
   final VoidCallback onLoginTap;
-  
+
   const SignupScreen({
     super.key,
     required this.onSignupSuccess,
     required this.onLoginTap,
   });
-  
+
   @override
   State<SignupScreen> createState() => _SignupScreenState();
 }
@@ -25,27 +26,126 @@ class _SignupScreenState extends State<SignupScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _termsAccepted = false;
+  bool _privacyAccepted = false;
   String? _selectedGender;
   DateTime? _selectedDate;
-  
+  String? _errorMessage;
+
   final List<String> _genders = ['Male', 'Female', 'Non-binary', 'Prefer not to say'];
-  
+
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
-    
-    setState(() => _isLoading = true);
-    
-    // Simulate API call
-    await Future.delayed(const Duration(seconds: 2));
-    
-    setState(() => _isLoading = false);
-    widget.onSignupSuccess();
+
+    if (!_termsAccepted || !_privacyAccepted) {
+      setState(() {
+        _errorMessage = 'You must accept terms and privacy policy';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final authService = AuthService();
+
+      // Format phone number for Kenya
+      String phoneNumber = _phoneController.text.trim();
+      phoneNumber = _formatPhoneNumber(phoneNumber);
+
+      // Map gender to Django model values
+      String? djangoGender;
+      switch (_selectedGender) {
+        case 'Male':
+          djangoGender = 'male';
+          break;
+        case 'Female':
+          djangoGender = 'female';
+          break;
+        case 'Non-binary':
+          djangoGender = 'non_binary';
+          break;
+        case 'Prefer not to say':
+          djangoGender = 'prefer_not_to_say';
+          break;
+      }
+
+      final response = await authService.register(
+        phoneNumber: phoneNumber,
+        email: _emailController.text.trim(),
+        firstName: _firstNameController.text.trim(),
+        lastName: _lastNameController.text.trim(),
+        password: _passwordController.text,
+        password2: _confirmPasswordController.text,
+        termsAccepted: _termsAccepted,
+        privacyPolicyAccepted: _privacyAccepted,
+        // Additional profile fields
+        gender: djangoGender,
+        dateOfBirth: _selectedDate,
+      );
+
+      setState(() => _isLoading = false);
+      widget.onSignupSuccess();
+
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _errorMessage = _extractErrorMessage(e);
+      });
+    }
   }
-  
+
+  String _formatPhoneNumber(String phone) {
+    // Remove all non-digit characters
+    String digits = phone.replaceAll(RegExp(r'[^\d]'), '');
+
+    // Format for Kenya
+    if (digits.startsWith('0')) {
+      return '+254${digits.substring(1)}';
+    } else if (digits.startsWith('7') && digits.length == 9) {
+      return '+254$digits';
+    } else if (digits.startsWith('254') && digits.length == 12) {
+      return '+$digits';
+    }
+
+    return phone; // Return as-is if already formatted
+  }
+
+  String _extractErrorMessage(dynamic error) {
+    String errorStr = error.toString();
+
+    // Extract meaningful error message
+    if (errorStr.contains('Exception: ')) {
+      errorStr = errorStr.replaceAll('Exception: ', '');
+    }
+
+    // Common error mappings
+    if (errorStr.contains('already exists')) {
+      if (errorStr.contains('phone_number')) {
+        return 'This phone number is already registered';
+      } else if (errorStr.contains('email')) {
+        return 'This email is already registered';
+      }
+    }
+
+    if (errorStr.contains('password')) {
+      return 'Password requirements not met';
+    }
+
+    if (errorStr.contains('network')) {
+      return 'Network error. Please check your connection';
+    }
+
+    return errorStr;
+  }
+
   Future<void> _selectDate(BuildContext context) async {
     final DateTime? picked = await showDatePicker(
       context: context,
@@ -67,12 +167,12 @@ class _SignupScreenState extends State<SignupScreen> {
         );
       },
     );
-    
+
     if (picked != null && picked != _selectedDate) {
       setState(() => _selectedDate = picked);
     }
   }
-  
+
   @override
   void dispose() {
     _firstNameController.dispose();
@@ -83,7 +183,7 @@ class _SignupScreenState extends State<SignupScreen> {
     _confirmPasswordController.dispose();
     super.dispose();
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -99,11 +199,11 @@ class _SignupScreenState extends State<SignupScreen> {
                 // Back button
                 IconButton(
                   onPressed: () => Navigator.pop(context),
-                  icon: Icon(PhosphorIcons.arrowLeft()),
+                  icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
                   color: AppConstants.primaryBlack,
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Title
                 Text(
                   'Create Account',
@@ -117,13 +217,44 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 40),
-                
+
+                // Error message
+                if (_errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.red.withOpacity(0.3)),
+                    ),
+                    child: Row(
+                      children: [
+                        PhosphorIcon(
+                          PhosphorIcons.warningCircle(PhosphorIconsStyle.regular),
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Text(
+                            _errorMessage!,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.red,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                if (_errorMessage != null) const SizedBox(height: 20),
+
                 // First Name
                 AuthInputField(
                   controller: _firstNameController,
                   label: 'First Name',
                   hintText: 'John',
-                  prefixIcon: PhosphorIcons.user(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.user(PhosphorIconsStyle.regular)),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your first name';
@@ -132,13 +263,13 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Last Name
                 AuthInputField(
                   controller: _lastNameController,
                   label: 'Last Name',
                   hintText: 'Doe',
-                  prefixIcon: PhosphorIcons.user(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.user(PhosphorIconsStyle.regular)),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your last name';
@@ -147,45 +278,56 @@ class _SignupScreenState extends State<SignupScreen> {
                   },
                 ),
                 const SizedBox(height: 20),
-                
-                // Email
+
+                // Email (optional but recommended)
                 AuthInputField(
                   controller: _emailController,
-                  label: 'Email',
+                  label: 'Email (Optional)',
                   hintText: 'you@example.com',
-                  prefixIcon: PhosphorIcons.envelope(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.envelope(PhosphorIconsStyle.regular)),
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your email';
-                    }
-                    if (!value.contains('@')) {
+                    if (value != null && value.isNotEmpty && !value.contains('@')) {
                       return 'Please enter a valid email';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Phone Number
                 AuthInputField(
                   controller: _phoneController,
-                  label: 'Phone Number',
-                  hintText: '0712 345 678',
-                  prefixIcon: PhosphorIcons.phone(),
+                  label: 'Phone Number*',
+                  hintText: '0712 345 678 or +254712345678',
+                  prefixIcon: PhosphorIcon(PhosphorIcons.phone(PhosphorIconsStyle.regular)),
                   keyboardType: TextInputType.phone,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter your phone number';
                     }
-                    if (value.length < 10) {
+
+                    // Basic validation
+                    String digits = value.replaceAll(RegExp(r'[^\d]'), '');
+
+                    // Check length
+                    if (digits.length < 9 || digits.length > 15) {
                       return 'Please enter a valid phone number';
                     }
+
+                    // Check if it's a Kenyan number pattern
+                    if (!digits.startsWith('0') &&
+                        !digits.startsWith('7') &&
+                        !digits.startsWith('254') &&
+                        !value.startsWith('+')) {
+                      return 'Please enter a valid Kenyan phone number';
+                    }
+
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Gender
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,8 +361,8 @@ class _SignupScreenState extends State<SignupScreen> {
                           horizontal: 20,
                           vertical: 16,
                         ),
-                        prefixIcon: Icon(
-                          PhosphorIcons.genderIntersex(),
+                        prefixIcon: PhosphorIcon(
+                          PhosphorIcons.genderIntersex(PhosphorIconsStyle.regular),
                           size: 20,
                           color: AppConstants.secondaryGray,
                         ),
@@ -245,15 +387,15 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                
-                // Date of Birth
+
+                // Date of Birth (Optional)
                 GestureDetector(
                   onTap: () => _selectDate(context),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Date of Birth',
+                        'Date of Birth (Optional)',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           color: AppConstants.secondaryGray,
                           fontWeight: FontWeight.w500,
@@ -270,8 +412,8 @@ class _SignupScreenState extends State<SignupScreen> {
                         ),
                         child: Row(
                           children: [
-                            Icon(
-                              PhosphorIcons.calendar(),
+                            PhosphorIcon(
+                              PhosphorIcons.calendar(PhosphorIconsStyle.regular),
                               size: 20,
                               color: AppConstants.secondaryGray,
                             ),
@@ -280,14 +422,25 @@ class _SignupScreenState extends State<SignupScreen> {
                               child: Text(
                                 _selectedDate != null
                                     ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                                    : 'Select your date of birth',
+                                    : 'Select your date of birth (optional)',
                                 style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                  color: _selectedDate != null 
-                                      ? AppConstants.primaryBlack 
+                                  color: _selectedDate != null
+                                      ? AppConstants.primaryBlack
                                       : AppConstants.lightGray,
                                 ),
                               ),
                             ),
+                            if (_selectedDate != null)
+                              IconButton(
+                                onPressed: () {
+                                  setState(() => _selectedDate = null);
+                                },
+                                icon: PhosphorIcon(
+                                  PhosphorIcons.x(PhosphorIconsStyle.regular),
+                                  size: 16,
+                                  color: AppConstants.secondaryGray,
+                                ),
+                              ),
                           ],
                         ),
                       ),
@@ -295,20 +448,20 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Password
                 AuthInputField(
                   controller: _passwordController,
                   label: 'Password',
                   hintText: '••••••••',
-                  prefixIcon: PhosphorIcons.lock(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)),
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(() => _obscurePassword = !_obscurePassword);
                     },
-                    icon: Icon(
-                      _obscurePassword ? PhosphorIcons.eye() : PhosphorIcons.eyeSlash(),
+                    icon: PhosphorIcon(
+                      _obscurePassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular),
                       size: 20,
                     ),
                   ),
@@ -316,27 +469,27 @@ class _SignupScreenState extends State<SignupScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter a password';
                     }
-                    if (value.length < 8) {
-                      return 'Password must be at least 8 characters';
+                    if (value.length < 6) {
+                      return 'Password must be at least 6 characters';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
-                
+
                 // Confirm Password
                 AuthInputField(
                   controller: _confirmPasswordController,
                   label: 'Confirm Password',
                   hintText: '••••••••',
-                  prefixIcon: PhosphorIcons.lock(),
+                  prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)),
                   obscureText: _obscureConfirmPassword,
                   suffixIcon: IconButton(
                     onPressed: () {
                       setState(() => _obscureConfirmPassword = !_obscureConfirmPassword);
                     },
-                    icon: Icon(
-                      _obscureConfirmPassword ? PhosphorIcons.eye() : PhosphorIcons.eyeSlash(),
+                    icon: PhosphorIcon(
+                      _obscureConfirmPassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular),
                       size: 20,
                     ),
                   ),
@@ -350,45 +503,122 @@ class _SignupScreenState extends State<SignupScreen> {
                     return null;
                   },
                 ),
-                const SizedBox(height: 32),
-                
+                const SizedBox(height: 24),
+
                 // Terms and Conditions
-                Row(
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Checkbox(
-                      value: true,
-                      onChanged: (value) {},
-                      activeColor: AppConstants.primaryRed,
-                    ),
-                    Expanded(
-                      child: Text.rich(
-                        TextSpan(
-                          text: 'I agree to the ',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                          children: [
-                            TextSpan(
-                              text: 'Terms & Conditions',
-                              style: TextStyle(
-                                color: AppConstants.primaryRed,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const TextSpan(text: ' and '),
-                            TextSpan(
-                              text: 'Privacy Policy',
-                              style: TextStyle(
-                                color: AppConstants.primaryRed,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _termsAccepted,
+                          onChanged: (value) {
+                            setState(() => _termsAccepted = value ?? false);
+                          },
+                          activeColor: AppConstants.primaryRed,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
                         ),
-                      ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              // Show terms dialog
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Terms & Conditions'),
+                                  content: const SingleChildScrollView(
+                                    child: Text(
+                                      'Please read and accept our Terms & Conditions to continue.',
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'I agree to the ',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                children: [
+                                  TextSpan(
+                                    text: 'Terms & Conditions',
+                                    style: TextStyle(
+                                      color: AppConstants.primaryRed,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _privacyAccepted,
+                          onChanged: (value) {
+                            setState(() => _privacyAccepted = value ?? false);
+                          },
+                          activeColor: AppConstants.primaryRed,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              // Show privacy policy dialog
+                              showDialog(
+                                context: context,
+                                builder: (context) => AlertDialog(
+                                  title: const Text('Privacy Policy'),
+                                  content: const SingleChildScrollView(
+                                    child: Text(
+                                      'Please read and accept our Privacy Policy to continue.',
+                                    ),
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      child: const Text('Close'),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                            child: Text.rich(
+                              TextSpan(
+                                text: 'I agree to the ',
+                                style: Theme.of(context).textTheme.bodyMedium,
+                                children: [
+                                  TextSpan(
+                                    text: 'Privacy Policy',
+                                    style: TextStyle(
+                                      color: AppConstants.primaryRed,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
                 const SizedBox(height: 32),
-                
+
                 // Signup button
                 SizedBox(
                   width: double.infinity,
@@ -406,25 +636,25 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                     child: _isLoading
                         ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
-                            ),
-                          )
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
                         : const Text('Create Account'),
                   ),
                 ),
                 const SizedBox(height: 24),
-                
+
                 // Login link
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        AppStrings.hasAccount,
+                        'Already have an account? ',
                         style: Theme.of(context).textTheme.bodyMedium,
                       ),
                       TextButton(
