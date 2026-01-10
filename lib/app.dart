@@ -22,6 +22,8 @@ import 'package:kanairoxo/models/message_model.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:flutter/material.dart' show Badge;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kanairoxo/services/auth_service.dart';
 
 void main() {
   runApp(const KanairoXOApp());
@@ -59,7 +61,10 @@ class KanairoXOApp extends StatelessWidget {
       routes: {
         '/': (context) => const AppWrapper(),
         '/onboarding': (context) => OnboardingScreen(
-          onComplete: () {
+          onComplete: () async {
+            // Persist onboarding completion
+            final storage = const FlutterSecureStorage();
+            await storage.write(key: 'onboarding_complete', value: 'true');
             Navigator.pushReplacementNamed(context, '/main');
           },
         ),
@@ -143,17 +148,25 @@ class _AppWrapperState extends State<AppWrapper> {
   }
 
   Future<void> _checkAuthState() async {
-    // Simulate network check
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 2)); // Keep splash screen for a bit
+    final authService = AuthService();
+    final storage = const FlutterSecureStorage();
 
-    // TODO: Replace with actual auth check
-    final isLoggedIn = false; // Change based on actual auth state
-    final hasCompletedOnboarding = false; // Check from shared preferences
+    final isLoggedIn = await authService.isLoggedIn();
+    final hasCompletedOnboarding = await storage.read(key: 'onboarding_complete') == 'true';
 
     setState(() {
       _isLoading = false;
       _isLoggedIn = isLoggedIn;
       _hasCompletedOnboarding = hasCompletedOnboarding;
+    });
+  }
+
+  Future<void> _completeOnboarding() async {
+    final storage = const FlutterSecureStorage();
+    await storage.write(key: 'onboarding_complete', value: 'true');
+    setState(() {
+      _hasCompletedOnboarding = true;
     });
   }
 
@@ -188,11 +201,7 @@ class _AppWrapperState extends State<AppWrapper> {
     }
     if (!_hasCompletedOnboarding) {
       return OnboardingScreen(
-        onComplete: () {
-          setState(() {
-            _hasCompletedOnboarding = true;
-          });
-        },
+        onComplete: _completeOnboarding,
       );
     }
     return const MainAppScreen();
