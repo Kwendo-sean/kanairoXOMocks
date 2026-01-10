@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiClient {
+  final _storage = const FlutterSecureStorage();
   // The baseUrl for your API.
   //
   // IMPORTANT: It looks like you're running on a physical device. You need to use your
@@ -15,8 +16,8 @@ class ApiClient {
   // - macOS/Linux: run `ifconfig` or `ip addr` in the terminal.
   //
   // Then, replace '10.0.2.2' with your computer's IP address.
-  // Example: static const String baseUrl = 'http://192.168.1.10:8000/api/v1';
-  static const String baseUrl = 'http://192.168.100.83:8000/api/v1'; // Corrected from 10.0.0.2. Replace with your computer's IP for physical device.
+  // Example: static const String baseUrl = 'https://192.168.1.10:8000/api/v1';
+  static const String baseUrl = 'https://192.168.100.83:8000/api/v1'; // Corrected from 10.0.0.2. Replace with your computer's IP for physical device.
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -49,25 +50,21 @@ class ApiClient {
   }
 
   Future<String?> getAccessToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('access_token');
+    return await _storage.read(key: 'access_token');
   }
 
   Future<String?> getRefreshToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('refresh_token');
+    return await _storage.read(key: 'refresh_token');
   }
 
   Future<void> saveTokens(String access, String refresh) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token', access);
-    await prefs.setString('refresh_token', refresh);
+    await _storage.write(key: 'access_token', value: access);
+    await _storage.write(key: 'refresh_token', value: refresh);
   }
 
   Future<void> clearTokens() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('access_token');
-    await prefs.remove('refresh_token');
+    await _storage.delete(key: 'access_token');
+    await _storage.delete(key: 'refresh_token');
   }
 
   Future<Map<String, dynamic>> _handleResponse(http.Response response) async {
