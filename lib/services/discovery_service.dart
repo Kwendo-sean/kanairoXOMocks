@@ -6,7 +6,7 @@ import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class DiscoveryService {
-  static const String _baseUrl = 'http://192.168.100.83:8000/api/v1/discovery';
+  static const String _baseUrl = 'http://192.168.100.6:8000/api/v1/discovery';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();

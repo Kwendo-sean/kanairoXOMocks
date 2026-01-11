@@ -1,124 +1,113 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kanairoxo/screens/auth/splash_screen.dart';
+import 'package:kanairoxo/providers/profile_provider.dart';
+import 'package:kanairoxo/providers/events_provider.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/auth/signup_screen.dart';
-import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
+import 'package:kanairoxo/screens/auth/splash_screen.dart';
 import 'package:kanairoxo/screens/discovery_screen.dart';
-import 'package:kanairoxo/screens/events_screen.dart';
-import 'package:kanairoxo/screens/mood_screen.dart';
-import 'package:kanairoxo/screens/messages/messages_screen.dart';
-import 'package:kanairoxo/screens/notification_screen.dart';
+import 'package:kanairoxo/screens/events/event_memories_screen.dart';
+import 'package:kanairoxo/screens/events/events_screen.dart';
 import 'package:kanairoxo/screens/messages/chat_screen.dart';
-import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
-import 'package:kanairoxo/screens/profile/settings_screen.dart';
-import 'package:kanairoxo/screens/post_story_screen.dart';
+import 'package:kanairoxo/screens/mood_screen.dart';
+import 'package:kanairoxo/screens/notification_screen.dart';
+import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
 import 'package:kanairoxo/screens/payment/payment_screen.dart';
-
-import 'package:kanairoxo/screens/event_memories_screen.dart';
+import 'package:kanairoxo/screens/post_story_screen.dart';
+import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
+import 'package:kanairoxo/screens/profile/profile_screen.dart';
+import 'package:kanairoxo/screens/profile/settings_screen.dart';
 import 'package:kanairoxo/models/data_models.dart';
-import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/models/message_model.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:flutter/material.dart' show Badge;
-
-void main() {
-  runApp(const KanairoXOApp());
-}
+import 'package:provider/provider.dart';
 
 class KanairoXOApp extends StatelessWidget {
   const KanairoXOApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: AppConstants.appName,
-      theme: ThemeData(
-        useMaterial3: true,
-        brightness: Brightness.light,
-        scaffoldBackgroundColor: AppConstants.primaryBeige,
-        colorScheme: const ColorScheme.light(
-          primary: AppConstants.primaryRed,
-          onPrimary: Colors.white,
-          surface: Colors.white,
-          onSurface: AppConstants.primaryBlack,
-          secondary: AppConstants.secondaryGray,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ProfileProvider()),
+        ChangeNotifierProvider(create: (context) => EventsProvider()),
+        // Add other providers here as needed
+      ],
+      child: MaterialApp(
+        title: AppConstants.appName,
+        theme: ThemeData(
+          useMaterial3: true,
+          brightness: Brightness.light,
+          scaffoldBackgroundColor: AppConstants.primaryBeige,
+          colorScheme: const ColorScheme.light(
+            primary: AppConstants.primaryRed,
+            onPrimary: Colors.white,
+            surface: Colors.white,
+            onSurface: AppConstants.primaryBlack,
+            secondary: AppConstants.secondaryGray,
+          ),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            centerTitle: true,
+          ),
+          textTheme: GoogleFonts.nunitoTextTheme(
+            Theme.of(context).textTheme,
+          ),
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          centerTitle: true,
-        ),
-        textTheme: GoogleFonts.nunitoTextTheme(
-          Theme.of(context).textTheme,
-        ),
+        debugShowCheckedModeBanner: false,
+        home: const AppWrapper(),
+        routes: {
+          '/onboarding': (context) => OnboardingScreen(
+                onComplete: () {
+                  Navigator.pushReplacementNamed(context, '/main');
+                },
+              ),
+          '/login': (context) => LoginScreen(
+                onLoginSuccess: () {
+                  Navigator.pushReplacementNamed(context, '/main');
+                },
+                onSignupTap: () {
+                  Navigator.pushNamed(context, '/signup');
+                },
+              ),
+          '/signup': (context) => SignupScreen(
+                onSignupSuccess: () {
+                  Navigator.pushReplacementNamed(context, '/onboarding');
+                },
+                onLoginTap: () {
+                  Navigator.pushNamed(context, '/login');
+                },
+              ),
+          '/main': (context) => const MainAppScreen(),
+          '/chat': (context) => ChatScreen(
+                chat: Chat(
+                  id: '1',
+                  userId: 'user1',
+                  userName: 'Sofia',
+                  userImage: 'assets/images/kanairoxo_logo.png',
+                  lastMessage: 'Looking forward to seeing you!',
+                  lastMessageTime: DateTime.now(),
+                  unreadCount: 2,
+                  isOnline: true,
+                ),
+              ),
+          '/notifications': (context) => const NotificationScreen(),
+          '/profile-edit': (context) => const ProfileEditorScreen(),
+          '/settings': (context) => const SettingsScreen(),
+          '/post-story': (context) => const PostStoryScreen(),
+          '/event-memories': (context) => EventMemoriesScreen(
+                eventId: '1',
+                eventName: 'Morning Coffee & Conversation',
+              ),
+          '/payment': (context) => PaymentScreen(
+                amount: 1500.00,
+                eventName: 'Gallery Opening: New Perspectives',
+                eventDate: 'Mon, Jan 6 • 6:30 PM',
+              ),
+        },
       ),
-      debugShowCheckedModeBanner: false,
-      initialRoute: '/',
-      routes: {
-        '/': (context) => const AppWrapper(),
-        '/onboarding': (context) => OnboardingScreen(
-          onComplete: () {
-            Navigator.pushReplacementNamed(context, '/main');
-          },
-        ),
-        '/login': (context) => LoginScreen(
-              onLoginSuccess: () {
-                Navigator.pushReplacementNamed(context, '/main');
-              },
-              onSignupTap: () {
-                Navigator.pushNamed(context, '/signup');
-              },
-            ),
-        '/signup': (context) => SignupScreen(
-              onSignupSuccess: () {
-                Navigator.pushReplacementNamed(context, '/main');
-              },
-              onLoginTap: () {
-                Navigator.pushNamed(context, '/login');
-              },
-            ),
-        '/main': (context) => const MainAppScreen(),
-        '/chat': (context) => ChatScreen(
-              chat: Chat(
-                id: '1',
-                userId: 'user1',
-                userName: 'Sofia',
-                userImage: 'assets/images/kanairoxo_logo.png',
-                lastMessage: 'Looking forward to seeing you!',
-                lastMessageTime: DateTime.now(),
-                unreadCount: 2,
-                isOnline: true,
-              ),
-            ),
-        '/notifications': (context) => const NotificationScreen(),
-        '/profile-edit': (context) => ProfileEditorScreen(
-              user: User(
-                id: 'current_user',
-                email: 'user@example.com',
-                firstName: 'John',
-                lastName: 'Doe',
-                phoneNumber: '0712345678',
-                gender: 'Male',
-                createdAt: DateTime.now(),
-                profileImageUrl: 'assets/images/kanairoxo_logo.png',
-                interests: ['Coffee', 'Art', 'Travel'],
-                location: 'Nairobi, Kenya',
-              ),
-            ),
-        '/settings': (context) => const SettingsScreen(),
-        '/post-story': (context) => const PostStoryScreen(),
-        '/event-memories': (context) => EventMemoriesScreen(
-              eventId: '1',
-              eventName: 'Morning Coffee & Conversation',
-            ),
-        '/payment': (context) => PaymentScreen(
-              amount: 1500.00,
-              eventName: 'Gallery Opening: New Perspectives',
-              eventDate: 'Mon, Jan 6 • 6:30 PM',
-            ),
-      },
     );
   }
 }
@@ -143,18 +132,20 @@ class _AppWrapperState extends State<AppWrapper> {
   }
 
   Future<void> _checkAuthState() async {
-    // Simulate network check
+    // Simulate network check for 2 seconds
     await Future.delayed(const Duration(seconds: 2));
 
-    // TODO: Replace with actual auth check
-    final isLoggedIn = false; // Change based on actual auth state
-    final hasCompletedOnboarding = false; // Check from shared preferences
+    // TODO: Replace with actual auth state check
+    const isLoggedIn = false;
+    const hasCompletedOnboarding = false;
 
-    setState(() {
-      _isLoading = false;
-      _isLoggedIn = isLoggedIn;
-      _hasCompletedOnboarding = hasCompletedOnboarding;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+        _isLoggedIn = isLoggedIn;
+        _hasCompletedOnboarding = hasCompletedOnboarding;
+      });
+    }
   }
 
   @override
@@ -162,39 +153,48 @@ class _AppWrapperState extends State<AppWrapper> {
     if (!_splashComplete) {
       return SplashScreen(
         onComplete: () {
-          setState(() {
-            _splashComplete = true;
-          });
+          if (mounted) {
+            setState(() {
+              _splashComplete = true;
+            });
+          }
         },
       );
     }
+
     if (_isLoading) {
-      // Optionally show a loading indicator
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
+
     if (!_isLoggedIn) {
       return LoginScreen(
         onLoginSuccess: () {
-          setState(() {
-            _isLoggedIn = true;
-          });
+          if (mounted) {
+            setState(() {
+              _isLoggedIn = true;
+            });
+          }
         },
         onSignupTap: () {
           Navigator.pushNamed(context, '/signup');
         },
       );
     }
+
     if (!_hasCompletedOnboarding) {
       return OnboardingScreen(
         onComplete: () {
-          setState(() {
-            _hasCompletedOnboarding = true;
-          });
+          if (mounted) {
+            setState(() {
+              _hasCompletedOnboarding = true;
+            });
+          }
         },
       );
     }
+
     return const MainAppScreen();
   }
 }
@@ -208,95 +208,48 @@ class MainAppScreen extends StatefulWidget {
 
 class _MainAppScreenState extends State<MainAppScreen> {
   int _currentIndex = 0;
-  final PageController _pageController = PageController();
-  bool _showMessagesDrawer = false;
+  late PageController _pageController;
 
-  List<Widget> _buildScreens(BuildContext context) {
-    return [
-      const DiscoveryScreen(),
-      EventsScreen(
-        onJoinExperience: _handleJoinExperience,
-        onExperienceSelected: (experience) {
-          // Handle experience selection
-        },
-      ),
-      MoodScreen(
-        onMoodSelected: (mood) {
-          // Handle mood selection
-        },
-        onContinue: () {
-          // Handle continue
-        },
-      ),
-      Container(
-        color: AppConstants.primaryBeige,
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const CircleAvatar(
-                radius: 60,
-                backgroundImage: AssetImage(
-                    'assets/images/kanairoxo_logo.png'),
-              ),
-              const SizedBox(height: 20),
-              const Text(
-                'Your Profile',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.w600,
-                  color: AppConstants.primaryBlack,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Tap to view and edit your profile',
-                style: TextStyle(
-                  color: AppConstants.secondaryGray,
-                ),
-              ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  // Navigate to profile editor
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConstants.primaryRed,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                ),
-                child: const Text('Edit Profile'),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ];
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
+
+    // Load initial data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadInitialData();
+    });
   }
+
+  void _loadInitialData() {
+    // Load profile data
+    final profileProvider = context.read<ProfileProvider>();
+    profileProvider.loadMyProfile();
+
+    // Load events data
+    final eventsProvider = context.read<EventsProvider>();
+    eventsProvider.fetchExperiences();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  final List<Widget> _screens = [
+    const DiscoveryScreen(),
+    const EventsScreenWrapper(),
+    MoodScreen(
+      onMoodSelected: (mood) {},
+      onContinue: () {},
+    ),
+    const ProfileScreen(), // This will show current user's profile
+  ];
 
   void _onItemTapped(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
     _pageController.jumpToPage(index);
   }
-
-  void _openMessages() {
-    setState(() => _showMessagesDrawer = true);
-  }
-
-  void _closeMessages() {
-    setState(() => _showMessagesDrawer = false);
-  }
-
-  void _navigateToPayment() {
-    Navigator.pushNamed(context, '/payment');
-  }
-
-
 
   void _navigateToSettings() {
     Navigator.pushNamed(context, '/settings');
@@ -306,207 +259,28 @@ class _MainAppScreenState extends State<MainAppScreen> {
     Navigator.pushNamed(context, '/post-story');
   }
 
-
-
-  void _handleJoinExperience(Experience experience) {
-    showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Join Experience'),
-          content: Text('Join "${experience.title}"?'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                _navigateToPayment();
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppConstants.primaryRed,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('Join & Pay'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
-      body: Stack(
-        children: [
-          // Main content
-          PageView(
-            controller: _pageController,
-            physics: const NeverScrollableScrollPhysics(),
-            onPageChanged: (index) {
-              setState(() => _currentIndex = index);
-            },
-            children: _buildScreens(context),
-          ),
-
-          // Messages drawer overlay
-          Positioned.fill(
-            child: GestureDetector(
-              onHorizontalDragUpdate: (details) {
-                if (details.delta.dx > 20 && !_showMessagesDrawer) {
-                  _openMessages();
-                }
-                if (details.delta.dx < -20 && _showMessagesDrawer) {
-                  _closeMessages();
-                }
-              },
-              child: Container(color: Colors.transparent),
-            ),
-          ),
-
-          // Messages screen overlay (drawer)
-          AnimatedPositioned(
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-            left: _showMessagesDrawer ? 0 : -MediaQuery.of(context).size.width,
-            top: 0,
-            bottom: 0,
-            width: MediaQuery.of(context).size.width,
-            child: Material(
-              color: Colors.white,
-              child: Column(
-                children: [
-                  // Messages header
-                  Container(
-                    padding: const EdgeInsets.fromLTRB(16, 56, 16, 16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      border: Border(
-                        bottom: BorderSide(color: AppConstants.lightGray),
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        IconButton(
-                          onPressed: _closeMessages,
-                          icon:  PhosphorIcon(PhosphorIcons.x(PhosphorIconsStyle.regular)),
-                          color: AppConstants.primaryBlack,
-                        ),
-                        const SizedBox(width: 12),
-                        const Text(
-                          'Messages',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const Spacer(),
-                        IconButton(
-                          onPressed: () {
-                            // New message
-                          },
-                          icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
-                          color: AppConstants.primaryBlack,
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Messages content
-                  const Expanded(
-                    child: MessagesScreen(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Messages toggle button (top left)
-          if (!_showMessagesDrawer)
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 16, top: 8),
-                child: IconButton(
-                  onPressed: _openMessages,
-                  icon: Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.1),
-                          blurRadius: 8,
-                        ),
-                      ],
-                    ),
-                    child: Badge(
-                      backgroundColor: AppConstants.primaryRed,
-                      label: const Text('3'),
-                      child: Container(
-                        padding: const EdgeInsets.all(4),
-                        child: PhosphorIcon(
-                          PhosphorIcons.chats(PhosphorIconsStyle.regular),
-                          color: AppConstants.primaryBlack,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-          // Notification toggle button (top right)
-          if (!_showMessagesDrawer)
-            SafeArea(
-              child: Align(
-                alignment: Alignment.topRight,
-                child: Padding(
-                  padding: const EdgeInsets.only(right: 16, top: 8),
-                  child: IconButton(
-                    onPressed: () {
-                      Navigator.pushNamed(context, '/notifications');
-                    },
-                    icon: Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.1),
-                            blurRadius: 8,
-                          ),
-                        ],
-                      ),
-                      child: Badge(
-                        backgroundColor: AppConstants.primaryRed,
-                        label: const Text('12'),
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          child: PhosphorIcon(
-                            PhosphorIcons.bell(PhosphorIconsStyle.regular),
-                            color: AppConstants.primaryBlack,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
+      body: PageView(
+        controller: _pageController,
+        physics: const NeverScrollableScrollPhysics(),
+        onPageChanged: (index) {
+          if (mounted) {
+            setState(() {
+              _currentIndex = index;
+            });
+          }
+        },
+        children: _screens,
       ),
-      floatingActionButton: _currentIndex == 3 // Profile screen
+      floatingActionButton: _currentIndex == 3
           ? FloatingActionButton.extended(
               onPressed: _navigateToPostStory,
               backgroundColor: AppConstants.primaryRed,
               foregroundColor: Colors.white,
-              icon:  PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
+              icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
               label: const Text('New Story'),
             )
           : null,
@@ -576,60 +350,30 @@ class _MainAppScreenState extends State<MainAppScreen> {
   }
 }
 
-// Updated Events Screen wrapper to include payment navigation
 class EventsScreenWrapper extends StatelessWidget {
   const EventsScreenWrapper({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return EventsScreen(
-      onJoinExperience: (experience) {
-        Navigator.pushNamed(
-          context,
-          '/payment',
-          arguments: {
-            'amount': experience.price ?? 1500.00,
-            'eventName': experience.title,
-            'eventDate': experience.dateFormatted,
+    return Consumer<EventsProvider>(
+      builder: (context, eventsProvider, child) {
+        return EventsScreen(
+          onJoinExperience: (experience) {
+            Navigator.pushNamed(
+              context,
+              '/payment',
+              arguments: {
+                'amount': experience.priceDisplay,
+                'eventName': experience.title,
+                'eventDate': experience.formattedDate,
+              },
+            );
+          },
+          onExperienceSelected: (experience) {
+            // Handle experience selection
           },
         );
       },
-      onExperienceSelected: (experience) {
-        // Handle experience selection
-      },
     );
-  }
-}
-
-// Updated Mood Screen wrapper
-class MoodScreenWrapper extends StatelessWidget {
-  const MoodScreenWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return MoodScreen(
-      onMoodSelected: (mood) {
-        // Handle mood selection
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Mood set to ${mood.name}. Refreshing your feed...'),
-            backgroundColor: AppConstants.primaryRed,
-          ),
-        );
-      },
-      onContinue: () {
-        // Handle continue
-      },
-    );
-  }
-}
-
-// Updated Discovery Screen wrapper
-class DiscoveryScreenWrapper extends StatelessWidget {
-  const DiscoveryScreenWrapper({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const DiscoveryScreen();
   }
 }

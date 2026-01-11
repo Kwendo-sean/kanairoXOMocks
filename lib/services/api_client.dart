@@ -16,7 +16,7 @@ class ApiClient {
   //
   // Then, replace '10.0.2.2' with your computer's IP address.
   // Example: static const String baseUrl = 'http://192.168.1.10:8000/api/v1';
-  static const String baseUrl = 'http://192.168.100.83:8000/api/v1'; // Corrected from 10.0.0.2. Replace with your computer's IP for physical device.
+  static const String baseUrl = 'http://192.168.100.6:8000/api/v1'; // Corrected from 10.0.0.2. Replace with your computer's IP for physical device.
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;

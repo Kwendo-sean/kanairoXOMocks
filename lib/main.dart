@@ -1,5 +1,6 @@
+// lib/main.dart
 import 'package:flutter/material.dart';
-import 'app.dart'; // Make sure this file exists and exports the App widget
+import 'app.dart'; // Your main app file
 
 void main() {
   runApp(const MyApp());
@@ -13,7 +14,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'KanairoXO',
       debugShowCheckedModeBanner: false,
-      home: KanairoXOApp(),
+      home: const KanairoXOApp(),
     );
   }
 }

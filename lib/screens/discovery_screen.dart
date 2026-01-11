@@ -11,38 +11,44 @@ class DiscoveryScreen extends StatefulWidget {
   State<DiscoveryScreen> createState() => _DiscoveryScreenState();
 }
 
-class _DiscoveryScreenState extends State<DiscoveryScreen> {
+class _DiscoveryScreenState extends State<DiscoveryScreen>
+    with SingleTickerProviderStateMixin {
   final DiscoveryService _discoveryService = DiscoveryService();
   final PageController _pageController = PageController();
+
+  late AnimationController _animationController;
+  late Animation<Offset> _slideAnimation;
 
   DiscoverySession? _currentSession;
   List<DiscoveryItem> _discoveries = [];
   int _currentIndex = 0;
   bool _isLoading = true;
   String? _error;
-  BatchInfo? _batchInfo;
-
-  // Stats
-  int _remainingToday = 50;
-  int _connectionsMade = 0;
-  double _averageScore = 0.0;
-
-  // For swipe gestures
-  double _dragStartX = 0.0;
-  bool _showLeftIcon = false;
-  bool _showRightIcon = false;
-  double _iconOpacity = 0.0;
+  bool _isProcessingAction = false;
 
   @override
   void initState() {
     super.initState();
+    _animationController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: Offset.zero,
+      end: const Offset(-1.5, 0.0), // Swoosh to the left
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+
     _initializeDiscovery();
-    _loadStats();
   }
 
   @override
   void dispose() {
     _pageController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
@@ -72,10 +78,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
                 _currentSession = activeSessions.first;
               });
             } else {
-              throw Exception('Could not start or find a discovery session. Please try again.');
+              throw Exception('Could not start or find a discovery session.');
             }
           } catch (e2) {
-            throw Exception('Failed to start discovery: ${e2.toString()}');
+            print('Error getting existing sessions: $e2');
+            rethrow;
           }
         }
       }
@@ -88,10 +95,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
             batchSize: 10,
           );
 
+          print('Received ${batch.discoveries.length} discoveries');
+
           setState(() {
             _discoveries = batch.discoveries;
-            _batchInfo = batch.batchInfo;
-            _remainingToday = _batchInfo?.remainingToday ?? 50;
             _currentIndex = 0;
             _isLoading = false;
           });
@@ -104,36 +111,30 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         } catch (e) {
           print('Error getting batch: $e');
           setState(() {
-            _error = 'Failed to load discoveries: ${e.toString()}';
+            _error = 'Failed to load discoveries. Please try again.';
             _isLoading = false;
           });
         }
       }
     } catch (e) {
+      print('Unexpected error: $e');
       setState(() {
-        _error = e.toString();
+        _error = 'Something went wrong. Please try again.';
         _isLoading = false;
       });
     }
   }
 
-  Future<void> _loadStats() async {
-    try {
-      final stats = await _discoveryService.getStats(days: 7);
-      setState(() {
-        _connectionsMade = stats['connections_made'] ?? 0;
-        _averageScore = (stats['average_score'] ?? 0).toDouble();
-      });
-    } catch (e) {
-      // Silently fail, stats are not critical
-      print('Error loading stats: $e');
-    }
-  }
-
   Future<void> _handleConnect() async {
-    if (_currentIndex >= _discoveries.length) return;
+    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
 
     final currentItem = _discoveries[_currentIndex];
+    final profile = _getCurrentProfile();
+    final profileName = profile?.displayName ?? 'user';
 
     try {
       await _discoveryService.recordUserAction(
@@ -143,40 +144,63 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         context: {'action_source': 'discovery_screen'},
       );
 
-      // Move to next profile
-      _moveToNextProfile();
-
-      // Update stats
-      setState(() {
-        _connectionsMade++;
-      });
-
       // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Connected with ${_getCurrentProfile()?.displayName ?? 'user'}!',
+              'Connected with $profileName! 🎉',
+              style: const TextStyle(fontSize: 16),
             ),
             backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
 
+      // Move to next profile after a short delay
+      await Future.delayed(const Duration(milliseconds: 800));
+      _moveToNextProfile();
+
     } catch (e) {
+      print('Error connecting: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to connect: ${e.toString()}'),
+            content: Text(
+              'Failed to connect. Please try again.',
+              style: const TextStyle(fontSize: 16),
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+        });
       }
     }
   }
 
   Future<void> _handleNotNow() async {
-    if (_currentIndex >= _discoveries.length) return;
+    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    await _animationController.forward();
 
     final currentItem = _discoveries[_currentIndex];
 
@@ -186,19 +210,35 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         'pass',
       );
 
-      // Move to next profile
+      // Move to next profile immediately
       _moveToNextProfile();
 
     } catch (e) {
-      // Silently handle error for pass action
       print('Error passing: $e');
+      // Silently handle error, still move to next profile
+      _moveToNextProfile();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _animationController.reset();
+        });
+      }
     }
   }
 
   Future<void> _handleSave() async {
-    if (_currentIndex >= _discoveries.length) return;
+    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
+
+    setState(() {
+      _isProcessingAction = true;
+    });
+
+    await _animationController.forward();
 
     final currentItem = _discoveries[_currentIndex];
+    final profile = _getCurrentProfile();
+    final profileName = profile?.displayName ?? 'user';
 
     try {
       await _discoveryService.recordUserAction(
@@ -206,34 +246,63 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
         'save',
       );
 
-      // Move to next profile
-      _moveToNextProfile();
-
+      // Show success message
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Profile saved for later!'),
+          SnackBar(
+            content: Text(
+              'Saved $profileName for later! 💾',
+              style: const TextStyle(fontSize: 16),
+            ),
             backgroundColor: Colors.blue,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
       }
 
+      // Move to next profile after a short delay
+      await Future.delayed(const Duration(milliseconds: 800));
+      _moveToNextProfile();
+
     } catch (e) {
+      print('Error saving: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to save: ${e.toString()}'),
+            content: Text(
+              'Failed to save. Please try again.',
+              style: const TextStyle(fontSize: 16),
+            ),
             backgroundColor: Colors.red,
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
           ),
         );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessingAction = false;
+          _animationController.reset();
+        });
       }
     }
   }
 
   void _moveToNextProfile() {
+    if (_isProcessingAction) return;
+
     setState(() {
       _currentIndex++;
       if (_currentIndex >= _discoveries.length) {
+        // Load more if we're at the end
         _initializeDiscovery();
       } else if (_pageController.hasClients) {
         _pageController.animateToPage(
@@ -268,6 +337,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
       try {
         return DiscoveryProfile.fromJson(item.profileDetails);
       } catch (e) {
+        print('Error getting profile at index $index: $e');
         return null;
       }
     }
@@ -275,13 +345,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
   }
 
   Widget _buildLoading() {
-    return const Center(
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircularProgressIndicator(),
-          SizedBox(height: 20),
-          Text('Finding great matches for you...'),
+          CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(
+              Theme.of(context).colorScheme.primary,
+            ),
+            strokeWidth: 3,
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Finding great matches for you...',
+            style: TextStyle(
+              fontSize: 16,
+              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            ),
+          ),
         ],
       ),
     );
@@ -289,79 +370,89 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
 
   Widget _buildError() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          const Icon(
-            Icons.error_outline,
-            size: 64,
-            color: Colors.red,
-          ),
-          const SizedBox(height: 20),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Text(
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 64,
+              color: Theme.of(context).colorScheme.error,
+            ),
+            const SizedBox(height: 20),
+            Text(
               _error ?? 'An error occurred',
               textAlign: TextAlign.center,
-              style: const TextStyle(color: Colors.red),
+              style: TextStyle(
+                fontSize: 18,
+                color: Theme.of(context).colorScheme.error,
+              ),
             ),
-          ),
-          const SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: _initializeDiscovery,
-            child: const Text('Try Again'),
-          ),
-        ],
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _initializeDiscovery,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              child: const Text('Try Again', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildEmpty() {
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.people_outline,
-            size: 64,
-            color: Theme.of(context).colorScheme.secondary,
-          ),
-          const SizedBox(height: 20),
-          const Text(
-            'No more profiles to discover',
-            style: TextStyle(fontSize: 18),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Check back later for new matches',
-            style: TextStyle(
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+      child: Padding(
+        padding: const EdgeInsets.all(20.0),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.people_outline,
+              size: 80,
+              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
             ),
-          ),
-          const SizedBox(height: 30),
-          ElevatedButton(
-            onPressed: _initializeDiscovery,
-            child: const Text('Refresh Discoveries'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _navigateToMessages() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navigate to Messages'),
-        duration: Duration(seconds: 1),
-      ),
-    );
-  }
-
-  void _navigateToNotifications() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Navigate to Notifications'),
-        duration: Duration(seconds: 1),
+            const SizedBox(height: 20),
+            Text(
+              'No profiles to show right now',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 15),
+            Text(
+              "Check back later for new matches!",
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: _initializeDiscovery,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(25),
+                ),
+              ),
+              child: const Text('Refresh'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -370,160 +461,42 @@ class _DiscoveryScreenState extends State<DiscoveryScreen> {
     return PageView.builder(
       controller: _pageController,
       itemCount: _discoveries.length,
-      onPageChanged: (index) {
-        setState(() {
-          _currentIndex = index;
-        });
-      },
       itemBuilder: (context, index) {
-        if (index >= _discoveries.length) {
-          return _buildEmpty();
-        }
-
-        final currentItem = _discoveries[index];
         final profile = _getProfileAtIndex(index);
-
-        if (profile == null || profile.userId == '0') {
-          return _buildEmpty();
+        if (profile == null) {
+          return const SizedBox.shrink(); // Should not happen if itemCount is correct
         }
-
-        return GestureDetector(
-          onHorizontalDragStart: (details) {
-            _dragStartX = details.localPosition.dx;
-            setState(() {
-              _showLeftIcon = false;
-              _showRightIcon = false;
-              _iconOpacity = 0.0;
-            });
-          },
-          onHorizontalDragUpdate: (details) {
-            final dragDistance = details.localPosition.dx - _dragStartX;
-
-            if (dragDistance < -50) {
-              setState(() {
-                _showLeftIcon = true;
-                _showRightIcon = false;
-                _iconOpacity = (-dragDistance - 50) / 100;
-              });
-            } else if (dragDistance > 50) {
-              setState(() {
-                _showLeftIcon = false;
-                _showRightIcon = true;
-                _iconOpacity = (dragDistance - 50) / 100;
-              });
-            } else {
-              setState(() {
-                _iconOpacity = 0.0;
-              });
-            }
-          },
-          onHorizontalDragEnd: (details) {
-            final dragDistance = details.primaryVelocity ?? 0;
-
-            if (dragDistance < -500) {
-              _navigateToMessages();
-            } else if (dragDistance > 500) {
-              _navigateToNotifications();
-            }
-
-            Future.delayed(const Duration(milliseconds: 300), () {
-              if (mounted) {
-                setState(() {
-                  _showLeftIcon = false;
-                  _showRightIcon = false;
-                  _iconOpacity = 0.0;
-                });
-              }
-            });
-          },
-          child: Stack(
-            children: [
-              ProfileCard(
-                profile: profile,
-                compatibilityScore: currentItem.overallScore,
-                compatibilityText: currentItem.compatibilityText,
-                explanation: currentItem.explanation,
-                onConnect: _handleConnect,
-                onNotNow: _handleNotNow,
-                onSave: _handleSave,
-              ),
-
-              if (_showLeftIcon && index == _currentIndex)
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Opacity(
-                      opacity: _iconOpacity.clamp(0.0, 1.0),
-                      child: Container(
-                        margin: const EdgeInsets.only(left: 30),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.blue.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.message, color: Colors.white, size: 40),
-                      ),
-                    ),
-                  ),
-                ),
-
-              if (_showRightIcon && index == _currentIndex)
-                Positioned.fill(
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Opacity(
-                      opacity: _iconOpacity.clamp(0.0, 1.0),
-                      child: Container(
-                        margin: const EdgeInsets.only(right: 30),
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.withOpacity(0.9),
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.notifications, color: Colors.white, size: 40),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+        return SlideTransition(
+          position: _slideAnimation,
+          child: ProfileCard(
+            profile: profile,
+            compatibilityScore: _discoveries[index].overallScore,
+            compatibilityText: _discoveries[index].compatibilityText,
+            explanation: _discoveries[index].explanation,
+            onConnect: _handleConnect,
+            onNotNow: _handleNotNow,
+            onSave: _handleSave,
+            isProcessing: _isProcessingAction,
           ),
         );
       },
     );
   }
-  
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'Discover',
-          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-        ),
+        title: const Text('Discover'),
         centerTitle: true,
-        elevation: 0,
-        backgroundColor: Colors.transparent,
-        foregroundColor: Theme.of(context).colorScheme.onSurface,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _isLoading ? null : _initializeDiscovery,
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
-      body: Stack(
-        children: [
-          _isLoading
-              ? _buildLoading()
-              : _error != null
-              ? _buildError()
-              : _discoveries.isEmpty
-              ? _buildEmpty()
-              : _buildPageView(),
-        ],
-      ),
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: _isLoading
+          ? _buildLoading()
+          : _error != null
+          ? _buildError()
+          : _discoveries.isEmpty
+          ? _buildEmpty()
+          : _buildPageView(),
     );
   }
 }

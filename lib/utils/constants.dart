@@ -10,7 +10,8 @@ class AppConstants {
   static const Color white = Color(0xFFFFFFFF);
   static const Color successGreen = Color(0xFF2E7D32);
   static const Color warningAmber = Color(0xFFF57C00);
-  
+  static const Color warningOrange = Color(0xFFFFA726);
+
   // Durations
   static const Duration splashDuration = Duration(seconds: 7);
   static const Duration messageDisappearDuration = Duration(hours: 48);
@@ -25,6 +26,10 @@ class AppConstants {
   // Animation Durations
   static const Duration pageTransitionDuration = Duration(milliseconds: 300);
   static const Duration buttonAnimationDuration = Duration(milliseconds: 200);
+
+  // Cache Keys
+  static const String eventsCacheKey = 'cached_events';
+  static const String categoriesCacheKey = 'cached_categories';
 }
 
 class AppStrings {
@@ -49,4 +54,9 @@ class AppStrings {
   static const String passwordMismatch = 'Passwords do not match';
   static const String acceptTermsError = 'You must accept terms and privacy policy';
   static const String phoneValidation = 'Please enter a valid Kenyan phone number';
+}
+
+class ApiConstants {
+  static const String baseUrl = 'http://192.168.100.6/api/v1';
+  static const int timeout = 30; // seconds
 }

@@ -1,13 +1,14 @@
+// lib/screens/profile/profile_editor_screen.dart
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:provider/provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
-import 'package:kanairoxo/widgets/auth/auth_input_field.dart';
+import 'package:kanairoxo/providers/profile_provider.dart';
+import 'package:kanairoxo/widgets/loading_indicator.dart';
 import 'package:kanairoxo/models/user_model.dart';
 
 class ProfileEditorScreen extends StatefulWidget {
-  final User user;
-
-  const ProfileEditorScreen({super.key, required this.user});
+  const ProfileEditorScreen({super.key});
 
   @override
   State<ProfileEditorScreen> createState() => _ProfileEditorScreenState();
@@ -15,119 +16,145 @@ class ProfileEditorScreen extends StatefulWidget {
 
 class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   late TextEditingController _bioController;
-  late TextEditingController _locationController;
-  late TextEditingController _interestsController;
+  late TextEditingController _headlineController;
+  late TextEditingController _interestController;
+
   final List<String> _selectedInterests = [];
-  final List<String> _availableInterests = [
-    'Coffee', 'Art', 'Music', 'Travel', 'Photography',
-    'Food', 'Wine', 'Hiking', 'Reading', 'Yoga',
-    'Meditation', 'Technology', 'Fashion', 'Sports',
-    'Movies', 'Writing', 'Dancing', 'Cooking'
-  ];
+
+  String? _selectedNeighborhood;
+  String? _selectedLifeStage;
+  String? _selectedSocialCircle;
+  String? _selectedConnectionFrequency;
+  String? _selectedVisibility;
+
+  bool _isSaving = false;
 
   @override
   void initState() {
     super.initState();
-    _bioController = TextEditingController(text: widget.user.bio);
-    _locationController = TextEditingController(text: widget.user.location);
-    _interestsController = TextEditingController();
-    _selectedInterests.addAll(widget.user.interests);
+
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final user = profileProvider.currentUser;
+
+    if (user != null) {
+      _bioController = TextEditingController(text: user.bio);
+      _headlineController = TextEditingController(text: user.headline);
+      _selectedInterests.addAll(user.interests);
+      _selectedNeighborhood = user.primaryNeighborhood;
+      _selectedLifeStage = user.lifeStage;
+      _selectedSocialCircle = user.primarySocialCircle;
+      _selectedConnectionFrequency = user.connectionFrequency;
+      _selectedVisibility = user.profileVisibility;
+    } else {
+      _bioController = TextEditingController();
+      _headlineController = TextEditingController();
+      _interestController = TextEditingController();
+    }
   }
 
   @override
   void dispose() {
     _bioController.dispose();
-    _locationController.dispose();
-    _interestsController.dispose();
+    _headlineController.dispose();
+    _interestController.dispose();
     super.dispose();
   }
 
-  void _saveProfile() {
-    // Save profile logic
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Profile updated successfully'),
-        backgroundColor: AppConstants.successGreen,
-      ),
-    );
-    Navigator.pop(context);
-  }
+  Future<void> _saveProfile() async {
+    if (_isSaving) return;
 
-  void _addInterest(String interest) {
-    if (!_selectedInterests.contains(interest)) {
-      setState(() {
-        _selectedInterests.add(interest);
-      });
-      _interestsController.clear();
-    }
-  }
-
-  void _removeInterest(String interest) {
     setState(() {
-      _selectedInterests.remove(interest);
+      _isSaving = true;
     });
+
+    try {
+      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+
+      final update = UserProfileUpdate(
+        bio: _bioController.text.isNotEmpty ? _bioController.text : null,
+        headline: _headlineController.text.isNotEmpty ? _headlineController.text : null,
+        primaryNeighborhood: _selectedNeighborhood,
+        lifeStage: _selectedLifeStage,
+        primarySocialCircle: _selectedSocialCircle,
+        interests: _selectedInterests,
+        connectionFrequency: _selectedConnectionFrequency,
+        profileVisibility: _selectedVisibility,
+      );
+
+      await profileProvider.updateProfile(update);
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Profile updated successfully'),
+          backgroundColor: AppConstants.successGreen,
+        ),
+      );
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to update profile: ${e.toString()}'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() {
+        _isSaving = false;
+      });
+    }
   }
 
-  void _showImagePicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              ListTile(
-                leading: PhosphorIcon(PhosphorIcons.camera(PhosphorIconsStyle.regular), color: AppConstants.primaryRed),
-                title: const Text('Take Photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Handle camera
-                },
-              ),
-              ListTile(
-                leading:  PhosphorIcon(PhosphorIcons.image(PhosphorIconsStyle.regular), color: AppConstants.primaryRed),
-                title: const Text('Choose from Gallery'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Handle gallery
-                },
-              ),
-              ListTile(
-                leading:  PhosphorIcon(PhosphorIcons.trash(PhosphorIconsStyle.regular), color: Colors.red),
-                title: const Text('Remove Photo'),
-                onTap: () {
-                  Navigator.pop(context);
-                  // Handle remove photo
-                },
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-            ],
+  Widget _buildDropdown({
+    required String label,
+    required String? value,
+    required List<Map<String, String>> options,
+    required Function(String?) onChanged,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w500,
           ),
-        );
-      },
+        ),
+        const SizedBox(height: 8),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
+            border: Border.all(color: Colors.grey[300]!),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: value,
+              isExpanded: true,
+              hint: Text('Select $label'),
+              items: options.map((option) {
+                return DropdownMenuItem<String>(
+                  value: option['value'],
+                  child: Text(option['label']!),
+                );
+              }).toList(),
+              onChanged: onChanged,
+            ),
+          ),
+        ),
+      ],
     );
-  }
-
-  ImageProvider _getProfileImage(String? url) {
-    if (url == null || url.isEmpty) {
-      return const AssetImage('assets/images/kanairoxo_logo.png');
-    }
-    if (url.startsWith('http')) {
-      return NetworkImage(url);
-    }
-    return AssetImage(url);
   }
 
   @override
   Widget build(BuildContext context) {
+    final profileProvider = Provider.of<ProfileProvider>(context);
+
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
       appBar: AppBar(
@@ -138,195 +165,78 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
           icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
           color: AppConstants.primaryBlack,
         ),
-        title: Text(
+        title: const Text(
           'Edit Profile',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-            fontSize: 20,
-          ),
+          style: TextStyle(color: AppConstants.primaryBlack),
         ),
-        centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: _saveProfile,
-            child: const Text(
-              'Save',
-              style: TextStyle(
-                color: AppConstants.primaryRed,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
-      body: SingleChildScrollView(
+      body: _isSaving
+          ? const Center(child: LoadingIndicator())
+          : SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Profile Image
-            GestureDetector(
-              onTap: _showImagePicker,
-              child: Stack(
-                children: [
-                  Container(
-                    width: 120,
-                    height: 120,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: AppConstants.lightGray,
-                        width: 2,
-                      ),
-                    ),
-                    child: CircleAvatar(
-                      radius: 60,
-                      backgroundImage: _getProfileImage(widget.user.profileImageUrl),
-                    ),
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    right: 0,
-                    child: Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: AppConstants.primaryRed,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white, width: 3),
-                      ),
-                      child:  PhosphorIcon(
-                        PhosphorIcons.camera(PhosphorIconsStyle.regular),
-                        color: Colors.white,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ],
+            // Headline
+            TextField(
+              controller: _headlineController,
+              decoration: const InputDecoration(
+                labelText: 'Headline',
+                hintText: 'Brief tagline about yourself',
+                border: OutlineInputBorder(),
               ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Tap to change photo',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: AppConstants.secondaryGray,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 32),
-
-            // Name and Age
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'First Name',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppConstants.secondaryGray,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.user.firstName,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Last Name',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppConstants.secondaryGray,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.user.lastName,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Email',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppConstants.secondaryGray,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              widget.user.email,
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Age',
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                color: AppConstants.secondaryGray,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${widget.user.age}',
-                              style: Theme.of(context).textTheme.titleMedium,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              maxLines: 2,
             ),
             const SizedBox(height: 20),
 
             // Bio
-            AuthInputField(
+            TextField(
               controller: _bioController,
-              label: 'Bio',
-              hintText: 'Tell people about yourself...',
-              prefixIcon: PhosphorIcon(PhosphorIcons.user(PhosphorIconsStyle.regular)),
-              keyboardType: TextInputType.multiline,
+              decoration: const InputDecoration(
+                labelText: 'Bio',
+                hintText: 'Tell us about yourself...',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 5,
             ),
             const SizedBox(height: 20),
 
-            // Location
-            AuthInputField(
-              controller: _locationController,
-              label: 'Location',
-              hintText: 'Where are you based?',
-              prefixIcon: PhosphorIcon(PhosphorIcons.mapPin(PhosphorIconsStyle.regular)),
+            // Neighborhood
+            _buildDropdown(
+              label: 'Primary Neighborhood',
+              value: _selectedNeighborhood,
+              options: profileProvider.neighborhoods,
+              onChanged: (value) {
+                setState(() {
+                  _selectedNeighborhood = value;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Life Stage
+            _buildDropdown(
+              label: 'Life Stage',
+              value: _selectedLifeStage,
+              options: profileProvider.lifeStages,
+              onChanged: (value) {
+                setState(() {
+                  _selectedLifeStage = value;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Social Circle
+            _buildDropdown(
+              label: 'Primary Social Circle',
+              value: _selectedSocialCircle,
+              options: profileProvider.socialCircles,
+              onChanged: (value) {
+                setState(() {
+                  _selectedSocialCircle = value;
+                });
+              },
             ),
             const SizedBox(height: 20),
 
@@ -337,11 +247,11 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                 Text(
                   'Interests',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: AppConstants.secondaryGray,
                     fontWeight: FontWeight.w500,
                   ),
                 ),
                 const SizedBox(height: 8),
+
                 // Selected interests
                 Wrap(
                   spacing: 8,
@@ -354,20 +264,28 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                         PhosphorIcons.x(PhosphorIconsStyle.regular),
                         size: 14,
                       ),
-                      onDeleted: () => _removeInterest(interest),
+                      onDeleted: () {
+                        setState(() {
+                          _selectedInterests.remove(interest);
+                        });
+                      },
                     );
                   }).toList(),
                 ),
-                const SizedBox(height: 16),
+
                 // Add interest
+                const SizedBox(height: 16),
                 TextField(
-                  controller: _interestsController,
+                  controller: _interestController,
                   decoration: InputDecoration(
                     hintText: 'Add an interest...',
                     suffixIcon: IconButton(
                       onPressed: () {
-                        if (_interestsController.text.isNotEmpty) {
-                          _addInterest(_interestsController.text);
+                        if (_interestController.text.isNotEmpty) {
+                          setState(() {
+                            _selectedInterests.add(_interestController.text.trim());
+                            _interestController.clear();
+                          });
                         }
                       },
                       icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
@@ -375,105 +293,82 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
                   ),
                   onSubmitted: (value) {
                     if (value.isNotEmpty) {
-                      _addInterest(value);
+                      setState(() {
+                        _selectedInterests.add(value.trim());
+                        _interestController.clear();
+                      });
                     }
                   },
                 ),
-                const SizedBox(height: 8),
+
                 // Suggested interests
+                const SizedBox(height: 8),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
-                  children: _availableInterests.where(
-                    (interest) => !_selectedInterests.contains(interest)
-                  ).map((interest) {
+                  children: profileProvider.commonInterests
+                      .where((interest) => !_selectedInterests.contains(interest))
+                      .take(10)
+                      .map((interest) {
                     return ActionChip(
                       label: Text(interest),
-                      onPressed: () => _addInterest(interest),
+                      onPressed: () {
+                        setState(() {
+                          _selectedInterests.add(interest);
+                        });
+                      },
                     );
                   }).toList(),
                 ),
               ],
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 20),
 
-            // Preferences section
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Preferences',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      PhosphorIcon(PhosphorIcons.users(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Interested in',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      DropdownButton<String>(
-                        value: widget.user.interestedIn ?? 'Everyone',
-                        items: const ['Everyone', 'Male', 'Female', 'Non-binary']
-                            .map((value) => DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ))
-                            .toList(),
-                        onChanged: (value) {},
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      PhosphorIcon(PhosphorIcons.eye(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Show my age',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      Switch(
-                        value: true,
-                        onChanged: (value) {},
-                        activeColor: AppConstants.primaryRed,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      PhosphorIcon(PhosphorIcons.mapPin(PhosphorIconsStyle.regular), size: 20, color: AppConstants.secondaryGray),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Show distance',
-                          style: Theme.of(context).textTheme.bodyMedium,
-                        ),
-                      ),
-                      Switch(
-                        value: true,
-                        onChanged: (value) {},
-                        activeColor: AppConstants.primaryRed,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+            // Connection Frequency
+            _buildDropdown(
+              label: 'Connection Frequency',
+              value: _selectedConnectionFrequency,
+              options: profileProvider.connectionFrequencies,
+              onChanged: (value) {
+                setState(() {
+                  _selectedConnectionFrequency = value;
+                });
+              },
+            ),
+            const SizedBox(height: 20),
+
+            // Visibility
+            _buildDropdown(
+              label: 'Profile Visibility',
+              value: _selectedVisibility,
+              options: profileProvider.visibilityOptions,
+              onChanged: (value) {
+                setState(() {
+                  _selectedVisibility = value;
+                });
+              },
             ),
             const SizedBox(height: 40),
+
+            // Save button
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _saveProfile,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppConstants.primaryRed,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+                child: const Text(
+                  'Save Changes',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ),
           ],
         ),
       ),
