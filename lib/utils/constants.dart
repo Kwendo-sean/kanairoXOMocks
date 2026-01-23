@@ -57,6 +57,6 @@ class AppStrings {
 }
 
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.100.6/api/v1';
+  static const String baseUrl = 'http://192.168.100.6/api';
   static const int timeout = 30; // seconds
 }

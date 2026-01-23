@@ -224,11 +224,7 @@ class _EventMemoriesScreenState extends State<EventMemoriesScreen>
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(PhosphorIcons.arrowLeft()),
-          color: AppConstants.primaryBlack,
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Event Memories',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(

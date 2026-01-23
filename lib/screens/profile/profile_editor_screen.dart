@@ -17,7 +17,7 @@ class ProfileEditorScreen extends StatefulWidget {
 class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   late TextEditingController _bioController;
   late TextEditingController _headlineController;
-  late TextEditingController _interestController;
+  final _interestController = TextEditingController();
 
   final List<String> _selectedInterests = [];
 
@@ -48,7 +48,6 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     } else {
       _bioController = TextEditingController();
       _headlineController = TextEditingController();
-      _interestController = TextEditingController();
     }
   }
 

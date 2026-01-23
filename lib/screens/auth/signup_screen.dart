@@ -48,6 +48,41 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
+    // Add gender validation here
+    final List<String> _genders = ['Male', 'Female'];
+
+    if (_selectedGender == null || _selectedGender!.isEmpty) {
+      setState(() {
+        _errorMessage = 'Please select your gender';
+      });
+      return;
+    }
+
+    // Map gender to Django model values
+    String? djangoGender;
+    switch (_selectedGender) {
+      case 'Male':
+        djangoGender = 'male';
+        break;
+      case 'Female':
+        djangoGender = 'female';
+        break;
+      case 'Non-binary':
+        djangoGender = 'non_binary';
+        break;
+      case 'Prefer not to say':
+        djangoGender = 'prefer_not_to_say';
+        break;
+    }
+
+    // Validate gender is Male or Female only
+    if (djangoGender != 'male' && djangoGender != 'female') {
+      setState(() {
+        _errorMessage = 'Please select Male or Female for now';
+      });
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
@@ -59,23 +94,6 @@ class _SignupScreenState extends State<SignupScreen> {
       // Format phone number for Kenya
       String phoneNumber = _phoneController.text.trim();
       phoneNumber = _formatPhoneNumber(phoneNumber);
-
-      // Map gender to Django model values
-      String? djangoGender;
-      switch (_selectedGender) {
-        case 'Male':
-          djangoGender = 'male';
-          break;
-        case 'Female':
-          djangoGender = 'female';
-          break;
-        case 'Non-binary':
-          djangoGender = 'non_binary';
-          break;
-        case 'Prefer not to say':
-          djangoGender = 'prefer_not_to_say';
-          break;
-      }
 
       final response = await authService.register(
         phoneNumber: phoneNumber,
@@ -197,11 +215,6 @@ class _SignupScreenState extends State<SignupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // Back button
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
-                  color: AppConstants.primaryBlack,
-                ),
                 const SizedBox(height: 20),
 
                 // Title

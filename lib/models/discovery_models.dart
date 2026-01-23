@@ -1,5 +1,6 @@
 // lib/models/discovery_models.dart
 import 'dart:convert';
+import '../services/api_client.dart';
 
 // Discovery Session Model
 class DiscoverySession {
@@ -244,7 +245,7 @@ class DiscoveryProfile {
   final String? gender;
   final List<String> interests;
   final String? location;
-  final String? imageUrl;
+  final String imageUrl;
   final double? trustScore;
   final List<String>? currentMoods;
   final String? primaryIntent;
@@ -259,7 +260,7 @@ class DiscoveryProfile {
     this.gender,
     required this.interests,
     this.location,
-    this.imageUrl,
+    required this.imageUrl,
     this.trustScore,
     this.currentMoods,
     this.primaryIntent,
@@ -283,15 +284,14 @@ class DiscoveryProfile {
 
       // Handle display name
       String displayName = '';
-      if (json['display_name'] != null && json['display_name'].toString().isNotEmpty) {
+      if (json['full_name'] != null && json['full_name'].toString().isNotEmpty) {
+        displayName = json['full_name'].toString();
+      } else if (json['display_name'] != null && json['display_name'].toString().isNotEmpty) {
         displayName = json['display_name'].toString();
       } else if (json['first_name'] != null || json['last_name'] != null) {
         displayName = '${json['first_name'] ?? ''} ${json['last_name'] ?? ''}'.trim();
-        if (displayName.isEmpty) {
-          displayName = 'User $userId';
-        }
       } else {
-        displayName = 'User $userId';
+        displayName = 'Unknown User';
       }
 
       // Parse interests - handle different formats
@@ -310,7 +310,7 @@ class DiscoveryProfile {
         gender: json['gender']?.toString(),
         interests: interests,
         location: json['location']?.toString(),
-        imageUrl: _getProfileImageUrl(json), // Helper method
+        imageUrl: _getProfileImageUrl(json) ?? 'assets/default_profile.png', // Helper method
         trustScore: (json['trust_score'] as num?)?.toDouble(),
         currentMoods: json['current_moods'] is List
             ? List<String>.from(json['current_moods'])
@@ -325,36 +325,40 @@ class DiscoveryProfile {
       // Return a minimal profile with the data we have
       return DiscoveryProfile(
         userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '0',
-        displayName: json['display_name']?.toString() ?? 'User',
+        displayName: 'Unknown User',
         interests: [],
+        imageUrl: 'assets/default_profile.png',
       );
     }
   }
 
 // Helper method to get profile image URL
   static String? _getProfileImageUrl(Map<String, dynamic> json) {
+    String? path;
     // Try different possible image fields
-    if (json['profile_image'] != null && json['profile_image']
-        .toString()
-        .isNotEmpty) {
-      return json['profile_image'].toString();
-    }
-
-    if (json['profile_photos'] is List &&
+    if (json['profile_image'] != null &&
+        json['profile_image'].toString().isNotEmpty) {
+      path = json['profile_image'].toString();
+    } else if (json['profile_photos'] is List &&
         (json['profile_photos'] as List).isNotEmpty) {
       final photos = json['profile_photos'] as List;
       if (photos[0] is Map && photos[0]['url'] != null) {
-        return photos[0]['url'].toString();
+        path = photos[0]['url'].toString();
       } else if (photos[0] is String) {
-        return photos[0];
+        path = photos[0];
       }
+    } else if (json['image_url'] != null) {
+      path = json['image_url'].toString();
     }
 
-    if (json['image_url'] != null) {
-      return json['image_url'].toString();
+    if (path == null || path.isEmpty || path.startsWith('http')) {
+      return path;
     }
 
-    return null;
+    // Construct full URL
+    final uri = Uri.parse(ApiClient.baseUrl);
+    final baseUrl = '${uri.scheme}://${uri.host}:${uri.port}';
+    return '$baseUrl$path';
   }
 }
 

@@ -87,12 +87,6 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back button
-                IconButton(
-                  onPressed: () => Navigator.pop(context),
-                  icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
-                  color: AppConstants.primaryBlack,
-                ),
                 const SizedBox(height: 40),
 
                 // Title

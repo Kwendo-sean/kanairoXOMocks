@@ -119,11 +119,7 @@ class _TicketScreenState extends State<TicketScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(PhosphorIcons.arrowLeft()),
-          color: AppConstants.primaryBlack,
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Your Ticket',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(

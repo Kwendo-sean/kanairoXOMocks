@@ -223,6 +223,7 @@ class _EventsScreenState extends State<EventsScreen> {
             ),
             centerTitle: true,
             elevation: 0,
+            automaticallyImplyLeading: false,
             actions: [
               IconButton(
                 icon: Icon(Icons.search),

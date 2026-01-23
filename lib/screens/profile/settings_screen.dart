@@ -226,11 +226,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(PhosphorIcons.arrowLeft()),
-          color: AppConstants.primaryBlack,
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           'Settings',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(

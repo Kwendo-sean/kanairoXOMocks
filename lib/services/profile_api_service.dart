@@ -1,165 +1,55 @@
 // lib/services/profile_api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
-import '../utils/constants.dart';
+import 'api_client.dart';
 
 class ProfileApiService {
-  final String baseUrl = ApiConstants.baseUrl;
-
-  Future<Map<String, String>> _getHeaders() async {
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('auth_token');
-
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-  }
+  final ApiClient _apiClient = ApiClient();
 
   Future<User> getMyProfile() async {
     try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/profiles/me/'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return User.fromJson(data);
-      } else {
-        throw Exception('Failed to load profile: ${response.statusCode} - ${response.body}');
-      }
+      final response = await _apiClient.get('profiles/me/');
+      return User.fromJson(response);
     } catch (e) {
-      print('Error fetching profile: $e');
+      if (e.toString().contains('Error 500')) {
+        throw Exception('There was a problem on the server. Please try again later.');
+      }
       rethrow;
     }
   }
 
   Future<User> getUserProfile(String publicId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/profiles/public/$publicId/'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return User.fromJson(data);
-      } else if (response.statusCode == 404) {
-        throw Exception('Profile not found');
-      } else {
-        throw Exception('Failed to load profile: ${response.statusCode} - ${response.body}');
-      }
-    } catch (e) {
-      print('Error fetching user profile: $e');
-      rethrow;
-    }
+    final response = await _apiClient.get('profiles/public/$publicId/');
+    return User.fromJson(response);
   }
 
   Future<User> updateProfile(UserProfileUpdate update) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.patch(
-        Uri.parse('$baseUrl/api/v1/profiles/me/'),
-        headers: headers,
-        body: json.encode(update.toJson()),
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        return User.fromJson(data);
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(errorData['detail'] ?? 'Failed to update profile: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error updating profile: $e');
-      rethrow;
-    }
+    final response = await _apiClient.patch('profiles/me/', update.toJson());
+    return User.fromJson(response);
   }
 
   Future<bool> saveProfile(String publicId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/profiles/$publicId/save/'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 201) {
-        return true;
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(errorData['detail'] ?? 'Failed to save profile');
-      }
-    } catch (e) {
-      print('Error saving profile: $e');
-      rethrow;
-    }
+    await _apiClient.post('profiles/$publicId/save/', {});
+    return true;
   }
 
   Future<bool> unsaveProfile(String publicId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.delete(
-        Uri.parse('$baseUrl/api/v1/profiles/$publicId/save/'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 204) {
-        return true;
-      } else {
-        final errorData = json.decode(response.body);
-        throw Exception(errorData['detail'] ?? 'Failed to unsave profile');
-      }
-    } catch (e) {
-      print('Error unsaving profile: $e');
-      rethrow;
-    }
+    await _apiClient.delete('profiles/$publicId/save/');
+    return true;
   }
 
   Future<List<User>> getSavedProfiles() async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.get(
-        Uri.parse('$baseUrl/api/v1/profiles/saved/'),
-        headers: headers,
-      );
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-
-        if (data is List) {
-          return data.map((e) => User.fromJson(e)).toList();
-        }
-        return [];
-      } else {
-        throw Exception('Failed to get saved profiles: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error getting saved profiles: $e');
-      rethrow;
+    final response = await _apiClient.get('profiles/saved/');
+    if (response is List) {
+      return response.map((data) => User.fromJson(data)).toList();
     }
+    return [];
   }
 
   Future<void> recordProfileView(String publicId) async {
-    try {
-      final headers = await _getHeaders();
-      final response = await http.post(
-        Uri.parse('$baseUrl/api/v1/profiles/$publicId/view/'),
-        headers: headers,
-      );
-
-      if (response.statusCode != 200) {
-        print('Failed to record profile view: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error recording profile view: $e');
-    }
+    await _apiClient.post('profiles/$publicId/view/', {});
   }
 
   Future<List<User>> searchProfiles({
@@ -168,35 +58,61 @@ class ProfileApiService {
     String? lifeStage,
     int limit = 20,
   }) async {
-    try {
-      final headers = await _getHeaders();
-      final queryParams = {
-        if (query != null && query.isNotEmpty) 'search': query,
-        if (neighborhood != null) 'neighborhood': neighborhood,
-        if (lifeStage != null) 'life_stage': lifeStage,
-        'limit': limit.toString(),
-      };
+    final queryParams = {
+      if (query != null && query.isNotEmpty) 'search': query,
+      if (neighborhood != null) 'neighborhood': neighborhood,
+      if (lifeStage != null) 'life_stage': lifeStage,
+      'limit': limit.toString(),
+    };
 
-      final uri = Uri.parse('$baseUrl/api/v1/profiles/search/')
-          .replace(queryParameters: queryParams);
+    final response = await _apiClient.get('profiles/search/', queryParameters: queryParams);
+    final results = response['results'] ?? response;
 
-      final response = await http.get(uri, headers: headers);
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        final results = data['results'] ?? data;
-
-        if (results is List) {
-          return results.map((e) => User.fromJson(e)).toList();
-        }
-        return [];
-      } else {
-        throw Exception('Failed to search profiles: ${response.statusCode}');
-      }
-    } catch (e) {
-      print('Error searching profiles: $e');
-      rethrow;
+    if (results is List) {
+      return results.map((data) => User.fromJson(data)).toList();
     }
+    return [];
+  }
+
+  Future<void> uploadProfilePhotos(List<XFile> images) async {
+    await _apiClient.uploadMultipleFiles(
+      'profiles/upload-multiple-photos/',
+      files: images,
+      fileFieldName: 'photos',
+    );
+  }
+
+  Future<void> reorderProfilePhotos(List<Map<String, dynamic>> photos) async {
+    await _apiClient.post(
+      'profiles/reorder-photos/',
+      {'photos': photos},
+    );
+  }
+
+  Future<void> deleteProfilePhoto(String photoUrl) async {
+    await _apiClient.delete(
+      'profiles/delete-photo/',
+      body: {'photo_url': photoUrl},
+    );
+  }
+
+  Future<void> setMainProfilePhoto(String photoUrl) async {
+    await _apiClient.post(
+      'profiles/set-main-photo/',
+      {'photo_url': photoUrl},
+    );
+  }
+
+  Future<void> uploadVoiceIntro(XFile audioFile) async {
+    await _apiClient.uploadMultipleFiles(
+      'profiles/upload-voice-intro/',
+      files: [audioFile],
+      fileFieldName: 'voice_intro',
+    );
+  }
+
+  Future<void> deleteVoiceIntro() async {
+    await _apiClient.delete('profiles/delete-voice-intro/');
   }
 
   // Helper methods for dropdown options
@@ -228,12 +144,6 @@ class ProfileApiService {
     return [
       {'value': 'student', 'label': 'Student'},
       {'value': 'early_career', 'label': 'Early Career (0-5 years)'},
-      {'value': 'mid_career', 'label': 'Mid Career (5-15 years)'},
-      {'value': 'established', 'label': 'Established Professional'},
-      {'value': 'entrepreneur', 'label': 'Entrepreneur/Business Owner'},
-      {'value': 'creative', 'label': 'Creative/Freelancer'},
-      {'value': 'in_transition', 'label': 'In Transition'},
-      {'value': 'retired', 'label': 'Retired'},
     ];
   }
 
@@ -242,13 +152,6 @@ class ProfileApiService {
       {'value': 'arts_culture', 'label': 'Arts & Culture'},
       {'value': 'tech_innovation', 'label': 'Tech & Innovation'},
       {'value': 'business_finance', 'label': 'Business & Finance'},
-      {'value': 'academia_research', 'label': 'Academia & Research'},
-      {'value': 'health_wellness', 'label': 'Health & Wellness'},
-      {'value': 'sports_fitness', 'label': 'Sports & Fitness'},
-      {'value': 'ngo_social', 'label': 'NGO & Social Impact'},
-      {'value': 'food_hospitality', 'label': 'Food & Hospitality'},
-      {'value': 'fashion_lifestyle', 'label': 'Fashion & Lifestyle'},
-      {'value': 'music_entertainment', 'label': 'Music & Entertainment'},
     ];
   }
 
@@ -256,33 +159,18 @@ class ProfileApiService {
     return [
       {'value': 'occasional', 'label': 'Occasional - 1-2 times/month'},
       {'value': 'regular', 'label': 'Regular - 1-2 times/week'},
-      {'value': 'active', 'label': 'Active - 3+ times/week'},
-      {'value': 'selective', 'label': 'Very Selective'},
+      {'value': 'selective', 'label': 'Selective - a few times a year'},
     ];
   }
 
   List<Map<String, String>> getVisibilityOptions() {
     return [
-      {'value': 'public', 'label': 'Public - Visible to all KanairoXO users'},
+      {'value': 'public', 'label': 'Public'},
       {'value': 'connections', 'label': 'Connections Only'},
-      {'value': 'event_participants', 'label': 'Event Participants Only'},
-      {'value': 'hidden', 'label': 'Hidden - Only visible to you'},
     ];
   }
 
   List<String> getCommonInterests() {
-    return [
-      'Coffee', 'Art', 'Music', 'Travel', 'Photography',
-      'Food', 'Wine', 'Hiking', 'Reading', 'Yoga',
-      'Meditation', 'Technology', 'Fashion', 'Sports',
-      'Movies', 'Writing', 'Dancing', 'Cooking',
-      'Entrepreneurship', 'Startups', 'Networking',
-      'Wellness', 'Fitness', 'Cultural Events',
-      'Social Impact', 'Volunteering', 'Education',
-      'Nature', 'Animals', 'Gaming', 'Theater',
-      'Poetry', 'Podcasts', 'Blogging', 'Design',
-      'Architecture', 'History', 'Science',
-      'Sustainability', 'Farming', 'Gardening',
-    ];
+    return ['Coffee', 'Art', 'Music', 'Travel', 'Photography'];
   }
 }

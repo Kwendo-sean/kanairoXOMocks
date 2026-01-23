@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/services/discovery_service.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({Key? key}) : super(key: key);
@@ -489,6 +490,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       appBar: AppBar(
         title: const Text('Discover'),
         centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: Icon(PhosphorIcons.bell()),
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
+            },
+          ),
+        ],
       ),
       body: _isLoading
           ? _buildLoading()

@@ -147,6 +147,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             expandedHeight: 250,
             floating: false,
             pinned: true,
+            automaticallyImplyLeading: false,
             flexibleSpace: FlexibleSpaceBar(
               background: _experience!.coverImage != null
                   ? Image.network(

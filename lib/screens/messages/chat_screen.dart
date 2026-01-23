@@ -249,11 +249,7 @@ class _ChatScreenState extends State<ChatScreen> {
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon:  Icon(PhosphorIcons.arrowLeft()),
-          color: AppConstants.primaryBlack,
-        ),
+        automaticallyImplyLeading: false,
         title: Row(
           children: [
             CircleAvatar(

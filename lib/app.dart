@@ -19,9 +19,13 @@ import 'package:kanairoxo/screens/profile/profile_screen.dart';
 import 'package:kanairoxo/screens/profile/settings_screen.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/models/message_model.dart';
+import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/services/auth_service.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 class KanairoXOApp extends StatelessWidget {
   const KanairoXOApp({super.key});
@@ -35,6 +39,7 @@ class KanairoXOApp extends StatelessWidget {
         // Add other providers here as needed
       ],
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: AppConstants.appName,
         theme: ThemeData(
           useMaterial3: true,
@@ -61,7 +66,7 @@ class KanairoXOApp extends StatelessWidget {
         routes: {
           '/onboarding': (context) => OnboardingScreen(
                 onComplete: () {
-                  Navigator.pushReplacementNamed(context, '/main');
+                  Navigator.pushReplacementNamed(context, '/login');
                 },
               ),
           '/login': (context) => LoginScreen(
@@ -120,10 +125,9 @@ class AppWrapper extends StatefulWidget {
 }
 
 class _AppWrapperState extends State<AppWrapper> {
-  bool _isLoading = true;
-  bool _isLoggedIn = false;
-  bool _hasCompletedOnboarding = false;
   bool _splashComplete = false;
+  bool _isLoggedIn = false;
+  bool _hasCompletedOnboarding = false; // You might need to persist this
 
   @override
   void initState() {
@@ -132,16 +136,14 @@ class _AppWrapperState extends State<AppWrapper> {
   }
 
   Future<void> _checkAuthState() async {
-    // Simulate network check for 2 seconds
-    await Future.delayed(const Duration(seconds: 2));
+    final authService = AuthService();
+    final isLoggedIn = await authService.isLoggedIn();
 
-    // TODO: Replace with actual auth state check
-    const isLoggedIn = false;
+    // TODO: You should persist and retrieve this value
     const hasCompletedOnboarding = false;
 
     if (mounted) {
       setState(() {
-        _isLoading = false;
         _isLoggedIn = isLoggedIn;
         _hasCompletedOnboarding = hasCompletedOnboarding;
       });
@@ -162,40 +164,36 @@ class _AppWrapperState extends State<AppWrapper> {
       );
     }
 
-    if (_isLoading) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (!_isLoggedIn) {
-      return LoginScreen(
-        onLoginSuccess: () {
-          if (mounted) {
-            setState(() {
-              _isLoggedIn = true;
-            });
-          }
-        },
-        onSignupTap: () {
-          Navigator.pushNamed(context, '/signup');
-        },
-      );
+    if (_isLoggedIn) {
+      return const MainAppScreen();
     }
 
     if (!_hasCompletedOnboarding) {
       return OnboardingScreen(
         onComplete: () {
           if (mounted) {
+            // Update state and navigate to login
             setState(() {
               _hasCompletedOnboarding = true;
             });
+             Navigator.pushReplacementNamed(context, '/login');
           }
         },
       );
     }
-
-    return const MainAppScreen();
+    
+    return LoginScreen(
+      onLoginSuccess: () {
+        if (mounted) {
+          setState(() {
+            _isLoggedIn = true;
+          });
+        }
+      },
+      onSignupTap: () {
+        Navigator.pushNamed(context, '/signup');
+      },
+    );
   }
 }
 
@@ -221,14 +219,24 @@ class _MainAppScreenState extends State<MainAppScreen> {
     });
   }
 
-  void _loadInitialData() {
-    // Load profile data
-    final profileProvider = context.read<ProfileProvider>();
-    profileProvider.loadMyProfile();
+  Future<void> _loadInitialData() async {
+    try {
+      final profileProvider = context.read<ProfileProvider>();
+      await profileProvider.loadMyProfile();
 
-    // Load events data
-    final eventsProvider = context.read<EventsProvider>();
-    eventsProvider.fetchExperiences();
+      final eventsProvider = context.read<EventsProvider>();
+      await eventsProvider.fetchExperiences();
+    } on AuthException {
+      // Handle auth exception during initial data load
+      await context.read<ProfileProvider>().handleLogout();
+      if (mounted) {
+        // Use the global navigator key to navigate
+        navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+      }
+    } catch (e) {
+      // Handle other potential errors
+      print('An error occurred during initial data load: $e');
+    }
   }
 
   @override

@@ -96,11 +96,7 @@ class _PostStoryScreenState extends State<PostStoryScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          onPressed: () => Navigator.pop(context),
-          icon: Icon(PhosphorIcons.x()),
-          color: AppConstants.primaryBlack,
-        ),
+        automaticallyImplyLeading: false,
         title: Text(
           widget.isStory ? 'Create Story' : 'Create Post',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
