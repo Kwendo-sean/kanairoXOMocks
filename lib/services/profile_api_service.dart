@@ -14,7 +14,7 @@ class ProfileApiService {
       return User.fromJson(response);
     } catch (e) {
       if (e.toString().contains('Error 500')) {
-        throw Exception('There was a problem on the server. Please try again later.');
+        throw Exception('Server error: ${e.toString()}');
       }
       rethrow;
     }

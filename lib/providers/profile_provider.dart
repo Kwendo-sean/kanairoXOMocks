@@ -3,9 +3,11 @@ import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
 import '../services/api_client.dart';
 import '../services/profile_api_service.dart';
+import './auth_provider.dart';
 
 class ProfileProvider with ChangeNotifier {
   final ProfileApiService _profileApiService = ProfileApiService();
+  AuthProvider? _authProvider;
 
   User? _currentUser;
   User? _viewedProfile;
@@ -22,6 +24,16 @@ class ProfileProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isProfileSaved => _isProfileSaved;
+
+  void update(AuthProvider authProvider) {
+    _authProvider = authProvider;
+    if (!authProvider.isAuthenticated) {
+      _currentUser = null;
+      _savedProfiles = [];
+      _discoveredProfiles = [];
+    }
+    notifyListeners();
+  }
 
   List<Map<String, String>> get neighborhoods => _profileApiService.getNeighborhoods();
   List<Map<String, String>> get lifeStages => _profileApiService.getLifeStages();
@@ -92,7 +104,6 @@ class ProfileProvider with ChangeNotifier {
       _currentUser = await _profileApiService.updateProfile(update);
     } catch (e) {
       _error = e.toString();
-      rethrow; // Rethrow so the UI can catch it
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -108,7 +119,6 @@ class ProfileProvider with ChangeNotifier {
       await loadMyProfile(); // Reloads the profile
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -123,7 +133,6 @@ class ProfileProvider with ChangeNotifier {
       await loadMyProfile();
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -132,22 +141,30 @@ class ProfileProvider with ChangeNotifier {
 
 
   Future<void> deleteProfilePhoto(String photoUrl) async {
+    _isLoading = true;
+    notifyListeners();
     try {
       await _profileApiService.deleteProfilePhoto(photoUrl);
       await loadMyProfile();
     } catch (e) {
       _error = e.toString();
-      rethrow;
-    } 
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
   }
 
   Future<void> setMainProfilePhoto(String photoUrl) async {
+    _isLoading = true;
+    notifyListeners();
     try {
       await _profileApiService.setMainProfilePhoto(photoUrl);
       await loadMyProfile();
     } catch (e) {
       _error = e.toString();
-      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -159,7 +176,6 @@ class ProfileProvider with ChangeNotifier {
       await loadMyProfile();
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -174,7 +190,6 @@ class ProfileProvider with ChangeNotifier {
       await loadMyProfile();
     } catch (e) {
       _error = e.toString();
-      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();

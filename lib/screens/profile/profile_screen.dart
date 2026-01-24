@@ -1,4 +1,3 @@
-// lib/screens/profile/profile_screen.dart
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +8,8 @@ import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/profile/photo_upload_screen.dart';
 import 'package:kanairoxo/widgets/profile/interests_grid.dart';
 import 'package:kanairoxo/widgets/profile/profile_completion_widget.dart';
-import 'package:kanairoxo/services/auth_service.dart';
+import 'package:kanairoxo/providers/auth_provider.dart';
+import 'package:kanairoxo/widgets/profile/profile_header.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String? publicId;
@@ -40,7 +40,28 @@ class ProfileScreen extends StatelessWidget {
             onRefresh: () => profileProvider.loadMyProfile(),
             child: CustomScrollView(
               slivers: [
-                _buildSliverAppBar(context, user, publicId == null, profileProvider),
+                SliverToBoxAdapter(
+                  child: ProfileHeader(
+                    user: user,
+                    showBackButton: publicId != null,
+                    onEditPressed: publicId == null
+                        ? () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const ProfileEditorScreen(),
+                              ),
+                            );
+                          }
+                        : null,
+                    onLogoutPressed: publicId == null
+                        ? () async {
+                            await context.read<AuthProvider>().logout();
+                            // You might want to navigate to the login screen after logout
+                          }
+                        : null,
+                  ),
+                ),
                 SliverPadding(
                   padding: const EdgeInsets.all(16.0),
                   sliver: SliverList(
@@ -58,7 +79,7 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 24),
                       _buildSectionTitle(context, 'Gallery'),
                       const SizedBox(height: 12),
-                      _buildGallery(context, user.profilePhotos),
+                      _buildGallery(context, user.profilePhotos, profileProvider),
                     ]),
                   ),
                 ),
@@ -124,117 +145,10 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  SliverAppBar _buildSliverAppBar(BuildContext context, User user, bool isCurrentUser, ProfileProvider profileProvider) {
-    return SliverAppBar(
-      expandedHeight: 250.0,
-      floating: false,
-      pinned: true,
-      backgroundColor: AppConstants.primaryBeige,
-      elevation: 0,
-      automaticallyImplyLeading: false,
-      actions: [
-        if (isCurrentUser)
-          IconButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const ProfileEditorScreen()),
-              );
-            },
-            icon: PhosphorIcon(PhosphorIcons.pencil(PhosphorIconsStyle.regular), color: AppConstants.primaryBlack),
-          ),
-          if (isCurrentUser)
-          IconButton(
-            onPressed: () async {
-              await AuthService().logout();
-              Navigator.of(context).pushNamedAndRemoveUntil('/login', (Route<dynamic> route) => false);
-            },
-            icon: PhosphorIcon(PhosphorIcons.signOut(PhosphorIconsStyle.regular), color: AppConstants.primaryBlack),
-          ),
-      ],
-      flexibleSpace: FlexibleSpaceBar(
-        background: Stack(
-          fit: StackFit.expand,
-          children: [
-            Container(
-              decoration: BoxDecoration(
-                image: DecorationImage(
-                  image: (user.mainProfilePhoto != null && user.mainProfilePhoto!.isNotEmpty
-                      ? NetworkImage(user.mainProfilePhoto!)
-                      : const AssetImage('assets/default_avatar.png')) as ImageProvider,
-                  fit: BoxFit.cover,
-                ),
-              ),
-            ),
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: 20,
-              left: 20,
-              right: 20,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user.fullName ?? '',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                  if (user.headline != null && user.headline!.isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      user.headline!,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.white70),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      PhosphorIcon(PhosphorIcons.mapPin(PhosphorIconsStyle.regular), size: 16, color: Colors.white70),
-                      const SizedBox(width: 4),
-                      Text(
-                        user.neighborhoodDisplay,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            if (isCurrentUser)
-              Positioned(
-                bottom: 20,
-                right: 20,
-                child: FloatingActionButton.small(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(builder: (context) => const PhotoUploadScreen()),
-                    ).then((_) => profileProvider.loadMyProfile());
-                  },
-                  backgroundColor: AppConstants.primaryRed,
-                  child: PhosphorIcon(PhosphorIcons.camera(PhosphorIconsStyle.regular), size: 20, color: Colors.white),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildSectionTitle(BuildContext context, String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 
@@ -252,7 +166,34 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildGallery(BuildContext context, List<Map<String, dynamic>> photos) {
+  Widget _buildGallery(BuildContext context, List<Map<String, dynamic>> photos, ProfileProvider profileProvider) {
+    if (photos.isEmpty && publicId == null) {
+      return Center(
+        child: Column(
+          children: [
+            const Text('Your gallery is empty.'),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                 Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const PhotoUploadScreen()),
+                ).then((_) => profileProvider.loadMyProfile());
+              },
+              icon: const Icon(Icons.add_a_photo_outlined),
+              label: const Text('Upload Photos'),
+              style: ElevatedButton.styleFrom(
+                foregroundColor: Colors.white,
+                backgroundColor: AppConstants.primaryRed,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(20),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
     if (photos.isEmpty) {
       return const Center(child: Text('No photos yet.'));
     }

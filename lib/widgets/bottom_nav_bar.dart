@@ -1,27 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:kanairoxo/utils/constants.dart';
 
-class BottomNavBar extends StatefulWidget {
+class BottomNavBar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback? onSettingsLongPress;
 
   const BottomNavBar({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    this.onSettingsLongPress,
   });
-
-  @override
-  State<BottomNavBar> createState() => _BottomNavBarState();
-}
-
-class _BottomNavBarState extends State<BottomNavBar> {
-  final List<_NavItem> _items = [
-    _NavItem(icon: PhosphorIcons.compass(), label: 'Discover'),
-    _NavItem(icon: PhosphorIcons.calendar(), label: 'Events'),
-    _NavItem(icon: PhosphorIcons.moon(), label: 'Mood'),
-    _NavItem(icon: PhosphorIcons.user(), label: 'Profile'),
-  ];
 
   @override
   Widget build(BuildContext context) {
@@ -40,51 +31,48 @@ class _BottomNavBarState extends State<BottomNavBar> {
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_items.length, (index) {
-          final item = _items[index];
-          final isActive = index == widget.currentIndex;
-          
-          return GestureDetector(
-            onTap: () => widget.onTap(index),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-              decoration: BoxDecoration(
-                color: isActive ? const Color(0xFFF5F1EA) : Colors.transparent,
-                borderRadius: BorderRadius.circular(20),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    item.icon,
-                    size: 22,
-                    color: isActive ? const Color(0xFF8B0000) : const Color(0xFF8B7355),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    item.label,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 11,
-                      color: isActive ? const Color(0xFF8B0000) : const Color(0xFF8B7355),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-        }),
+        children: [
+          _buildNavItem(context, 0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover'),
+          _buildNavItem(context, 1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events'),
+          _buildNavItem(context, 2, PhosphorIcons.moon(PhosphorIconsStyle.regular), 'Mood'),
+          _buildNavItem(context, 3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile'),
+        ],
       ),
     );
   }
-}
 
-class _NavItem {
-  final IconData icon;
-  final String label;
-
-  const _NavItem({
-    required this.icon,
-    required this.label,
-  });
+  Widget _buildNavItem(BuildContext context, int index, IconData icon, String label) {
+    final isActive = index == currentIndex;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      onLongPress: index == 3 ? onSettingsLongPress : null,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 300),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: isActive ? AppConstants.primaryBeige : Colors.transparent,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PhosphorIcon(
+              icon,
+              size: 22,
+              color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }

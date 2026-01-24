@@ -15,7 +15,7 @@ class AuthException implements Exception {
 }
 
 class ApiClient {
-  static const String baseUrl = 'http://192.168.100.6:8000/api/v1';
+  static String baseUrl = 'http://192.168.100.6:8000/api/v1';
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;

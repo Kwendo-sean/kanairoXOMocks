@@ -1,215 +1,144 @@
+// lib/screens/notifications/notification_screen.dart - UPDATED VERSION
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:provider/provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/notification_card.dart';
+import 'package:kanairoxo/providers/notification_provider.dart';
+import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/models/notification_model.dart' as model;
-import 'package:kanairoxo/models/notification_model.dart' show NotificationType;
-
-// Define ConnectionRequest model if not already defined elsewhere
-class ConnectionRequest {
-  final String id;
-  final String fromUserId;
-  final String fromUserName;
-  final String fromUserImage;
-  final String? message;
-  final DateTime sentAt;
-  final bool isAccepted;
-  final bool isDeclined;
-  final DateTime? respondedAt;
-
-  ConnectionRequest({
-    required this.id,
-    required this.fromUserId,
-    required this.fromUserName,
-    required this.fromUserImage,
-    this.message,
-    required this.sentAt,
-    this.isAccepted = false,
-    this.isDeclined = false,
-    this.respondedAt,
-  });
-
-  bool get isPending => !isAccepted && !isDeclined;
-}
 
 class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
-  
+
   @override
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen> 
-    with SingleTickerProviderStateMixin {
+class _NotificationScreenState extends State<NotificationScreen>
+    with SingleTickerProviderStateMixin, AutomaticKeepAliveClientMixin {
   late TabController _tabController;
-  int _unreadCount = 12;
-  
-  final List<model.Notification> _notifications = [
-    model.Notification(
-      id: '1',
-      userId: 'current',
-      type: NotificationType.connectionRequest,
-      title: 'New Connection Request',
-      body: 'Sofia sent you a connection request',
-      timestamp: DateTime.now().subtract(const Duration(minutes: 5)),
-      imageUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=100&h=100&fit=crop',
-    ),
-    model.Notification(
-      id: '2',
-      userId: 'current',
-      type: NotificationType.connectionAccepted,
-      title: 'Connection Accepted',
-      body: 'Marcus accepted your connection request',
-      timestamp: DateTime.now().subtract(const Duration(hours: 2)),
-      imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop',
-    ),
-    model.Notification(
-      id: '3',
-      userId: 'current',
-      type: NotificationType.ticketReady,
-      title: 'Your Ticket is Ready',
-      body: 'Download your ticket for Morning Coffee & Conversation',
-      timestamp: DateTime.now().subtract(const Duration(days: 1)),
-      isRead: true,
-    ),
-    model.Notification(
-      id: '4',
-      userId: 'current',
-      type: NotificationType.paymentSuccess,
-      title: 'Payment Successful',
-      body: 'KES 1,500 paid for Gallery Opening',
-      timestamp: DateTime.now().subtract(const Duration(days: 2)),
-      isRead: true,
-    ),
-  ];
-  
-  final List<ConnectionRequest> _connectionRequests = [
-    ConnectionRequest(
-      id: '1',
-      fromUserId: 'user1',
-      fromUserName: 'Sofia',
-      fromUserImage: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=200&h=200&fit=crop',
-      message: 'I also love quiet mornings and good design!',
-      sentAt: DateTime.now().subtract(const Duration(hours: 2)),
-    ),
-    ConnectionRequest(
-      id: '2',
-      fromUserId: 'user2',
-      fromUserName: 'David',
-      fromUserImage: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=200&h=200&fit=crop',
-      sentAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-  ];
-  
+  late NotificationProvider notificationProvider;
+
+  @override
+  bool get wantKeepAlive => true;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    notificationProvider = Provider.of<NotificationProvider>(context, listen: false);
+    _loadData();
   }
-  
+
+  Future<void> _loadData() async {
+    await notificationProvider.loadNotifications();
+  }
+
   @override
   void dispose() {
     _tabController.dispose();
     super.dispose();
   }
-  
-  void _handleAcceptRequest(String requestId) {
-    setState(() {
-      final request = _connectionRequests.firstWhere((r) => r.id == requestId);
-      final index = _connectionRequests.indexOf(request);
-      _connectionRequests[index] = ConnectionRequest(
-        id: request.id,
-        fromUserId: request.fromUserId,
-        fromUserName: request.fromUserName,
-        fromUserImage: request.fromUserImage,
-        message: request.message,
-        sentAt: request.sentAt,
-        isAccepted: true,
-        respondedAt: DateTime.now(),
+
+  void _handleAcceptRequest(String notificationId, String connectionId) async {
+    // final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
+
+    try {
+      // Accept connection through connection provider
+      // await connectionProvider.acceptConnection(connectionId);
+
+      // Update notification
+      await notificationProvider.acceptConnectionRequest(notificationId);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Connection request accepted'),
+          backgroundColor: AppConstants.successGreen,
+        ),
       );
-    });
-    
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error accepting request: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleDeclineRequest(String notificationId, String connectionId) async {
+    // final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
+
+    try {
+      // Decline connection through connection provider
+      // await connectionProvider.declineConnection(connectionId);
+
+      // Update notification
+      await notificationProvider.declineConnectionRequest(notificationId);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error declining request: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  void _handleMarkAllAsRead() async {
+    await notificationProvider.markAllAsRead();
+
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text('Connection request accepted'),
+      const SnackBar(
+        content: Text('All notifications marked as read'),
         backgroundColor: AppConstants.successGreen,
       ),
     );
   }
-  
-  void _handleDeclineRequest(String requestId) {
-    setState(() {
-      final request = _connectionRequests.firstWhere((r) => r.id == requestId);
-      final index = _connectionRequests.indexOf(request);
-      _connectionRequests[index] = ConnectionRequest(
-        id: request.id,
-        fromUserId: request.fromUserId,
-        fromUserName: request.fromUserName,
-        fromUserImage: request.fromUserImage,
-        message: request.message,
-        sentAt: request.sentAt,
-        isDeclined: true,
-        respondedAt: DateTime.now(),
-      );
-    });
-  }
-  
-  void _markAllAsRead() {
-    setState(() {
-      _unreadCount = 0;
-      for (int i = 0; i < _notifications.length; i++) {
-        final notification = _notifications[i];
-        _notifications[i] = model.Notification(
-          id: notification.id,
-          userId: notification.userId,
-          type: notification.type,
-          title: notification.title,
-          body: notification.body,
-          timestamp: notification.timestamp,
-          isRead: true,
-          data: notification.data,
-          imageUrl: notification.imageUrl,
-          actionUrl: notification.actionUrl,
-        );
-      }
-    });
-  }
-  
+
   @override
   Widget build(BuildContext context) {
-    final unreadRequests = _connectionRequests.where((r) => r.isPending).length;
-    
+    super.build(context);
+    final provider = Provider.of<NotificationProvider>(context);
+    final stats = provider.stats;
+
+    final unreadCount = provider.unreadCount;
+    final pendingRequestsCount = provider.pendingConnectionRequests;
+
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         title: Text(
-          AppStrings.notificationsTitle,
+          'Notifications',
           style: Theme.of(context).textTheme.displayMedium?.copyWith(
             fontSize: 20,
           ),
         ),
         centerTitle: true,
         actions: [
-          if (_unreadCount > 0)
+          if (unreadCount > 0)
             IconButton(
-              onPressed: _markAllAsRead,
-              icon:  Icon(PhosphorIcons.checkCircle()),
+              onPressed: _handleMarkAllAsRead,
+              icon: Icon(PhosphorIcons.checkCircle()),
               color: AppConstants.primaryRed,
             ),
         ],
       ),
-      body: Column(
+      body: provider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
         children: [
           // Unread badge
-          if (_unreadCount > 0)
+          if (unreadCount > 0)
             Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               color: AppConstants.primaryRed.withOpacity(0.1),
               child: Center(
                 child: Text(
-                  '$_unreadCount unread notifications',
+                  '$unreadCount unread notifications',
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppConstants.primaryRed,
                     fontWeight: FontWeight.w600,
@@ -217,7 +146,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                 ),
               ),
             ),
-          
+
           // Tab bar
           Container(
             color: Colors.white,
@@ -235,7 +164,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text('All'),
-                      if (_unreadCount > 0) ...[
+                      if (unreadCount > 0) ...[
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -247,7 +176,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '$_unreadCount',
+                            '$unreadCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -264,7 +193,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Text('Connections'),
-                      if (unreadRequests > 0) ...[
+                      if (pendingRequestsCount > 0) ...[
                         const SizedBox(width: 6),
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -276,7 +205,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                             borderRadius: BorderRadius.circular(10),
                           ),
                           child: Text(
-                            '$unreadRequests',
+                            '$pendingRequestsCount',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -288,24 +217,52 @@ class _NotificationScreenState extends State<NotificationScreen>
                     ],
                   ),
                 ),
-                const Tab(text: 'Tickets'),
+                Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Text('Tickets'),
+                      if (provider.ticketNotifications.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppConstants.primaryRed,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${provider.ticketNotifications.length}',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
-          
+
           // Tab views
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
                 // All notifications
-                _buildNotificationsList(),
-                
+                _buildAllNotificationsList(provider),
+
                 // Connection requests
-                _buildConnectionRequestsList(),
-                
+                _buildConnectionRequestsList(provider),
+
                 // Tickets
-                _buildTicketsList(),
+                _buildTicketsList(provider),
               ],
             ),
           ),
@@ -313,83 +270,92 @@ class _NotificationScreenState extends State<NotificationScreen>
       ),
     );
   }
-  
-  Widget _buildNotificationsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _notifications.length,
-      itemBuilder: (context, index) {
-        final notification = _notifications[index];
-        return NotificationCard(
-          notification: notification,
-          onTap: () {
-            // Handle notification tap
-          },
-        );
-      },
+
+  Widget _buildAllNotificationsList(NotificationProvider provider) {
+    final notifications = provider.notifications;
+
+    if (notifications.isEmpty) {
+      return _buildEmptyState(
+        icon: PhosphorIcons.bell(),
+        title: 'No notifications',
+        message: 'Your notifications will appear here',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => provider.refreshNotifications(),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(20),
+        itemCount: notifications.length,
+        itemBuilder: (context, index) {
+          final notification = notifications[index] as model.Notification;
+          return NotificationCard(
+            notification: notification,
+            onTap: () {
+              // Handle notification tap
+              provider.markAsRead(notification.id);
+              _handleNotificationAction(notification);
+            },
+          );
+        },
+      ),
     );
   }
-  
-  Widget _buildConnectionRequestsList() {
-    final pendingRequests = _connectionRequests.where((r) => r.isPending).toList();
-    final respondedRequests = _connectionRequests.where((r) => !r.isPending).toList();
-    
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        if (pendingRequests.isNotEmpty) ...[
-          Text(
-            'Pending Requests',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 16),
-          ...pendingRequests.map((request) {
-            return _buildConnectionRequestCard(request);
-          }).toList(),
-          const SizedBox(height: 32),
+
+  Widget _buildConnectionRequestsList(NotificationProvider provider) {
+    final connectionRequests = provider.connectionRequests;
+
+    if (connectionRequests.isEmpty) {
+      return _buildEmptyState(
+        icon: PhosphorIcons.users(),
+        title: 'No connection requests',
+        message: 'When someone wants to connect with you,\nit will appear here.',
+      );
+    }
+
+    final pendingRequests = connectionRequests.where((n) => !(n as model.Notification).isActionTaken).toList();
+    final respondedRequests = connectionRequests.where((n) => (n as model.Notification).isActionTaken).toList();
+
+    return RefreshIndicator(
+      onRefresh: () => provider.refreshNotifications(),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          if (pendingRequests.isNotEmpty) ...[
+            Text(
+              'Pending Requests',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            ...pendingRequests.map((notification) {
+              return _buildConnectionRequestCard(notification as model.Notification);
+            }).toList(),
+            const SizedBox(height: 32),
+          ],
+
+          if (respondedRequests.isNotEmpty) ...[
+            Text(
+              'Responded',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 16),
+            ...respondedRequests.map((notification) {
+              return _buildConnectionRequestCard(notification as model.Notification, isResponded: true);
+            }).toList(),
+          ],
         ],
-        
-        if (respondedRequests.isNotEmpty) ...[
-          Text(
-            'Responded',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          const SizedBox(height: 16),
-          ...respondedRequests.map((request) {
-            return _buildConnectionRequestCard(request);
-          }).toList(),
-        ],
-        
-        if (_connectionRequests.isEmpty)
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 100),
-              Icon(
-                PhosphorIcons.users(),
-                size: 60,
-                color: AppConstants.lightGray,
-              ),
-              const SizedBox(height: 20),
-              Text(
-                'No connection requests',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'When someone wants to connect with you,\nit will appear here.',
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: AppConstants.secondaryGray,
-                ),
-              ),
-            ],
-          ),
-      ],
+      ),
     );
   }
-  
-  Widget _buildConnectionRequestCard(ConnectionRequest request) {
+
+  Widget _buildConnectionRequestCard(model.Notification notification, {bool isResponded = false}) {
+    final sender = notification.sender;
+    final senderName = sender != null
+        ? '${sender['first_name']} ${sender['last_name']}'.trim()
+        : 'Someone';
+    final senderImage = sender?['profile_photo'];
+    final connectionId = notification.data['connection_id']?.toString() ?? '';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
@@ -397,9 +363,9 @@ class _NotificationScreenState extends State<NotificationScreen>
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
         border: Border.all(
-          color: request.isPending 
-              ? AppConstants.lightGray 
-              : (request.isAccepted ? AppConstants.successGreen : Colors.red.withOpacity(0.3)),
+          color: isResponded
+              ? (notification.isActionTaken ? AppConstants.successGreen : Colors.red.withOpacity(0.3))
+              : AppConstants.lightGray,
         ),
       ),
       child: Column(
@@ -409,7 +375,12 @@ class _NotificationScreenState extends State<NotificationScreen>
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundImage: NetworkImage(request.fromUserImage),
+                backgroundImage: senderImage != null
+                    ? NetworkImage(senderImage)
+                    : null,
+                child: senderImage == null
+                    ? Icon(PhosphorIcons.user())
+                    : null,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -417,13 +388,11 @@ class _NotificationScreenState extends State<NotificationScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      request.fromUserName,
+                      senderName,
                       style: Theme.of(context).textTheme.titleMedium,
                     ),
                     Text(
-                      request.sentAt.day == DateTime.now().day
-                          ? 'Today'
-                          : '${DateTime.now().difference(request.sentAt).inDays} days ago',
+                      _formatTimeAgo(notification.timestamp),
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         color: AppConstants.secondaryGray,
                         fontSize: 12,
@@ -432,18 +401,18 @@ class _NotificationScreenState extends State<NotificationScreen>
                   ],
                 ),
               ),
-              if (request.isPending)
+              if (!isResponded)
                 Row(
                   children: [
                     IconButton(
-                      onPressed: () => _handleAcceptRequest(request.id),
+                      onPressed: () => _handleAcceptRequest(notification.id, connectionId),
                       icon: Icon(
                         PhosphorIcons.checkCircle(),
                         color: AppConstants.successGreen,
                       ),
                     ),
                     IconButton(
-                      onPressed: () => _handleDeclineRequest(request.id),
+                      onPressed: () => _handleDeclineRequest(notification.id, connectionId),
                       icon: Icon(
                         PhosphorIcons.xCircle(),
                         color: Colors.red,
@@ -451,7 +420,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                     ),
                   ],
                 )
-              else if (request.isAccepted)
+              else if (notification.isActionTaken)
                 Icon(
                   PhosphorIcons.checkCircle(),
                   color: AppConstants.successGreen,
@@ -463,8 +432,8 @@ class _NotificationScreenState extends State<NotificationScreen>
                 ),
             ],
           ),
-          
-          if (request.message != null && request.message!.isNotEmpty) ...[
+
+          if (notification.data['request_message'] != null) ...[
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(12),
@@ -473,7 +442,7 @@ class _NotificationScreenState extends State<NotificationScreen>
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
-                request.message!,
+                notification.data['request_message']!,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
@@ -482,65 +451,49 @@ class _NotificationScreenState extends State<NotificationScreen>
       ),
     );
   }
-  
-  Widget _buildTicketsList() {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text(
-          'Your Tickets',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        
-        // Upcoming events
-        _buildTicketCard(
-          eventName: 'Morning Coffee & Conversation',
-          date: 'Sat, Jan 4 • 9:00 AM',
-          location: 'Bluestone Lane, SoHo',
-          isUpcoming: true,
-          onDownload: () {
-            // Download ticket
-          },
-        ),
-        
-        _buildTicketCard(
-          eventName: 'Gallery Opening: New Perspectives',
-          date: 'Mon, Jan 6 • 6:30 PM',
-          location: 'Modern Art Gallery, Chelsea',
-          isUpcoming: true,
-          onDownload: () {
-            // Download ticket
-          },
-        ),
-        
-        const SizedBox(height: 32),
-        Text(
-          'Past Events',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
-        const SizedBox(height: 16),
-        
-        _buildTicketCard(
-          eventName: 'Jazz Night & Philosophy',
-          date: 'Dec 15, 2024 • 8:00 PM',
-          location: 'The Blue Note, Greenwich Village',
-          isUpcoming: false,
-          onViewMemories: () {
-            // Navigate to event memories
-          },
-        ),
-      ],
+
+  Widget _buildTicketsList(NotificationProvider provider) {
+    final ticketNotifications = provider.ticketNotifications;
+
+    if (ticketNotifications.isEmpty) {
+      return _buildEmptyState(
+        icon: PhosphorIcons.ticket(),
+        title: 'No ticket notifications',
+        message: 'Your event tickets will appear here',
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: () => provider.refreshNotifications(),
+      child: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            'Your Tickets',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: 16),
+
+          ...ticketNotifications.map((notification) {
+            final n = notification as model.Notification;
+            final eventData = n.event ?? n.data;
+            final isUpcoming = _isEventUpcoming(eventData);
+
+            return _buildTicketCard(
+              notification: n,
+              eventData: eventData,
+              isUpcoming: isUpcoming,
+            );
+          }).toList(),
+        ],
+      ),
     );
   }
-  
+
   Widget _buildTicketCard({
-    required String eventName,
-    required String date,
-    required String location,
+    required model.Notification notification,
+    required Map<String, dynamic> eventData,
     required bool isUpcoming,
-    VoidCallback? onDownload,
-    VoidCallback? onViewMemories,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -573,62 +526,67 @@ class _NotificationScreenState extends State<NotificationScreen>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      eventName,
+                      eventData['event_title'] ?? 'Event',
                       style: Theme.of(context).textTheme.titleMedium,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          PhosphorIcons.calendar(),
-                          size: 12,
-                          color: AppConstants.secondaryGray,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            date,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 12,
+                    if (eventData['event_date'] != null)
+                      Row(
+                        children: [
+                          Icon(
+                            PhosphorIcons.calendar(),
+                            size: 12,
+                            color: AppConstants.secondaryGray,
+                          ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              _formatEventDate(eventData['event_date']),
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: 12,
+                              ),
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    Row(
-                      children: [
-                        Icon(
-                          PhosphorIcons.mapPin(),
-                          size: 12,
-                          color: AppConstants.secondaryGray,
-                        ),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            location,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 12,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                        ],
+                      ),
+                    if (eventData['location'] != null)
+                      Row(
+                        children: [
+                          Icon(
+                            PhosphorIcons.mapPin(),
+                            size: 12,
+                            color: AppConstants.secondaryGray,
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              eventData['location']!,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                fontSize: 12,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
                   ],
                 ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          
+
           if (isUpcoming)
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: onDownload,
+                onPressed: () {
+                  // Navigate to ticket download
+                  notificationProvider.markAsRead(notification.id);
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppConstants.primaryRed,
                   foregroundColor: Colors.white,
@@ -646,28 +604,34 @@ class _NotificationScreenState extends State<NotificationScreen>
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: onViewMemories,
+                    onPressed: () {
+                      // View event memories
+                      notificationProvider.markAsRead(notification.id);
+                    },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: AppConstants.primaryRed),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon:  Icon(PhosphorIcons.image(), size: 18),
+                    icon: Icon(PhosphorIcons.image(), size: 18),
                     label: const Text('View Memories'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {},
+                    onPressed: () {
+                      // Rate event
+                      notificationProvider.markAsRead(notification.id);
+                    },
                     style: OutlinedButton.styleFrom(
                       side: BorderSide(color: AppConstants.secondaryGray),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    icon:  Icon(PhosphorIcons.star(), size: 18),
+                    icon: Icon(PhosphorIcons.star(), size: 18),
                     label: const Text('Rate'),
                   ),
                 ),
@@ -676,5 +640,129 @@ class _NotificationScreenState extends State<NotificationScreen>
         ],
       ),
     );
+  }
+
+  Widget _buildEmptyState({
+    required IconData icon,
+    required String title,
+    required String message,
+  }) {
+    return RefreshIndicator(
+      onRefresh: () => notificationProvider.refreshNotifications(),
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.7,
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  size: 60,
+                  color: AppConstants.lightGray,
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 8),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    message,
+                    textAlign: TextAlign.center,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: AppConstants.secondaryGray,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _handleNotificationAction(model.Notification notification) {
+    // Handle different notification types
+    switch (notification.type) {
+      case model.NotificationType.connectionRequest:
+      // Navigate to connection request
+        break;
+      case model.NotificationType.connectionAccepted:
+      // Navigate to connection
+        break;
+      case model.NotificationType.ticketReady:
+      // Navigate to ticket
+        break;
+      case model.NotificationType.eventInvitation:
+      // Navigate to event
+        break;
+      default:
+      // Default action
+        break;
+    }
+  }
+
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 365) {
+      final years = (difference.inDays / 365).floor();
+      return '$years year${years > 1 ? 's' : ''} ago';
+    } else if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return '$months month${months > 1 ? 's' : ''} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
+  String _formatEventDate(String dateString) {
+    try {
+      final date = DateTime.parse(dateString);
+      return '${_getWeekday(date.weekday)}, ${_getMonth(date.month)} ${date.day} • ${_formatTime(date)}';
+    } catch (e) {
+      return dateString;
+    }
+  }
+
+  String _getWeekday(int weekday) {
+    const weekdays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    return weekdays[weekday - 1];
+  }
+
+  String _getMonth(int month) {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return months[month - 1];
+  }
+
+  String _formatTime(DateTime date) {
+    final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour < 12 ? 'AM' : 'PM';
+    return '$hour:$minute $period';
+  }
+
+  bool _isEventUpcoming(Map<String, dynamic> eventData) {
+    try {
+      if (eventData['event_date'] != null) {
+        final eventDate = DateTime.parse(eventData['event_date']);
+        return eventDate.isAfter(DateTime.now());
+      }
+    } catch (e) {
+      return true; // Default to upcoming if we can't parse
+    }
+    return true;
   }
 }

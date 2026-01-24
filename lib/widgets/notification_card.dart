@@ -6,38 +6,36 @@ import 'package:kanairoxo/models/notification_model.dart' as my_models;
 class NotificationCard extends StatelessWidget {
   final my_models.Notification notification;
   final VoidCallback onTap;
-  
+
   const NotificationCard({
     super.key,
     required this.notification,
     required this.onTap,
   });
-  
+
   IconData _getNotificationIcon(my_models.NotificationType type) {
     switch (type) {
       case my_models.NotificationType.connectionRequest:
         return PhosphorIcons.userPlus();
       case my_models.NotificationType.connectionAccepted:
         return PhosphorIcons.checkCircle();
-      case my_models.NotificationType.message:
+      case my_models.NotificationType.newMessage:
         return PhosphorIcons.chatCircle();
       case my_models.NotificationType.eventReminder:
         return PhosphorIcons.calendar();
-      case my_models.NotificationType.eventUpdate:
+      case my_models.NotificationType.communityUpdate:
         return PhosphorIcons.megaphone();
       case my_models.NotificationType.paymentSuccess:
         return PhosphorIcons.creditCard();
       case my_models.NotificationType.ticketReady:
         return PhosphorIcons.ticket();
-      case my_models.NotificationType.newExperience:
-        return PhosphorIcons.sparkle();
-      case my_models.NotificationType.moodMatch:
+      case my_models.NotificationType.newLike:
         return PhosphorIcons.heart();
       default:
         return PhosphorIcons.bell();
     }
   }
-  
+
   Color _getNotificationColor(my_models.NotificationType type) {
     switch (type) {
       case my_models.NotificationType.connectionRequest:
@@ -52,7 +50,28 @@ class NotificationCard extends StatelessWidget {
         return AppConstants.secondaryGray;
     }
   }
-  
+
+  String _formatTimeAgo(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inDays > 365) {
+      final years = (difference.inDays / 365).floor();
+      return '$years year${years > 1 ? 's' : ''} ago';
+    } else if (difference.inDays > 30) {
+      final months = (difference.inDays / 30).floor();
+      return '$months month${months > 1 ? 's' : ''} ago';
+    } else if (difference.inDays > 0) {
+      return '${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ago';
+    } else if (difference.inHours > 0) {
+      return '${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ago';
+    } else if (difference.inMinutes > 0) {
+      return '${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ago';
+    } else {
+      return 'Just now';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -64,8 +83,8 @@ class NotificationCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
           border: Border.all(
-            color: notification.isRead 
-                ? AppConstants.lightGray 
+            color: notification.isRead
+                ? AppConstants.lightGray
                 : AppConstants.primaryRed.withOpacity(0.3),
           ),
           boxShadow: [
@@ -103,27 +122,27 @@ class NotificationCard extends StatelessWidget {
                   Text(
                     notification.title,
                     style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: notification.isRead 
-                          ? FontWeight.normal 
-                          : FontWeight.w600,
-                    ),
+                          fontWeight: notification.isRead
+                              ? FontWeight.normal
+                              : FontWeight.w600,
+                        ),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     notification.body,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: AppConstants.secondaryGray,
-                    ),
+                          color: AppConstants.secondaryGray,
+                        ),
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    notification.timeAgo,
+                    _formatTimeAgo(notification.timestamp),
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 12,
-                      color: AppConstants.secondaryGray,
-                    ),
+                          fontSize: 12,
+                          color: AppConstants.secondaryGray,
+                        ),
                   ),
                 ],
               ),

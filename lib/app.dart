@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:kanairoxo/providers/profile_provider.dart';
+import 'package:kanairoxo/providers/auth_provider.dart';
+import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
+import 'package:kanairoxo/providers/notification_provider.dart';
+import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/auth/signup_screen.dart';
 import 'package:kanairoxo/screens/auth/splash_screen.dart';
 import 'package:kanairoxo/screens/discovery_screen.dart';
+import 'package:kanairoxo/screens/events/event_detail_screen.dart';
 import 'package:kanairoxo/screens/events/event_memories_screen.dart';
 import 'package:kanairoxo/screens/events/events_screen.dart';
+import 'package:kanairoxo/screens/events/host_event_screen.dart';
 import 'package:kanairoxo/screens/messages/chat_screen.dart';
 import 'package:kanairoxo/screens/mood_screen.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
@@ -20,12 +25,17 @@ import 'package:kanairoxo/screens/profile/settings_screen.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/models/message_model.dart';
 import 'package:kanairoxo/services/api_client.dart';
-import 'package:kanairoxo/services/auth_service.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/widgets/bottom_nav_bar.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:kanairoxo/screens/events/events_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
+void main() {
+  runApp(const KanairoXOApp());
+}
 
 class KanairoXOApp extends StatelessWidget {
   const KanairoXOApp({super.key});
@@ -34,9 +44,19 @@ class KanairoXOApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider(create: (context) => ProfileProvider()),
-        ChangeNotifierProvider(create: (context) => EventsProvider()),
-        // Add other providers here as needed
+        ChangeNotifierProvider(create: (_) => AuthProvider()),
+        ChangeNotifierProxyProvider<AuthProvider, ProfileProvider>(
+          create: (_) => ProfileProvider(),
+          update: (_, auth, previous) =>
+              (previous ?? ProfileProvider())..update(auth),
+        ),
+        ChangeNotifierProxyProvider<AuthProvider, EventsProvider>(
+          create: (_) => EventsProvider(),
+          update: (_, auth, previous) =>
+              (previous ?? EventsProvider())..update(auth),
+        ),
+        ChangeNotifierProvider(create: (context) => NotificationProvider()),
+        ChangeNotifierProvider(create: (context) => ConnectionProvider()),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
@@ -66,7 +86,7 @@ class KanairoXOApp extends StatelessWidget {
         routes: {
           '/onboarding': (context) => OnboardingScreen(
                 onComplete: () {
-                  Navigator.pushReplacementNamed(context, '/login');
+                  Navigator.pushReplacementNamed(context, '/signup');
                 },
               ),
           '/login': (context) => LoginScreen(
@@ -79,13 +99,32 @@ class KanairoXOApp extends StatelessWidget {
               ),
           '/signup': (context) => SignupScreen(
                 onSignupSuccess: () {
-                  Navigator.pushReplacementNamed(context, '/onboarding');
+                  Navigator.pushReplacementNamed(context, '/main');
                 },
                 onLoginTap: () {
                   Navigator.pushNamed(context, '/login');
                 },
               ),
           '/main': (context) => const MainAppScreen(),
+          '/events': (context) => const EventsScreenWrapper(),
+          '/events/host': (context) => HostEventScreen(
+            onEventCreated: (event) {
+              // Refresh events list
+              context.read<EventsProvider>().fetchExperiences();
+              // Show success message
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Event created successfully!'),
+                  backgroundColor: Colors.green,
+                ),
+              );
+               Navigator.pop(context);
+            },
+          ),
+          '/events/:id': (context) {
+            final eventId = ModalRoute.of(context)!.settings.arguments as String;
+            return EventDetailScreen(eventId: eventId);
+          },
           '/chat': (context) => ChatScreen(
                 chat: Chat(
                   id: '1',
@@ -126,28 +165,14 @@ class AppWrapper extends StatefulWidget {
 
 class _AppWrapperState extends State<AppWrapper> {
   bool _splashComplete = false;
-  bool _isLoggedIn = false;
   bool _hasCompletedOnboarding = false; // You might need to persist this
 
   @override
   void initState() {
     super.initState();
-    _checkAuthState();
-  }
-
-  Future<void> _checkAuthState() async {
-    final authService = AuthService();
-    final isLoggedIn = await authService.isLoggedIn();
-
     // TODO: You should persist and retrieve this value
     const hasCompletedOnboarding = false;
-
-    if (mounted) {
-      setState(() {
-        _isLoggedIn = isLoggedIn;
-        _hasCompletedOnboarding = hasCompletedOnboarding;
-      });
-    }
+    _hasCompletedOnboarding = hasCompletedOnboarding;
   }
 
   @override
@@ -164,7 +189,9 @@ class _AppWrapperState extends State<AppWrapper> {
       );
     }
 
-    if (_isLoggedIn) {
+    final auth = context.watch<AuthProvider>();
+
+    if (auth.isAuthenticated) {
       return const MainAppScreen();
     }
 
@@ -172,23 +199,19 @@ class _AppWrapperState extends State<AppWrapper> {
       return OnboardingScreen(
         onComplete: () {
           if (mounted) {
-            // Update state and navigate to login
+            // Update state and navigate to signup
             setState(() {
               _hasCompletedOnboarding = true;
             });
-             Navigator.pushReplacementNamed(context, '/login');
+            Navigator.pushReplacementNamed(context, '/signup');
           }
         },
       );
     }
-    
+
     return LoginScreen(
       onLoginSuccess: () {
-        if (mounted) {
-          setState(() {
-            _isLoggedIn = true;
-          });
-        }
+        // This is handled by the provider state change now.
       },
       onSignupTap: () {
         Navigator.pushNamed(context, '/signup');
@@ -231,7 +254,8 @@ class _MainAppScreenState extends State<MainAppScreen> {
       await context.read<ProfileProvider>().handleLogout();
       if (mounted) {
         // Use the global navigator key to navigate
-        navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
+        navigatorKey.currentState
+            ?.pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } catch (e) {
       // Handle other potential errors
@@ -288,71 +312,15 @@ class _MainAppScreenState extends State<MainAppScreen> {
               onPressed: _navigateToPostStory,
               backgroundColor: AppConstants.primaryRed,
               foregroundColor: Colors.white,
-              icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
+              icon:
+                  PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
               label: const Text('New Story'),
             )
           : null,
-      bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  Widget _buildBottomNavBar() {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(24),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildNavItem(0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover'),
-          _buildNavItem(1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events'),
-          _buildNavItem(2, PhosphorIcons.moon(PhosphorIconsStyle.regular), 'Mood'),
-          _buildNavItem(3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile'),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildNavItem(int index, IconData icon, String label) {
-    final isActive = index == _currentIndex;
-    return GestureDetector(
-      onTap: () => _onItemTapped(index),
-      onLongPress: index == 3 ? _navigateToSettings : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        decoration: BoxDecoration(
-          color: isActive ? AppConstants.primaryBeige : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PhosphorIcon(
-              icon,
-              size: 22,
-              color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-              ),
-            ),
-          ],
-        ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: _currentIndex,
+        onTap: _onItemTapped,
+        onSettingsLongPress: _navigateToSettings,
       ),
     );
   }
@@ -378,7 +346,8 @@ class EventsScreenWrapper extends StatelessWidget {
             );
           },
           onExperienceSelected: (experience) {
-            // Handle experience selection
+            Navigator.pushNamed(context, '/events/:id',
+                arguments: experience.id);
           },
         );
       },

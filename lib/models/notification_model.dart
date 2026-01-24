@@ -1,115 +1,148 @@
+import 'package:flutter/foundation.dart';
+
+enum NotificationType {
+  connectionRequest,
+  connectionAccepted,
+  connectionRejected,
+  newMessage,
+  eventInvitation,
+  eventReminder,
+  ticketReady,
+  paymentSuccess,
+  paymentFailed,
+  newComment,
+  newLike,
+  profileView,
+  systemAlert,
+  communityUpdate,
+}
+
+extension NotificationTypeExtension on NotificationType {
+  String get value {
+    return toString().split('.').last;
+  }
+
+  static NotificationType fromString(String value) {
+    return NotificationType.values.firstWhere(
+      (type) => type.value == value,
+      orElse: () => NotificationType.systemAlert,
+    );
+  }
+}
+
+@immutable
 class Notification {
   final String id;
   final String userId;
   final NotificationType type;
   final String title;
   final String body;
-  final DateTime timestamp;
-  final bool isRead;
-  final Map<String, dynamic>? data;
+  final String? icon;
   final String? imageUrl;
   final String? actionUrl;
-  
+  final String? actionText;
+  final Map<String, dynamic> data;
+  final DateTime timestamp;
+  final bool isRead;
+  final bool isSeen;
+  final bool isActionTaken;
+  final Map<String, dynamic>? sender;
+  final Map<String, dynamic>? event;
+
   const Notification({
     required this.id,
     required this.userId,
     required this.type,
     required this.title,
     required this.body,
-    required this.timestamp,
-    this.isRead = false,
-    this.data,
+    this.icon,
     this.imageUrl,
     this.actionUrl,
+    this.actionText,
+    this.data = const {},
+    required this.timestamp,
+    this.isRead = false,
+    this.isSeen = false,
+    this.isActionTaken = false,
+    this.sender,
+    this.event,
   });
-  
-  String get timeAgo {
-    final now = DateTime.now();
-    final difference = now.difference(timestamp);
-    
-    if (difference.inDays > 7) {
-      return '${timestamp.day}/${timestamp.month}';
-    } else if (difference.inDays > 0) {
-      return '${difference.inDays}d ago';
-    } else if (difference.inHours > 0) {
-      return '${difference.inHours}h ago';
-    } else if (difference.inMinutes > 0) {
-      return '${difference.inMinutes}m ago';
-    } else {
-      return 'Just now';
-    }
+
+  factory Notification.fromJson(Map<String, dynamic> json) {
+    return Notification(
+      id: json['id'] ?? '',
+      userId: json['user']?.toString() ?? '',
+      type: NotificationTypeExtension.fromString(json['type'] ?? ''),
+      title: json['title'] ?? '',
+      body: json['body'] ?? '',
+      icon: json['icon'],
+      imageUrl: json['image_url'],
+      actionUrl: json['action_url'],
+      actionText: json['action_text'],
+      data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : {},
+      timestamp: DateTime.parse(json['created_at']),
+      isRead: json['is_read'] ?? false,
+      isSeen: json['is_seen'] ?? false,
+      isActionTaken: json['is_action_taken'] ?? false,
+      sender: json['sender'] is Map ? Map<String, dynamic>.from(json['sender']) : null,
+      event: json['event'] is Map ? Map<String, dynamic>.from(json['event']) : null,
+    );
   }
-  
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
-      'userId': userId,
-      'type': type.toString(),
+      'user': userId,
+      'type': type.value,
       'title': title,
       'body': body,
-      'timestamp': timestamp.toIso8601String(),
-      'isRead': isRead,
+      'icon': icon,
+      'image_url': imageUrl,
+      'action_url': actionUrl,
+      'action_text': actionText,
       'data': data,
-      'imageUrl': imageUrl,
-      'actionUrl': actionUrl,
+      'created_at': timestamp.toIso8601String(),
+      'is_read': isRead,
+      'is_seen': isSeen,
+      'is_action_taken': isActionTaken,
     };
   }
-  
-  factory Notification.fromJson(Map<String, dynamic> json) {
+
+  Notification copyWith({
+    String? id,
+    String? userId,
+    NotificationType? type,
+    String? title,
+    String? body,
+    String? icon,
+    String? imageUrl,
+    String? actionUrl,
+    String? actionText,
+    Map<String, dynamic>? data,
+    DateTime? timestamp,
+    bool? isRead,
+    bool? isSeen,
+    bool? isActionTaken,
+    Map<String, dynamic>? sender,
+    Map<String, dynamic>? event,
+  }) {
     return Notification(
-      id: json['id'],
-      userId: json['userId'],
-      type: NotificationType.values.firstWhere(
-        (e) => e.toString() == json['type'],
-        orElse: () => NotificationType.general,
-      ),
-      title: json['title'],
-      body: json['body'],
-      timestamp: DateTime.parse(json['timestamp']),
-      isRead: json['isRead'] ?? false,
-      data: json['data'],
-      imageUrl: json['imageUrl'],
-      actionUrl: json['actionUrl'],
+      id: id ?? this.id,
+      userId: userId ?? this.userId,
+      type: type ?? this.type,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      icon: icon ?? this.icon,
+      imageUrl: imageUrl ?? this.imageUrl,
+      actionUrl: actionUrl ?? this.actionUrl,
+      actionText: actionText ?? this.actionText,
+      data: data ?? this.data,
+      timestamp: timestamp ?? this.timestamp,
+      isRead: isRead ?? this.isRead,
+      isSeen: isSeen ?? this.isSeen,
+      isActionTaken: isActionTaken ?? this.isActionTaken,
+      sender: sender ?? this.sender,
+      event: event ?? this.event,
     );
   }
-}
-
-enum NotificationType {
-  connectionRequest,
-  connectionAccepted,
-  message,
-  eventReminder,
-  eventUpdate,
-  paymentSuccess,
-  ticketReady,
-  newExperience,
-  moodMatch,
-  system,
-  general,
-}
-
-class ConnectionRequest {
-  final String id;
-  final String fromUserId;
-  final String fromUserName;
-  final String fromUserImage;
-  final String? message;
-  final DateTime sentAt;
-  final bool isAccepted;
-  final bool isDeclined;
-  final DateTime? respondedAt;
-  
-  const ConnectionRequest({
-    required this.id,
-    required this.fromUserId,
-    required this.fromUserName,
-    required this.fromUserImage,
-    this.message,
-    required this.sentAt,
-    this.isAccepted = false,
-    this.isDeclined = false,
-    this.respondedAt,
-  });
-  
-  bool get isPending => !isAccepted && !isDeclined;
 }

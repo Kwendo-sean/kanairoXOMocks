@@ -66,7 +66,7 @@ class ExperienceCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Hosted by ${experience.organizer.username}',
+                          'Hosted by ${experience.organizer.firstName}',
                           style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: Colors.grey[600],
                           ),

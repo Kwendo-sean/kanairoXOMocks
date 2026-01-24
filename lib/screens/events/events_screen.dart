@@ -5,6 +5,7 @@ import 'package:kanairoxo/widgets/experience_card.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
+import 'package:kanairoxo/screens/events/host_event_screen.dart';
 
 class EventsScreen extends StatefulWidget {
   final void Function(Experience) onJoinExperience;
@@ -63,7 +64,7 @@ class _EventsScreenState extends State<EventsScreen> {
     } catch (e) {
       print('Error loading experiences: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to load experiences'),
           backgroundColor: Colors.red,
         ),
@@ -93,7 +94,7 @@ class _EventsScreenState extends State<EventsScreen> {
     } catch (e) {
       print('Error loading more experiences: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to load more experiences'),
           backgroundColor: Colors.red,
         ),
@@ -118,16 +119,16 @@ class _EventsScreenState extends State<EventsScreen> {
         final joinWaitlist = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Event is Full'),
-            content: Text('This event is currently at capacity. Would you like to join the waitlist?'),
+            title: const Text('Event is Full'),
+            content: const Text('This event is currently at capacity. Would you like to join the waitlist?'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
+                child: const Text('Cancel'),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('Join Waitlist'),
+                child: const Text('Join Waitlist'),
               ),
             ],
           ),
@@ -139,7 +140,7 @@ class _EventsScreenState extends State<EventsScreen> {
           if (result['success']) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Added to waitlist at position ${result['position']}'),
+                content: Text("Added to waitlist at position ${result['position']}"),
                 backgroundColor: Colors.green,
               ),
             );
@@ -156,22 +157,22 @@ class _EventsScreenState extends State<EventsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Price: ${experience.priceDisplay}'),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text('Date: ${experience.formattedDate} at ${experience.formattedTime}'),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text('Venue: ${experience.venueName}'),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
                 Text('Spots left: ${experience.ticketsAvailable}'),
               ],
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),
-                child: Text('Cancel'),
+                child: const Text('Cancel'),
               ),
               ElevatedButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: Text('Register'),
+                child: const Text('Register'),
               ),
             ],
           ),
@@ -225,30 +226,39 @@ class _EventsScreenState extends State<EventsScreen> {
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: [
+              // Host Event Button
               IconButton(
-                icon: Icon(Icons.search),
+                icon: const Icon(Icons.add),
+                tooltip: 'Host an Event',
                 onPressed: () {
-                  // TODO: Implement search
+                  Navigator.pushNamed(context, '/events/host');
+                },
+              ),
+              IconButton(
+                icon: const Icon(Icons.search),
+                onPressed: () {
                   Navigator.pushNamed(context, '/events/search');
                 },
               ),
               IconButton(
-                icon: Icon(Icons.filter_list),
+                icon: const Icon(Icons.filter_list),
                 onPressed: () {
-                  // TODO: Implement filter
                   _showFilterDialog();
                 },
               ),
             ],
           ),
           body: _isLoading
-              ? Center(child: CircularProgressIndicator())
+              ? const Center(child: CircularProgressIndicator())
               : RefreshIndicator(
             onRefresh: _refreshExperiences,
             child: ListView(
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
               children: [
+                // Host Event Section
+                _buildHostEventSection(context),
+                
                 // Featured experiences section
                 if (featuredExperiences.isNotEmpty) ...[
                   Text(
@@ -275,7 +285,7 @@ class _EventsScreenState extends State<EventsScreen> {
                           },
                           child: Container(
                             width: 280,
-                            margin: EdgeInsets.only(right: 16),
+                            margin: const EdgeInsets.only(right: 16),
                             child: FeaturedExperienceCard(
                               experience: experience,
                             ),
@@ -313,12 +323,12 @@ class _EventsScreenState extends State<EventsScreen> {
                           size: 64,
                           color: Colors.grey[400],
                         ),
-                        SizedBox(height: 16),
+                        const SizedBox(height: 16),
                         Text(
                           'No experiences available',
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'Check back soon for new gatherings',
                           style: Theme.of(context).textTheme.bodyMedium,
@@ -346,8 +356,8 @@ class _EventsScreenState extends State<EventsScreen> {
 
                   // Load more indicator
                   if (_isLoadingMore)
-                    Padding(
-                      padding: const EdgeInsets.all(16.0),
+                    const Padding(
+                      padding: EdgeInsets.all(16.0),
                       child: Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -395,6 +405,67 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
+  Widget _buildHostEventSection(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Theme.of(context).primaryColor.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: Theme.of(context).primaryColor.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.event,
+                color: Theme.of(context).primaryColor,
+                size: 24,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'Host Your Own Experience',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColor,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Share your passion, host a gathering, and connect with like-minded people in Nairobi.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/events/host');
+                  },
+                  icon: const Icon(Icons.add_circle_outline),
+                  label: const Text('Host an Event'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showFilterDialog() {
     // TODO: Implement filter dialog
     showModalBottomSheet(
@@ -403,7 +474,7 @@ class _EventsScreenState extends State<EventsScreen> {
       builder: (context) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.8,
-          padding: EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
               Text(
@@ -413,7 +484,7 @@ class _EventsScreenState extends State<EventsScreen> {
               // TODO: Add filter options
               Expanded(
                 child: ListView(
-                  children: [
+                  children: const [
                     // Add filter options here
                   ],
                 ),
@@ -424,7 +495,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   // Apply filters
                   _loadExperiences();
                 },
-                child: Text('Apply Filters'),
+                child: const Text('Apply Filters'),
               ),
             ],
           ),
@@ -488,12 +559,12 @@ class FeaturedExperienceCard extends StatelessWidget {
               children: [
                 // Featured badge
                 Container(
-                  padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: Theme.of(context).primaryColor,
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Text(
+                  child: const Text(
                     'FEATURED',
                     style: TextStyle(
                       color: Colors.white,
@@ -502,7 +573,7 @@ class FeaturedExperienceCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                SizedBox(height: 8),
+                const SizedBox(height: 8),
 
                 Text(
                   experience.title,
@@ -513,20 +584,20 @@ class FeaturedExperienceCard extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
 
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.location_on,
                       size: 14,
                       color: Colors.white70,
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         experience.venueName,
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: Colors.white70,
                           fontSize: 12,
                         ),
@@ -536,33 +607,33 @@ class FeaturedExperienceCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
 
                 Row(
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.calendar_today,
                       size: 14,
                       color: Colors.white70,
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Text(
                       experience.formattedDate,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),
                     ),
-                    SizedBox(width: 8),
-                    Icon(
+                    const SizedBox(width: 8),
+                    const Icon(
                       Icons.access_time,
                       size: 14,
                       color: Colors.white70,
                     ),
-                    SizedBox(width: 4),
+                    const SizedBox(width: 4),
                     Text(
                       experience.formattedTime,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.white70,
                         fontSize: 12,
                       ),

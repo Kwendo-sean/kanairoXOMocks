@@ -1,6 +1,4 @@
-// lib/models/data_models.dart
 import 'package:flutter/material.dart';
-import 'dart:convert';
 
 class UserProfile {
   final String name;
@@ -132,18 +130,18 @@ class Experience {
       currentAttendees: json['current_attendees'] ?? 0,
       isFull: json['is_full'] ?? false,
       pricingTier: json['pricing_tier'] ?? 'free',
-      basePrice: (json['base_price'] ?? 0).toDouble(),
+      basePrice: double.tryParse(json['base_price'].toString()) ?? 0.0,
       currency: json['currency'] ?? 'KES',
       primaryMood: json['primary_mood'] ?? 'social',
       secondaryMoods: List<String>.from(json['secondary_moods'] ?? []),
       targetIntents: List<String>.from(json['target_intents'] ?? []),
-      discoveryScore: (json['discovery_score'] ?? 0).toDouble(),
+      discoveryScore: double.tryParse(json['discovery_score'].toString()) ?? 0.0,
       isFeatured: json['is_featured'] ?? false,
       isVerified: json['is_verified'] ?? false,
       status: json['status'] ?? 'draft',
       eventType: json['event_type'] ?? 'community',
-      category: json['category'] != null 
-          ? ExperienceCategory.fromJson(json['category']) 
+      category: json['category'] != null
+          ? ExperienceCategory.fromJson(json['category'])
           : null,
       tags: json['tags'] != null
           ? List<ExperienceTag>.from(
@@ -152,7 +150,8 @@ class Experience {
       organizer: ExperienceOrganizer.fromJson(json['organizer'] ?? {}),
       collaborators: json['collaborators'] != null
           ? List<ExperienceCollaborator>.from(
-              json['collaborators'].map((x) => ExperienceCollaborator.fromJson(x)))
+              json['collaborators']
+                  .map((x) => ExperienceCollaborator.fromJson(x)))
           : [],
       schedule: json['schedules'] != null
           ? List<ExperienceSchedule>.from(
@@ -160,7 +159,8 @@ class Experience {
           : [],
       pricingTiers: json['pricing_tiers'] != null
           ? List<ExperiencePricingTier>.from(
-              json['pricing_tiers'].map((x) => ExperiencePricingTier.fromJson(x)))
+              json['pricing_tiers']
+                  .map((x) => ExperiencePricingTier.fromJson(x)))
           : [],
       analytics: json['analytics'],
       savesCount: json['saves_count'] ?? 0,
@@ -171,42 +171,86 @@ class Experience {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'short_description': shortDescription,
-    'cover_image': coverImage,
-    'venue_name': venueName,
-    'venue_address': venueAddress,
-    'neighborhood': neighborhood,
-    'start_datetime': startDateTime.toIso8601String(),
-    'end_datetime': endDateTime.toIso8601String(),
-    'timezone': timezone,
-    'max_capacity': maxCapacity,
-    'current_attendees': currentAttendees,
-    'is_full': isFull,
-    'pricing_tier': pricingTier,
-    'base_price': basePrice,
-    'currency': currency,
-    'primary_mood': primaryMood,
-    'secondary_moods': secondaryMoods,
-    'target_intents': targetIntents,
-    'discovery_score': discoveryScore,
-    'is_featured': isFeatured,
-    'is_verified': isVerified,
-    'status': status,
-    'event_type': eventType,
-    'category': category?.toJson(),
-    'tags': tags.map((x) => x.toJson()).toList(),
-    'organizer': organizer.toJson(),
-    'collaborators': collaborators.map((x) => x.toJson()).toList(),
-    'schedules': schedule.map((x) => x.toJson()).toList(),
-    'pricing_tiers': pricingTiers.map((x) => x.toJson()).toList(),
-    'saves_count': savesCount,
-    'shares_count': sharesCount,
-    'created_at': createdAt.toIso8601String(),
-    'updated_at': updatedAt.toIso8601String(),
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'short_description': shortDescription,
+        'cover_image': coverImage,
+        'venue_name': venueName,
+        'venue_address': venueAddress,
+        'neighborhood': neighborhood,
+        'start_datetime': startDateTime.toIso8601String(),
+        'end_datetime': endDateTime.toIso8601String(),
+        'timezone': timezone,
+        'max_capacity': maxCapacity,
+        'current_attendees': currentAttendees,
+        'is_full': isFull,
+        'pricing_tier': pricingTier,
+        'base_price': basePrice,
+        'currency': currency,
+        'primary_mood': primaryMood,
+        'secondary_moods': secondaryMoods,
+        'target_intents': targetIntents,
+        'discovery_score': discoveryScore,
+        'is_featured': isFeatured,
+        'is_verified': isVerified,
+        'status': status,
+        'event_type': eventType,
+        'category': category?.toJson(),
+        'tags': tags.map((x) => x.toJson()).toList(),
+        'organizer': organizer.toJson(),
+        'collaborators': collaborators.map((x) => x.toJson()).toList(),
+        'schedules': schedule.map((x) => x.toJson()).toList(),
+        'pricing_tiers': pricingTiers.map((x) => x.toJson()).toList(),
+        'saves_count': savesCount,
+        'shares_count': sharesCount,
+        'created_at': createdAt.toIso8601String(),
+        'updated_at': updatedAt.toIso8601String(),
+      };
+
+  Experience copyWith({
+    int? currentAttendees,
+    bool? isFull,
+  }) {
+    return Experience(
+      id: id,
+      title: title,
+      description: description,
+      shortDescription: shortDescription,
+      coverImage: coverImage,
+      venueName: venueName,
+      venueAddress: venueAddress,
+      neighborhood: neighborhood,
+      startDateTime: startDateTime,
+      endDateTime: endDateTime,
+      timezone: timezone,
+      maxCapacity: maxCapacity,
+      currentAttendees: currentAttendees ?? this.currentAttendees,
+      isFull: isFull ?? this.isFull,
+      pricingTier: pricingTier,
+      basePrice: basePrice,
+      currency: currency,
+      primaryMood: primaryMood,
+      secondaryMoods: secondaryMoods,
+      targetIntents: targetIntents,
+      discoveryScore: discoveryScore,
+      isFeatured: isFeatured,
+      isVerified: isVerified,
+      status: status,
+      eventType: eventType,
+      category: category,
+      tags: tags,
+      organizer: organizer,
+      collaborators: collaborators,
+      schedule: schedule,
+      pricingTiers: pricingTiers,
+      analytics: analytics,
+      savesCount: savesCount,
+      sharesCount: sharesCount,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+    );
+  }
 
   String get priceDisplay {
     switch (pricingTier) {
@@ -228,14 +272,13 @@ class Experience {
   }
 
   bool get isUpcoming => startDateTime.isAfter(DateTime.now());
-  
-  bool get isOngoing => 
-      startDateTime.isBefore(DateTime.now()) && 
-      endDateTime.isAfter(DateTime.now());
-  
+
+  bool get isOngoing =>
+      startDateTime.isBefore(DateTime.now()) && endDateTime.isAfter(DateTime.now());
+
   int get ticketsAvailable => maxCapacity - currentAttendees;
-  
-  double get capacityPercentage => 
+
+  double get capacityPercentage =>
       maxCapacity > 0 ? (currentAttendees / maxCapacity) * 100 : 0;
 }
 
@@ -265,12 +308,12 @@ class ExperienceCategory {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'description': description,
-    'icon': icon,
-    'color': color,
-  };
+        'id': id,
+        'name': name,
+        'description': description,
+        'icon': icon,
+        'color': color,
+      };
 }
 
 class ExperienceTag {
@@ -293,22 +336,24 @@ class ExperienceTag {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'description': description,
-  };
+        'id': id,
+        'name': name,
+        'description': description,
+      };
 }
 
 class ExperienceOrganizer {
   final String id;
-  final String username;
+  final String firstName;
+  final String? lastName;
   final String? profilePicture;
   final int trustScore;
   final String? bio;
 
   ExperienceOrganizer({
     required this.id,
-    required this.username,
+    required this.firstName,
+    this.lastName,
     this.profilePicture,
     required this.trustScore,
     this.bio,
@@ -317,7 +362,8 @@ class ExperienceOrganizer {
   factory ExperienceOrganizer.fromJson(Map<String, dynamic> json) {
     return ExperienceOrganizer(
       id: json['id'] ?? '',
-      username: json['username'] ?? '',
+      firstName: json['first_name'] ?? '',
+      lastName: json['last_name'] ?? '',
       profilePicture: json['profile_picture'],
       trustScore: json['trust_score'] ?? 0,
       bio: json['bio'],
@@ -325,12 +371,13 @@ class ExperienceOrganizer {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'username': username,
-    'profile_picture': profilePicture,
-    'trust_score': trustScore,
-    'bio': bio,
-  };
+        'id': id,
+        'first_name': firstName,
+        'last_name': lastName,
+        'profile_picture': profilePicture,
+        'trust_score': trustScore,
+        'bio': bio,
+      };
 }
 
 class ExperienceCollaborator {
@@ -362,13 +409,13 @@ class ExperienceCollaborator {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'display_name': name,
-    'external_title': title,
-    'external_bio': bio,
-    'external_photo': photo,
-    'collaborator_type': collaboratorType,
-  };
+        'id': id,
+        'display_name': name,
+        'external_title': title,
+        'external_bio': bio,
+        'external_photo': photo,
+        'collaborator_type': collaboratorType,
+      };
 }
 
 class ExperienceSchedule {
@@ -403,14 +450,14 @@ class ExperienceSchedule {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'title': title,
-    'description': description,
-    'start_time': startTime.toIso8601String(),
-    'end_time': endTime.toIso8601String(),
-    'location': location,
-    'is_break': isBreak,
-  };
+        'id': id,
+        'title': title,
+        'description': description,
+        'start_time': startTime.toIso8601String(),
+        'end_time': endTime.toIso8601String(),
+        'location': location,
+        'is_break': isBreak,
+      };
 }
 
 class ExperiencePricingTier {
@@ -443,7 +490,7 @@ class ExperiencePricingTier {
       id: json['id'] ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
-      price: (json['price'] ?? 0).toDouble(),
+      price: double.tryParse(json['price'].toString()) ?? 0.0,
       currency: json['currency'] ?? 'KES',
       maxQuantity: json['max_quantity'],
       currentQuantity: json['current_quantity'] ?? 0,
@@ -454,19 +501,19 @@ class ExperiencePricingTier {
   }
 
   Map<String, dynamic> toJson() => {
-    'id': id,
-    'name': name,
-    'description': description,
-    'price': price,
-    'currency': currency,
-    'max_quantity': maxQuantity,
-    'current_quantity': currentQuantity,
-    'benefits': benefits,
-    'is_active': isActive,
-    'is_available': isAvailable,
-  };
+        'id': id,
+        'name': name,
+        'description': description,
+        'price': price,
+        'currency': currency,
+        'max_quantity': maxQuantity,
+        'current_quantity': currentQuantity,
+        'benefits': benefits,
+        'is_active': isActive,
+        'is_available': isAvailable,
+      };
 
-  int? get quantityRemaining => 
+  int? get quantityRemaining =>
       maxQuantity != null ? maxQuantity! - currentQuantity : null;
 }
 
@@ -506,12 +553,12 @@ class ExperienceAttendee {
       userId: json['user'] ?? '',
       status: json['status'] ?? 'registered',
       paymentStatus: json['payment_status'] ?? 'pending',
-      paidAmount: (json['paid_amount'] ?? 0).toDouble(),
-      checkInTime: json['check_in_time'] != null 
-          ? DateTime.parse(json['check_in_time']) 
+      paidAmount: double.tryParse(json['paid_amount'].toString()) ?? 0.0,
+      checkInTime: json['check_in_time'] != null
+          ? DateTime.parse(json['check_in_time'])
           : null,
-      checkOutTime: json['check_out_time'] != null 
-          ? DateTime.parse(json['check_out_time']) 
+      checkOutTime: json['check_out_time'] != null
+          ? DateTime.parse(json['check_out_time'])
           : null,
       numberOfGuests: json['number_of_guests'] ?? 0,
       rating: json['rating'],
@@ -547,16 +594,15 @@ class ExperienceWaitlist {
       userId: json['user'] ?? '',
       position: json['position'] ?? 0,
       joinedAt: DateTime.parse(json['joined_at']),
-      notifiedAt: json['notified_at'] != null 
-          ? DateTime.parse(json['notified_at']) 
+      notifiedAt: json['notified_at'] != null
+          ? DateTime.parse(json['notified_at'])
           : null,
-      expiresAt: json['expires_at'] != null 
-          ? DateTime.parse(json['expires_at']) 
+      expiresAt: json['expires_at'] != null
+          ? DateTime.parse(json['expires_at'])
           : null,
     );
   }
 }
-
 
 // Sample data for the prototype
 final sampleProfiles = [
@@ -564,20 +610,30 @@ final sampleProfiles = [
     name: 'Sofia',
     age: 28,
     location: 'Brooklyn, NY',
-    bio: 'Looking for people who appreciate quiet mornings, good design, and conversations that matter.',
+    bio:
+        'Looking for people who appreciate quiet mornings, good design, and conversations that matter.',
     mood: 'Calm',
     moodIcon: 'coffee',
-    imageUrl: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=400&h=500&fit=crop',
+    imageUrl:
+        'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop',
   ),
   const UserProfile(
     name: 'Marcus',
     age: 31,
     location: 'Manhattan, NY',
-    bio: 'Architect by day, jazz enthusiast by night. I believe the best conversations happen over good food and even better questions.',
+    bio:
+        'Architect by day, jazz enthusiast by night. I believe the best conversations happen over good food and even better questions.',
     mood: 'Reflective',
     moodIcon: 'building',
-    imageUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h-500&fit=crop',
-    interests: ['Architecture', 'Jazz', 'Photography', 'Cooking', 'Philosophy'],
+    imageUrl:
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h-500&fit=crop',
+    interests: [
+      'Architecture',
+      'Jazz',
+      'Photography',
+      'Cooking',
+      'Philosophy'
+    ],
     lookingFor: ['Friends', 'Community'],
   ),
 ];

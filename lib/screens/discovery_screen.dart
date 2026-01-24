@@ -1,9 +1,11 @@
-// lib/screens/discovery_screen.dart
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/services/discovery_service.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:provider/provider.dart';
+import '../providers/connection_provider.dart';
+import '../providers/notification_provider.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({Key? key}) : super(key: key);
@@ -123,74 +125,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         _error = 'Something went wrong. Please try again.';
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _handleConnect() async {
-    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
-
-    setState(() {
-      _isProcessingAction = true;
-    });
-
-    final currentItem = _discoveries[_currentIndex];
-    final profile = _getCurrentProfile();
-    final profileName = profile?.displayName ?? 'user';
-
-    try {
-      await _discoveryService.recordUserAction(
-        currentItem.id,
-        'connect',
-        rating: 5.0,
-        context: {'action_source': 'discovery_screen'},
-      );
-
-      // Show success message
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Connected with $profileName! 🎉',
-              style: const TextStyle(fontSize: 16),
-            ),
-            backgroundColor: Colors.green,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      }
-
-      // Move to next profile after a short delay
-      await Future.delayed(const Duration(milliseconds: 800));
-      _moveToNextProfile();
-
-    } catch (e) {
-      print('Error connecting: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to connect. Please try again.',
-              style: const TextStyle(fontSize: 16),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessingAction = false;
-        });
-      }
     }
   }
 
@@ -467,17 +401,30 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         if (profile == null) {
           return const SizedBox.shrink(); // Should not happen if itemCount is correct
         }
+
+        final discoveryItem = _discoveries[index];
+
         return SlideTransition(
           position: _slideAnimation,
           child: ProfileCard(
             profile: profile,
-            compatibilityScore: _discoveries[index].overallScore,
-            compatibilityText: _discoveries[index].compatibilityText,
-            explanation: _discoveries[index].explanation,
-            onConnect: _handleConnect,
-            onNotNow: _handleNotNow,
-            onSave: _handleSave,
-            isProcessing: _isProcessingAction,
+            compatibilityScore: discoveryItem.overallScore,
+            compatibilityText: discoveryItem.compatibilityText,
+            explanation: discoveryItem.explanation,
+            onNotNow: () {
+              // Handle not now
+              _moveToNextProfile();
+            },
+            onSave: () {
+              // Handle save
+              _handleSave();
+            },
+            onConnectionSuccess: () {
+              // Optional: Load next profile after successful connection
+              Future.delayed(const Duration(seconds: 1), () {
+                _moveToNextProfile();
+              });
+            },
           ),
         );
       },
@@ -503,10 +450,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       body: _isLoading
           ? _buildLoading()
           : _error != null
-          ? _buildError()
-          : _discoveries.isEmpty
-          ? _buildEmpty()
-          : _buildPageView(),
+              ? _buildError()
+              : _discoveries.isEmpty
+                  ? _buildEmpty()
+                  : _buildPageView(),
     );
   }
 }

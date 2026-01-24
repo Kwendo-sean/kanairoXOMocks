@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/auth/auth_input_field.dart';
-import 'package:kanairoxo/services/auth_service.dart';
+import 'package:kanairoxo/providers/auth_provider.dart';
+import 'package:provider/provider.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -35,8 +36,6 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      final authService = AuthService();
-
       // Format phone number (ensure it starts with +254)
       String phoneNumber = _phoneController.text.trim();
       if (!phoneNumber.startsWith('+')) {
@@ -47,13 +46,10 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
 
-      final response = await authService.login(
-        phoneNumber: phoneNumber,
-        password: _passwordController.text,
-      );
-
-      // Store user data if needed
-      // await _storeUserData(response.user);
+      await context.read<AuthProvider>().login(
+            phoneNumber,
+            _passwordController.text,
+          );
 
       setState(() => _isLoading = false);
       widget.onLoginSuccess();
