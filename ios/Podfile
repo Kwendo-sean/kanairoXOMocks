@@ -1,4 +1,28 @@
-# Uncomment this line to define a global platform for your project
+# The following logic finds and loads podhelper.rb
+ios_dir = File.expand_path(File.dirname(__FILE__))
+podhelper_path = File.join(ios_dir, 'Flutter', 'podhelper.rb')
+
+if !File.exist?(podhelper_path)
+  # Fallback to finding it via FLUTTER_ROOT in Generated.xcconfig
+  generated_xcconfig_path = File.join(ios_dir, 'Flutter', 'Generated.xcconfig')
+  if File.exist?(generated_xcconfig_path)
+    File.foreach(generated_xcconfig_path) do |line|
+      matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
+      if matches
+        podhelper_path = File.join(matches[1].strip, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')
+        break
+      end
+    end
+  end
+end
+
+if File.exist?(podhelper_path)
+  load podhelper_path
+else
+  # If still not found, try a common location or raise error
+  raise "podhelper.rb not found at #{podhelper_path}. Please run 'flutter pub get' first."
+end
+
 platform :ios, '14.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
@@ -10,26 +34,11 @@ project 'Runner', {
   'Profile' => :profile,
 }
 
-def flutter_root
-  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
-  unless File.exist?(generated_xcode_build_settings_path)
-    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
-  end
-
-  File.foreach(generated_xcode_build_settings_path) do |line|
-    matches = line.match(/\AFLUTTER_ROOT=(.*)\z/)
-    return matches[1] if matches
-  end
-  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
-end
-
-require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
-
 target 'Runner' do
   use_frameworks!
   use_modular_headers!
 
-  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  flutter_install_all_ios_pods ios_dir
 end
 
 post_install do |installer|
