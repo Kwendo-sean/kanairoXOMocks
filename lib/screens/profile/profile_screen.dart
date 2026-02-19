@@ -30,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
           return _buildErrorScreen(context, profileProvider);
         }
 
-        if (user == null) {
+        if (user == null || user.profile == null) {
           return _buildNoProfileScreen(context, profileProvider);
         }
 
@@ -75,11 +75,11 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 24),
                       _buildSectionTitle(context, 'My Interests'),
                       const SizedBox(height: 12),
-                      InterestsGrid(interests: user.interests),
+                      InterestsGrid(interests: user.profile!.interests),
                       const SizedBox(height: 24),
                       _buildSectionTitle(context, 'Gallery'),
                       const SizedBox(height: 12),
-                      _buildGallery(context, user.profilePhotos, profileProvider),
+                      _buildGallery(context, user.profile!.profilePhotos, profileProvider),
                     ]),
                   ),
                 ),
@@ -159,7 +159,7 @@ class ProfileScreen extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Text(
-          user.bio ?? 'No bio available.',
+          user.profile?.bio ?? 'No bio available.',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
         ),
       ),

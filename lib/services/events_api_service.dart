@@ -23,7 +23,7 @@ class EventsApiService {
       if (limit != null) 'limit': limit.toString(),
     };
 
-    final response = await _apiClient.get('events/', queryParameters: queryParams);
+    final response = await _apiClient.get('api/v1/events/', queryParameters: queryParams);
     final results = response['results'] ?? response;
 
     if (results is List) {
@@ -33,7 +33,7 @@ class EventsApiService {
   }
 
   Future<List<Experience>> fetchFeaturedExperiences() async {
-    final response = await _apiClient.get('events/public/');
+    final response = await _apiClient.get('api/v1/events/public/');
     final featuredEvents = response['featured_events'] ?? [];
 
     if (featuredEvents is List) {
@@ -44,7 +44,7 @@ class EventsApiService {
 
   Future<List<ExperienceCategory>> fetchCategories() async {
     try {
-      final response = await _apiClient.get('events/categories/');
+      final response = await _apiClient.get('api/v1/events/categories/');
       if (response is Map<String, dynamic> && response.containsKey('results')) {
         final results = response['results'];
         if (results is List) {
@@ -63,7 +63,7 @@ class EventsApiService {
   }
 
   Future<Experience> fetchExperienceDetail(String id) async {
-    final response = await _apiClient.get('events/$id/');
+    final response = await _apiClient.get('api/v1/events/$id/');
     return Experience.fromJson(response);
   }
 
@@ -79,7 +79,7 @@ class EventsApiService {
       if (notes != null && notes.isNotEmpty) 'notes': notes,
     };
 
-    return await _apiClient.post('events/$experienceId/register/', body);
+    return await _apiClient.post('api/v1/events/$experienceId/register/', body);
   }
 
   Future<Map<String, dynamic>> checkInToExperience({
@@ -90,19 +90,19 @@ class EventsApiService {
       'qr_code_data': qrCodeData,
     };
 
-    return await _apiClient.post('events/$experienceId/check-in/', body);
+    return await _apiClient.post('api/v1/events/$experienceId/check-in/', body);
   }
 
   Future<Map<String, dynamic>> saveExperience(String experienceId) async {
-    return await _apiClient.post('events/$experienceId/save/', {});
+    return await _apiClient.post('api/v1/events/$experienceId/save/', {});
   }
 
   Future<Map<String, dynamic>> joinWaitlist(String experienceId) async {
-    return await _apiClient.post('events/$experienceId/join-waitlist/', {});
+    return await _apiClient.post('api/v1/events/$experienceId/join-waitlist/', {});
   }
 
   Future<List<Experience>> fetchUserExperiences() async {
-    final response = await _apiClient.get('events/my-events/');
+    final response = await _apiClient.get('api/v1/events/my-events/');
     final attending = response['attending'] ?? [];
 
     if (attending is List) {
@@ -112,7 +112,7 @@ class EventsApiService {
   }
 
   Future<List<Experience>> discoverExperiences() async {
-    final response = await _apiClient.get('events/discover/');
+    final response = await _apiClient.get('api/v1/events/discover/');
     final results = response['results'] ?? response;
 
     if (results is List) {
@@ -122,15 +122,16 @@ class EventsApiService {
   }
 
   Future<Map<String, dynamic>> hostEvent(Map<String, dynamic> eventData) async {
-    return await _apiClient.post('events/host/', eventData);
+    return await _apiClient.post('api/v1/events/host/', eventData);
   }
 
   Future<Map<String, dynamic>> checkHostingEligibility() async {
-    return await _apiClient.get('events/hosting/eligibility/');
+    return await _apiClient.get('api/v1/events/hosting/eligibility/');
   }
 
   Future<List<Map<String, dynamic>>> getTicketTemplates() async {
-    final response = await _apiClient.get('tickets/templates/');
+    // Assuming ticket templates are not under the /v1/events/ path based on common practice
+    final response = await _apiClient.get('api/tickets/templates/');
     return List<Map<String, dynamic>>.from(response);
   }
 }

@@ -35,16 +35,17 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
 
     final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
     final user = profileProvider.currentUser;
+    final profile = user?.profile;
 
-    if (user != null) {
-      _bioController = TextEditingController(text: user.bio);
-      _headlineController = TextEditingController(text: user.headline);
-      _selectedInterests.addAll(user.interests);
-      _selectedNeighborhood = user.primaryNeighborhood;
-      _selectedLifeStage = user.lifeStage;
-      _selectedSocialCircle = user.primarySocialCircle;
-      _selectedConnectionFrequency = user.connectionFrequency;
-      _selectedVisibility = user.profileVisibility;
+    if (user != null && profile != null) {
+      _bioController = TextEditingController(text: profile.bio);
+      _headlineController = TextEditingController(text: profile.headline);
+      _selectedInterests.addAll(profile.interests);
+      _selectedNeighborhood = profile.primaryNeighborhood;
+      _selectedLifeStage = profile.lifeStage;
+      _selectedSocialCircle = profile.primarySocialCircle;
+      _selectedConnectionFrequency = profile.connectionFrequency;
+      _selectedVisibility = profile.profileVisibility;
     } else {
       _bioController = TextEditingController();
       _headlineController = TextEditingController();

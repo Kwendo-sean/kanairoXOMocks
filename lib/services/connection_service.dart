@@ -14,7 +14,7 @@ class ConnectionService {
   }) async {
     try {
       final response = await _apiClient.post(
-        'connections/send-request/',
+        'api/v1/connections/send-request/',
         {
           'receiver_id': receiverId,
           'message': message,
@@ -38,7 +38,7 @@ class ConnectionService {
   Future<Map<String, dynamic>> quickConnect(String userId) async {
     try {
       final response = await _apiClient.post(
-        'connections/quick-connect/$userId/',
+        'api/v1/connections/quick-connect/$userId/',
         {},
       );
 
@@ -58,7 +58,7 @@ class ConnectionService {
   Future<Map<String, dynamic>> checkConnectionStatus(String userId) async {
     try {
       final response = await _apiClient.get(
-        'connections/check-status/$userId/',
+        'api/v1/connections/check-status/$userId/',
       );
 
       return {
@@ -78,7 +78,7 @@ class ConnectionService {
   try {
     print('Accepting connection: $connectionId');
     final response = await _apiClient.post(
-      'connections/$connectionId/accept/',
+      'api/v1/connections/$connectionId/accept/',
       {'message': message},
     );
     
@@ -101,7 +101,7 @@ Future<Map<String, dynamic>> rejectConnection(String connectionId, {String? mess
   try {
     print('Rejecting connection: $connectionId');
     final response = await _apiClient.post(
-      'connections/$connectionId/reject/',
+      'api/v1/connections/$connectionId/reject/',
       {'message': message},
     );
     
@@ -122,7 +122,7 @@ Future<Map<String, dynamic>> rejectConnection(String connectionId, {String? mess
 
   Future<Map<String, dynamic>> getMyConnections() async {
     try {
-      final response = await _apiClient.get('connections/');
+      final response = await _apiClient.get('api/v1/connections/');
       return {
         'success': true,
         'data': response,
@@ -138,7 +138,7 @@ Future<Map<String, dynamic>> rejectConnection(String connectionId, {String? mess
 
   Future<Map<String, dynamic>> getPendingRequests() async {
     try {
-      final response = await _apiClient.get('connections/pending/');
+      final response = await _apiClient.get('api/v1/connections/pending/');
       return {
         'success': true,
         'data': response,
@@ -154,7 +154,7 @@ Future<Map<String, dynamic>> rejectConnection(String connectionId, {String? mess
 
   Future<Map<String, dynamic>> deleteConnection(String connectionId) async {
     try {
-      await _apiClient.delete('connections/$connectionId/');
+      await _apiClient.delete('api/v1/connections/$connectionId/');
       return {
         'success': true,
       };

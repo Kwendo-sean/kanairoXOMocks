@@ -21,6 +21,9 @@ class ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final profile = user.profile;
+    if (profile == null) return const SizedBox.shrink(); // or a placeholder
+
     return Container(
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -100,9 +103,9 @@ class ProfileHeader extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: user.mainProfilePhoto != null && user.mainProfilePhoto!.isNotEmpty
+                    child: profile.mainProfilePhoto != null && profile.mainProfilePhoto!.isNotEmpty
                         ? Image.network(
-                            user.mainProfilePhoto!,
+                            profile.mainProfilePhoto!,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
                               return Container(
@@ -166,10 +169,10 @@ class ProfileHeader extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
 
-                if (user.headline != null && user.headline!.isNotEmpty) ...[
+                if (profile.headline != null && profile.headline!.isNotEmpty) ...[
                   const SizedBox(height: 4),
                   Text(
-                    user.headline!,
+                    profile.headline!,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           color: Colors.white.withOpacity(0.9),
                         ),
@@ -192,7 +195,7 @@ class ProfileHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 4),
                     Text(
-                      user.neighborhoodDisplay,
+                      profile.neighborhoodDisplay,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             color: Colors.white.withOpacity(0.8),
                           ),
@@ -217,19 +220,19 @@ class ProfileHeader extends StatelessWidget {
                 children: [
                   _buildStatItem(
                     icon: PhosphorIcons.eye(PhosphorIconsStyle.regular),
-                    value: '${user.profileViewsCount}',
+                    value: '${profile.profileViewsCount}',
                     label: 'Views',
                     context: context,
                   ),
                   _buildStatItem(
                     icon: PhosphorIcons.bookmark(PhosphorIconsStyle.regular),
-                    value: '${user.profileSavesCount}',
+                    value: '${profile.profileSavesCount}',
                     label: 'Saves',
                     context: context,
                   ),
                   _buildStatItem(
                     icon: PhosphorIcons.user(PhosphorIconsStyle.regular),
-                    value: '${user.profileCompletionPercentage}%',
+                    value: '${profile.profileCompletionPercentage}%',
                     label: 'Complete',
                     context: context,
                   ),

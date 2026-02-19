@@ -23,20 +23,12 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  bool _isLoading = false;
   bool _obscurePassword = true;
-  String? _errorMessage;
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleLogin(AuthProvider auth) async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
     try {
-      // Format phone number (ensure it starts with +254)
       String phoneNumber = _phoneController.text.trim();
       if (!phoneNumber.startsWith('+')) {
         if (phoneNumber.startsWith('0')) {
@@ -46,19 +38,14 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
 
-      await context.read<AuthProvider>().login(
-            phoneNumber,
-            _passwordController.text,
-          );
-
-      setState(() => _isLoading = false);
-      widget.onLoginSuccess();
-
+      await auth.login(
+        phoneNumber,
+        _passwordController.text,
+      );
+      
+      // No need to call onLoginSuccess, AuthGate will handle navigation
     } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = e.toString().replaceAll('Exception: ', '');
-      });
+      // Error is already handled by the provider, UI will rebuild with error message
     }
   }
 
@@ -72,6 +59,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final auth = context.watch<AuthProvider>();
 
     return Scaffold(
       backgroundColor: AppConstants.primaryBeige,
@@ -103,7 +91,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 48),
 
                 // Error message
-                if (_errorMessage != null)
+                if (auth.error != null)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
@@ -122,7 +110,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            _errorMessage!,
+                            auth.error!,
                             style: theme.textTheme.bodyMedium?.copyWith(
                               color: Colors.red,
                             ),
@@ -131,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                   ),
-                if (_errorMessage != null) const SizedBox(height: 20),
+                if (auth.error != null) const SizedBox(height: 20),
 
                 // Phone field
                 AuthInputField(
@@ -157,7 +145,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Password field
                 AuthInputField(
                   controller: _passwordController,
-                  label: AppStrings.password,
+                  label: "Password",
                   hintText: '••••••••',
                   prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)),
                   obscureText: _obscurePassword,
@@ -204,18 +192,18 @@ class _LoginScreenState extends State<LoginScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+                    onPressed: auth.isLoading ? null : () => _handleLogin(auth),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppConstants.primaryRed,
                       foregroundColor: Colors.white,
                       minimumSize: const Size(double.infinity, 56),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(
-                          AppConstants.buttonBorderRadius,
+                          12.0,
                         ),
                       ),
                     ),
-                    child: _isLoading
+                    child: auth.isLoading
                         ? const SizedBox(
                       width: 24,
                       height: 24,

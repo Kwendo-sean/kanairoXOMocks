@@ -56,16 +56,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   Future<void> _initializeDiscovery() async {
-    try {
-      setState(() {
-        _isLoading = true;
-        _error = null;
-      });
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
+    try {
       // Start a new session or continue existing one
       if (_currentSession == null) {
         try {
           final session = await _discoveryService.startDiscoverySession();
+          if (!mounted) return;
           setState(() {
             _currentSession = session;
           });
@@ -77,6 +79,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             final activeSessions = sessions.where((s) => s.isActive).toList();
 
             if (activeSessions.isNotEmpty) {
+              if (!mounted) return;
               setState(() {
                 _currentSession = activeSessions.first;
               });
@@ -99,7 +102,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           );
 
           print('Received ${batch.discoveries.length} discoveries');
-
+          if (!mounted) return;
           setState(() {
             _discoveries = batch.discoveries;
             _currentIndex = 0;
@@ -113,6 +116,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
         } catch (e) {
           print('Error getting batch: $e');
+          if (!mounted) return;
           setState(() {
             _error = 'Failed to load discoveries. Please try again.';
             _isLoading = false;
@@ -121,6 +125,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       }
     } catch (e) {
       print('Unexpected error: $e');
+      if (!mounted) return;
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _isLoading = false;
@@ -130,7 +135,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Future<void> _handleNotNow() async {
     if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
-
+    if (!mounted) return;
     setState(() {
       _isProcessingAction = true;
     });
@@ -164,7 +169,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Future<void> _handleSave() async {
     if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
-
+    if (!mounted) return;
     setState(() {
       _isProcessingAction = true;
     });
@@ -232,7 +237,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   void _moveToNextProfile() {
-    if (_isProcessingAction) return;
+    if (_isProcessingAction || !mounted) return;
 
     setState(() {
       _currentIndex++;

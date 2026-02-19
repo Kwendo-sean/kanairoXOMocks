@@ -22,7 +22,8 @@ dependencies:
   
   # For image picking
   image_picker: ^0.8.7+4
-  
+  cached_network_image: ^3.3.0
+
   # For date/time pickers
   intl: ^0.18.1
   

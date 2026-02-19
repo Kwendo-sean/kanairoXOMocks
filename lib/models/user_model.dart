@@ -1,23 +1,103 @@
 import 'package:flutter/foundation.dart';
-import '../services/api_client.dart'; // Import ApiClient to access baseUrl
+import '../services/api_client.dart'; // For baseUrl
+
+// ---------------------------------------------------------------------------
+// Main User Model
+// ---------------------------------------------------------------------------
 
 class User {
-  final String? publicId;
-  final String? phoneNumber;
+  final String id;
+  final String phoneNumber;
+  final String? email;
   final String? firstName;
   final String? lastName;
   final String? displayName;
-  final String? fullName;
+  final String role;
+  final String accountType; // 'single' | 'couple'
   final bool isVerified;
+  final DateTime dateJoined;
+  final DateTime? lastActive;
+  final UserProfile? profile;
 
-  // Base profile fields
-  final String? neighborhood;
+  User({
+    required this.id,
+    required this.phoneNumber,
+    this.email,
+    this.firstName,
+    this.lastName,
+    this.displayName,
+    required this.role,
+    this.accountType = 'single',
+    required this.isVerified,
+    required this.dateJoined,
+    this.lastActive,
+    this.profile,
+  });
+
+  bool get isCoupleAccount => accountType == 'couple';
+  bool get isSingleAccount => accountType == 'single';
+  bool get isSearchingAccount => accountType == 'searching';
+
+  String get fullName {
+    final fName = firstName ?? '';
+    final lName = lastName ?? '';
+    if (fName.isNotEmpty && lName.isNotEmpty) return '$fName $lName';
+    if (displayName != null && displayName!.isNotEmpty) return displayName!;
+    return phoneNumber;
+  }
+
+  factory User.fromJson(Map<String, dynamic> json) {
+    if (kDebugMode) {
+      print("User.fromJson received account_type: ${json['account_type']}");
+    }
+    return User(
+      id: json['public_id']?.toString() ?? json['id']?.toString() ?? '',
+      phoneNumber: json['phone_number']?.toString() ?? '',
+      email: json['email']?.toString(),
+      firstName: json['first_name']?.toString(),
+      lastName: json['last_name']?.toString(),
+      displayName: json['display_name']?.toString(),
+      role: json['role']?.toString() ?? 'standard',
+      accountType: json['account_type']?.toString() ?? 'single',
+      isVerified: json['is_verified'] == true,
+      dateJoined: json['date_joined'] != null
+          ? DateTime.parse(json['date_joined'])
+          : DateTime.now(),
+      lastActive: json['last_active'] != null
+          ? DateTime.parse(json['last_active'])
+          : null,
+      profile: UserProfile.fromJson(json),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'phone_number': phoneNumber,
+      'email': email,
+      'first_name': firstName,
+      'last_name': lastName,
+      'display_name': displayName,
+      'role': role,
+      'account_type': accountType,
+      'is_verified': isVerified,
+      'date_joined': dateJoined.toIso8601String(),
+      'last_active': lastActive?.toIso8601String(),
+      'profile': profile?.toJson(),
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// User Profile Model (Nested inside User)
+// ---------------------------------------------------------------------------
+
+class UserProfile {
+  final String? bio;
+  final String? headline;
   final String? occupation;
   final String? company;
-  final String? bio;
-
-  // Extended profile fields
-  final String? headline;
+  final String? neighborhood;
   final String? primaryNeighborhood;
   final String? lifeStage;
   final String? primarySocialCircle;
@@ -32,49 +112,26 @@ class User {
   final String? voiceIntro;
   final String? voiceIntroStatus;
 
-  // Computed field for UI
   String get neighborhoodDisplay {
-    final neighborhoodValue = primaryNeighborhood ?? neighborhood;
-    if (neighborhoodValue != null && neighborhoodValue.isNotEmpty) {
-      final mapping = {
-        'westlands': 'Westlands',
-        'kilimani': 'Kilimani/Kileleshwa',
-        'lavington': 'Lavington',
-        'karen': 'Karen',
-        'langata': 'Langata',
-        'nairobi_cbd': 'Nairobi CBD',
-        'parklands': 'Parklands',
-        'runda': 'Runda',
-        'muthaiga': 'Muthaiga',
-        'kasarani': 'Kasarani',
-        'ruiru': 'Ruiru',
-        'kayole': 'Kayole',
-        'embakasi': 'Embakasi',
-        'dandora': 'Dandora',
-        'buruburu': 'Buruburu',
-        'south_b': 'South B/C',
-        'upperhill': 'Upper Hill',
-        'other_nairobi': 'Other Nairobi Area',
-        'outside_nairobi': 'Outside Nairobi',
-      };
-      return mapping[neighborhoodValue] ?? 'Nairobi';
-    }
-    return 'Nairobi';
+    final value = primaryNeighborhood ?? neighborhood;
+    if (value == null || value.isEmpty) return 'Nairobi';
+    final mapping = {
+      'westlands': 'Westlands',
+      'kilimani': 'Kilimani/Kileleshwa',
+      'lavington': 'Lavington',
+      'karen': 'Karen',
+      'langata': 'Langata',
+      'nairobi_cbd': 'Nairobi CBD',
+    };
+    return mapping[value] ?? value;
   }
 
-  User({
-    this.publicId,
-    this.phoneNumber,
-    this.firstName,
-    this.lastName,
-    this.displayName,
-    this.fullName,
-    this.isVerified = false,
-    this.neighborhood,
-    this.occupation,
-    this.company,
+  UserProfile({
     this.bio,
     this.headline,
+    this.occupation,
+    this.company,
+    this.neighborhood,
     this.primaryNeighborhood,
     this.lifeStage,
     this.primarySocialCircle,
@@ -90,21 +147,19 @@ class User {
     this.voiceIntroStatus,
   });
 
-  factory User.fromJson(Map<String, dynamic> json) {
+  factory UserProfile.fromJson(Map<String, dynamic> json) {
+    final profileData = json['profile'] ?? json;
+    if (profileData is! Map<String, dynamic>) return UserProfile();
 
-    // Helper to construct full URL from a relative path
     String? _constructFullUrl(String? path) {
-      if (path == null || path.isEmpty || path.startsWith('http')) {
-        return path;
-      }
+      if (path == null || path.isEmpty || path.startsWith('http')) return path;
       final uri = Uri.parse(ApiClient.baseUrl);
       final baseUrl = '${uri.scheme}://${uri.host}:${uri.port}';
       return '$baseUrl$path';
     }
 
-    // Parse all photos and construct their full URLs
-    List<Map<String, dynamic>> photos = (json['profile_photos'] ?? json['all_profile_photos'] ?? [])
-        .whereType<Map>() // Allow Map<dynamic, dynamic>
+    List<Map<String, dynamic>> photos = (profileData['profile_photos'] ?? [])
+        .whereType<Map>()
         .map<Map<String, dynamic>>((photoMap) {
           final typedPhoto = Map<String, dynamic>.from(photoMap);
           return {
@@ -113,73 +168,64 @@ class User {
           };
         }).toList();
 
-    // Get the main photo URL from the root of the JSON
-    String? mainPhotoUrl = _constructFullUrl(json['main_profile_photo'] as String?);
-
-    // If the root main photo URL is null, find it from the list of all photos
+    String? mainPhotoUrl = _constructFullUrl(profileData['main_profile_photo'] as String?);
     if (mainPhotoUrl == null || mainPhotoUrl.isEmpty) {
       try {
-        final mainPhotoFromList = photos.firstWhere((p) => p['is_main'] == true);
-        mainPhotoUrl = mainPhotoFromList['url'];
+        mainPhotoUrl = photos.firstWhere((p) => p['is_main'] == true)['url'];
       } catch (e) {
-        // No main photo found in the list, can leave it as null
+        // No main photo found
       }
     }
-
-    return User(
-      publicId: json['public_id']?.toString() ?? 'KX000000',
-      phoneNumber: json['phone_number']?.toString() ?? '',
-      firstName: json['first_name']?.toString() ?? '',
-      lastName: json['last_name']?.toString() ?? '',
-      displayName: json['display_name']?.toString() ?? '',
-      fullName: json['full_name']?.toString() ?? '${json['first_name'] ?? ''} ${json['last_name'] ?? ''}'.trim(),
-      isVerified: json['is_verified'] == true,
-
-      neighborhood: json['neighborhood']?.toString(),
-      occupation: json['occupation']?.toString(),
-      company: json['company']?.toString(),
-      bio: json['bio']?.toString(),
-
-      headline: json['headline']?.toString(),
-      primaryNeighborhood: json['primary_neighborhood']?.toString(),
-      lifeStage: json['life_stage']?.toString(),
-      primarySocialCircle: json['primary_social_circle']?.toString(),
-      interests: _parseList<String>(json['interests']),
-      connectionFrequency: json['connection_frequency']?.toString() ?? 'regular',
-      profileVisibility: json['profile_visibility']?.toString() ?? 'public',
-      
-      mainProfilePhoto: mainPhotoUrl, // Use the processed URL
-      profilePhotos: photos, // Use the processed list
-
-      profileCompletionPercentage: _parseInt(json['profile_completion_percentage']),
-      profileViewsCount: _parseInt(json['profile_views_count']),
-      profileSavesCount: _parseInt(json['profile_saves_count']),
-      voiceIntro: json['voice_intro']?.toString(),
-      voiceIntroStatus: json['voice_intro_status']?.toString(),
+    
+    return UserProfile(
+      bio: profileData['bio']?.toString(),
+      headline: profileData['headline']?.toString(),
+      occupation: profileData['occupation']?.toString(),
+      company: profileData['company']?.toString(),
+      neighborhood: profileData['neighborhood']?.toString(),
+      primaryNeighborhood: profileData['primary_neighborhood']?.toString(),
+      lifeStage: profileData['life_stage']?.toString(),
+      primarySocialCircle: profileData['primary_social_circle']?.toString(),
+      interests: List<String>.from(profileData['interests'] ?? []),
+      connectionFrequency: profileData['connection_frequency']?.toString(),
+      profileVisibility: profileData['profile_visibility']?.toString(),
+      mainProfilePhoto: mainPhotoUrl,
+      profilePhotos: photos,
+      profileCompletionPercentage: int.tryParse(profileData['profile_completion_percentage']?.toString() ?? '0') ?? 0,
+      profileViewsCount: int.tryParse(profileData['profile_views_count']?.toString() ?? '0') ?? 0,
+      profileSavesCount: int.tryParse(profileData['profile_saves_count']?.toString() ?? '0') ?? 0,
+      voiceIntro: _constructFullUrl(profileData['voice_intro'] as String?),
+      voiceIntroStatus: profileData['voice_intro_status']?.toString(),
     );
   }
 
-  static List<T> _parseList<T>(dynamic value) {
-    if (value == null) return [];
-    if (value is List) {
-      return List<T>.from(value);
-    }
-    return [];
-  }
-
-  static int _parseInt(dynamic value) {
-    if (value == null) return 0;
-    if (value is int) return value;
-    if (value is String) return int.tryParse(value) ?? 0;
-    if (value is double) return value.toInt();
-    return 0;
-  }
-
-  @override
-  String toString() {
-    return 'User{name: $fullName, publicId: $publicId, completion: $profileCompletionPercentage%}';
+  Map<String, dynamic> toJson() {
+    return {
+      'bio': bio,
+      'headline': headline,
+      'occupation': occupation,
+      'company': company,
+      'neighborhood': neighborhood,
+      'primary_neighborhood': primaryNeighborhood,
+      'life_stage': lifeStage,
+      'primary_social_circle': primarySocialCircle,
+      'interests': interests,
+      'connection_frequency': connectionFrequency,
+      'profile_visibility': profileVisibility,
+      'main_profile_photo': mainProfilePhoto,
+      'profile_photos': profilePhotos,
+      'profile_completion_percentage': profileCompletionPercentage,
+      'profile_views_count': profileViewsCount,
+      'profile_saves_count': profileSavesCount,
+      'voice_intro': voiceIntro,
+      'voice_intro_status': voiceIntroStatus,
+    };
   }
 }
+
+// ---------------------------------------------------------------------------
+// Data Transfer Object for Profile Updates
+// ---------------------------------------------------------------------------
 
 class UserProfileUpdate {
   final String? bio;
@@ -204,7 +250,6 @@ class UserProfileUpdate {
 
   Map<String, dynamic> toJson() {
     final map = <String, dynamic>{};
-
     if (bio != null) map['bio'] = bio;
     if (headline != null) map['headline'] = headline;
     if (primaryNeighborhood != null) map['primary_neighborhood'] = primaryNeighborhood;
@@ -213,7 +258,6 @@ class UserProfileUpdate {
     if (interests != null) map['interests'] = interests;
     if (connectionFrequency != null) map['connection_frequency'] = connectionFrequency;
     if (profileVisibility != null) map['profile_visibility'] = profileVisibility;
-
     return map;
   }
 }

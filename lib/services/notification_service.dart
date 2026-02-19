@@ -28,7 +28,7 @@ class NotificationService {
       }
 
       final response = await _apiClient.get(
-        'notifications/',
+        'api/v1/notifications/',
         queryParameters: queryParams,
       );
 
@@ -51,7 +51,7 @@ class NotificationService {
   // Get connection requests specifically
   Future<List<Notification>> getConnectionRequests() async {
     try {
-      final response = await _apiClient.get('notifications/connection-requests/');
+      final response = await _apiClient.get('api/v1/notifications/connection-requests/');
 
       if (response is List) {
         return response.map((json) => Notification.fromJson(json)).toList();
@@ -66,7 +66,7 @@ class NotificationService {
 
   Future<Map<String, dynamic>> getNotificationStats() async {
     try {
-      final response = await _apiClient.get('notifications/stats/');
+      final response = await _apiClient.get('api/v1/notifications/stats/');
       return response is Map ? Map<String, dynamic>.from(response) : {};
     } catch (e) {
       print('Error fetching notification stats: $e');
@@ -77,7 +77,7 @@ class NotificationService {
   Future<void> markAsRead(String notificationId) async {
     try {
       await _apiClient.post(
-        'notifications/$notificationId/read/',
+        'api/v1/notifications/$notificationId/read/',
         {},
       );
     } catch (e) {
@@ -88,7 +88,7 @@ class NotificationService {
 
   Future<void> markAllAsRead() async {
     try {
-      await _apiClient.post('notifications/read-all/', {});
+      await _apiClient.post('api/v1/notifications/read-all/', {});
     } catch (e) {
       print('Error marking all notifications as read: $e');
       rethrow;
@@ -97,7 +97,7 @@ class NotificationService {
 
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _apiClient.delete('notifications/$notificationId/delete/');
+      await _apiClient.delete('api/v1/notifications/$notificationId/delete/');
     } catch (e) {
       print('Error deleting notification: $e');
       rethrow;
@@ -106,7 +106,7 @@ class NotificationService {
 
   Future<Notification?> getNotification(String notificationId) async {
     try {
-      final response = await _apiClient.get('notifications/$notificationId/');
+      final response = await _apiClient.get('api/v1/notifications/$notificationId/');
       return Notification.fromJson(response);
     } catch (e) {
       print('Error fetching single notification: $e');

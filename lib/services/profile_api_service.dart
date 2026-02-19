@@ -1,4 +1,3 @@
-// lib/services/profile_api_service.dart
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -10,7 +9,7 @@ class ProfileApiService {
 
   Future<User> getMyProfile() async {
     try {
-      final response = await _apiClient.get('profiles/me/');
+      final response = await _apiClient.get('api/v1/profiles/me/');
       return User.fromJson(response);
     } catch (e) {
       if (e.toString().contains('Error 500')) {
@@ -20,36 +19,36 @@ class ProfileApiService {
     }
   }
 
-  Future<User> getUserProfile(String publicId) async {
-    final response = await _apiClient.get('profiles/public/$publicId/');
+  Future<User> getUserProfile(String id) async {
+    final response = await _apiClient.get('api/v1/profiles/public/$id/');
     return User.fromJson(response);
   }
 
   Future<User> updateProfile(UserProfileUpdate update) async {
-    final response = await _apiClient.patch('profiles/me/', update.toJson());
+    final response = await _apiClient.patch('api/v1/profiles/me/', update.toJson());
     return User.fromJson(response);
   }
 
-  Future<bool> saveProfile(String publicId) async {
-    await _apiClient.post('profiles/$publicId/save/', {});
+  Future<bool> saveProfile(String id) async {
+    await _apiClient.post('api/v1/profiles/$id/save/', {});
     return true;
   }
 
-  Future<bool> unsaveProfile(String publicId) async {
-    await _apiClient.delete('profiles/$publicId/save/');
+  Future<bool> unsaveProfile(String id) async {
+    await _apiClient.delete('api/v1/profiles/$id/save/');
     return true;
   }
 
   Future<List<User>> getSavedProfiles() async {
-    final response = await _apiClient.get('profiles/saved/');
+    final response = await _apiClient.get('api/v1/profiles/saved/');
     if (response is List) {
       return response.map((data) => User.fromJson(data)).toList();
     }
     return [];
   }
 
-  Future<void> recordProfileView(String publicId) async {
-    await _apiClient.post('profiles/$publicId/view/', {});
+  Future<void> recordProfileView(String id) async {
+    await _apiClient.post('api/v1/profiles/$id/view/', {});
   }
 
   Future<List<User>> searchProfiles({
@@ -65,7 +64,7 @@ class ProfileApiService {
       'limit': limit.toString(),
     };
 
-    final response = await _apiClient.get('profiles/search/', queryParameters: queryParams);
+    final response = await _apiClient.get('api/v1/profiles/search/', queryParameters: queryParams);
     final results = response['results'] ?? response;
 
     if (results is List) {
@@ -76,7 +75,7 @@ class ProfileApiService {
 
   Future<void> uploadProfilePhotos(List<XFile> images) async {
     await _apiClient.uploadMultipleFiles(
-      'profiles/upload-multiple-photos/',
+      'api/v1/profiles/upload-multiple-photos/',
       files: images,
       fileFieldName: 'photos',
     );
@@ -84,35 +83,35 @@ class ProfileApiService {
 
   Future<void> reorderProfilePhotos(List<Map<String, dynamic>> photos) async {
     await _apiClient.post(
-      'profiles/reorder-photos/',
+      'api/v1/profiles/reorder-photos/',
       {'photos': photos},
     );
   }
 
   Future<void> deleteProfilePhoto(String photoUrl) async {
     await _apiClient.delete(
-      'profiles/delete-photo/',
+      'api/v1/profiles/delete-photo/',
       body: {'photo_url': photoUrl},
     );
   }
 
   Future<void> setMainProfilePhoto(String photoUrl) async {
     await _apiClient.post(
-      'profiles/set-main-photo/',
+      'api/v1/profiles/set-main-photo/',
       {'photo_url': photoUrl},
     );
   }
 
   Future<void> uploadVoiceIntro(XFile audioFile) async {
     await _apiClient.uploadMultipleFiles(
-      'profiles/upload-voice-intro/',
+      'api/v1/profiles/upload-voice-intro/',
       files: [audioFile],
       fileFieldName: 'voice_intro',
     );
   }
 
   Future<void> deleteVoiceIntro() async {
-    await _apiClient.delete('profiles/delete-voice-intro/');
+    await _apiClient.delete('api/v1/profiles/delete-voice-intro/');
   }
 
   // Helper methods for dropdown options

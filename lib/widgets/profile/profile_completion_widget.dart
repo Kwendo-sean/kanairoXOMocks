@@ -11,8 +11,11 @@ class ProfileCompletionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final completionPercentage = user.profileCompletionPercentage;
-    final suggestions = _getCompletionSuggestions(user);
+    final profile = user.profile;
+    if (profile == null) return const SizedBox.shrink();
+
+    final completionPercentage = profile.profileCompletionPercentage;
+    final suggestions = _getCompletionSuggestions(profile);
 
     return Card(
       elevation: 2,
@@ -61,21 +64,21 @@ class ProfileCompletionCard extends StatelessWidget {
     );
   }
 
-  List<String> _getCompletionSuggestions(User user) {
+  List<String> _getCompletionSuggestions(UserProfile profile) {
     final suggestions = <String>[];
-    if (user.mainProfilePhoto == null || user.mainProfilePhoto!.isEmpty) {
+    if (profile.mainProfilePhoto == null || profile.mainProfilePhoto!.isEmpty) {
       suggestions.add('Add a profile photo');
     }
-    if (user.bio == null || user.bio!.isEmpty) {
+    if (profile.bio == null || profile.bio!.isEmpty) {
       suggestions.add('Write a bio');
     }
-    if (user.interests.isEmpty) {
+    if (profile.interests.isEmpty) {
       suggestions.add('Add your interests');
     }
-    if (user.occupation == null || user.occupation!.isEmpty) {
+    if (profile.occupation == null || profile.occupation!.isEmpty) {
       suggestions.add('Add your occupation');
     }
-    if (user.voiceIntro == null || user.voiceIntro!.isEmpty) {
+    if (profile.voiceIntro == null || profile.voiceIntro!.isEmpty) {
       suggestions.add('Record a voice intro');
     }
     return suggestions.take(2).toList(); // Only show top 2 suggestions

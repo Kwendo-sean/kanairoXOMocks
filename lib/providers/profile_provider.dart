@@ -42,8 +42,8 @@ class ProfileProvider with ChangeNotifier {
   List<Map<String, String>> get visibilityOptions => _profileApiService.getVisibilityOptions();
   List<String> get commonInterests => _profileApiService.getCommonInterests();
 
-  Future<void> loadMyProfile() async {
-    if (_isLoading) return;
+  Future<User?> loadMyProfile() async {
+    if (_isLoading) return _currentUser;
 
     _isLoading = true;
     _error = null;
@@ -52,14 +52,13 @@ class ProfileProvider with ChangeNotifier {
     try {
       _currentUser = await _profileApiService.getMyProfile();
       _error = null;
-    } on AuthException catch (e) {
-      _error = e.toString();
-      _currentUser = null;
-      rethrow; // Rethrow to be caught by the UI layer
+      notifyListeners();
+      return _currentUser;
     } catch (e) {
-      print('❌ Error in loadMyProfile: $e');
       _error = e.toString();
       _currentUser = null;
+      notifyListeners();
+      return null; // Return null on failure instead of rethrowing
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -73,7 +72,7 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadUserProfile(String publicId) async {
+  Future<void> loadUserProfile(String id) async {
     if (_isLoading) return;
 
     _isLoading = true;
@@ -81,11 +80,11 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      _viewedProfile = await _profileApiService.getUserProfile(publicId);
-      if (_currentUser?.publicId != _viewedProfile?.publicId) {
-        await _profileApiService.recordProfileView(publicId);
+      _viewedProfile = await _profileApiService.getUserProfile(id);
+      if (_currentUser?.id != _viewedProfile?.id) {
+        await _profileApiService.recordProfileView(id);
       }
-      _checkIfProfileSaved(publicId);
+      _checkIfProfileSaved(id);
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -199,10 +198,10 @@ class ProfileProvider with ChangeNotifier {
 
   // ... other methods like search, save, etc. remain the same ...
 
-  Future<void> _checkIfProfileSaved(String publicId) async {
+  Future<void> _checkIfProfileSaved(String id) async {
     try {
       final saved = await _profileApiService.getSavedProfiles();
-      _isProfileSaved = saved.any((user) => user.publicId == publicId);
+      _isProfileSaved = saved.any((user) => user.id == id);
       notifyListeners();
     } catch (e) {
       print('Error checking if profile saved: $e');
