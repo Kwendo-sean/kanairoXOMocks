@@ -25,7 +25,7 @@ class AuthService {
     final response = await _api.post('api/v1/auth/login/', {
       'phone_number': formattedPhone,
       'password': password,
-    });
+    }, hasToken: false);
     await _api.saveTokens(response['access'], response['refresh']);
     return LoginResponse.fromJson(response);
   }
@@ -61,7 +61,7 @@ class AuthService {
       if (partnerFirstName != null) 'partner_first_name': partnerFirstName,
       if (partnerLastName != null) 'partner_last_name': partnerLastName,
       if (partnerEmail != null) 'partner_email': partnerEmail,
-    });
+    }, hasToken: false);
     await _api.saveTokens(response['access'], response['refresh']);
     return RegisterResponse.fromJson(response);
   }
@@ -110,7 +110,7 @@ class AuthService {
     await _api.post('api/v1/auth/verify-otp/', {
       'phone_number': _formatPhoneNumber(phoneNumber),
       'otp': otp,
-    });
+    }, hasToken: false);
   }
 
   Future<void> resetPassword({
@@ -122,7 +122,7 @@ class AuthService {
       'phone_number': _formatPhoneNumber(phoneNumber),
       'otp': otp,
       'new_password': newPassword,
-    });
+    }, hasToken: false);
   }
 }
 

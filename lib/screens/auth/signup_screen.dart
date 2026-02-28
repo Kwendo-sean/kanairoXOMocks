@@ -113,12 +113,19 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   String _extractErrorMessage(dynamic error) {
-    String errorStr = error.toString();
-    if (errorStr.contains('Exception: ')) errorStr = errorStr.replaceAll('Exception: ', '');
-    if (errorStr.contains('already exists')) return errorStr.contains('phone_number') ? 'This phone number is already registered' : 'This email is already registered';
+    final errorStr = error.toString().toLowerCase();
+    if (errorStr.contains('phone') && errorStr.contains('already')) {
+      return 'This phone number is already registered';
+    }
+    if (errorStr.contains('email') && errorStr.contains('already')) {
+      return 'This email address is already registered';
+    }
     if (errorStr.contains('password')) return 'Password requirements not met';
-    if (errorStr.contains('network')) return 'Network error. Please check your connection';
-    return errorStr;
+    if (errorStr.contains('network') || errorStr.contains('socket')) {
+      return 'Network error. Please check your connection';
+    }
+    // Return a generic message rather than raw backend output.
+    return 'Registration failed. Please check your details and try again.';
   }
 
   Future<void> _selectDate(BuildContext context) async {
@@ -186,7 +193,12 @@ class _SignupScreenState extends State<SignupScreen> {
                 const SizedBox(height: 20),
                 AuthInputField(controller: _emailController, label: 'Email', hintText: 'you@example.com', prefixIcon: PhosphorIcon(PhosphorIcons.envelope(PhosphorIconsStyle.regular)), keyboardType: TextInputType.emailAddress, validator: (v) => v!.isNotEmpty && !v.contains('@') ? 'Enter a valid email' : null),
                 const SizedBox(height: 20),
-                AuthInputField(controller: _phoneController, label: 'Phone Number', hintText: '0712 345 678', prefixIcon: PhosphorIcon(PhosphorIcons.phone(PhosphorIconsStyle.regular)), keyboardType: TextInputType.phone, validator: (v) => v!.isEmpty ? 'Please enter your phone number' : null),
+                AuthInputField(controller: _phoneController, label: 'Phone Number', hintText: '0712 345 678', prefixIcon: PhosphorIcon(PhosphorIcons.phone(PhosphorIconsStyle.regular)), keyboardType: TextInputType.phone, validator: (v) {
+                  if (v == null || v.isEmpty) return 'Please enter your phone number';
+                  final phoneRegex = RegExp(r'^\+?[0-9]{10,15}$');
+                  if (!phoneRegex.hasMatch(v.replaceAll(' ', ''))) return AppStrings.phoneValidation;
+                  return null;
+                }),
                 const SizedBox(height: 20),
                 _buildGenderDropdown(context),
                 const SizedBox(height: 20),
@@ -195,7 +207,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 if (_selectedAccountType == 'couple') _buildPartnerFields(),
 
-                AuthInputField(controller: _passwordController, label: 'Password', hintText: '••••••••', prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)), obscureText: _obscurePassword, suffixIcon: IconButton(onPressed: () => setState(() => _obscurePassword = !_obscurePassword), icon: PhosphorIcon(_obscurePassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular), size: 20)), validator: (v) => v!.length < 6 ? 'Password is too short' : null),
+                AuthInputField(controller: _passwordController, label: 'Password', hintText: '••••••••', prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)), obscureText: _obscurePassword, suffixIcon: IconButton(onPressed: () => setState(() => _obscurePassword = !_obscurePassword), icon: PhosphorIcon(_obscurePassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular), size: 20)), validator: (v) => (v == null || v.length < 8) ? 'Password must be at least 8 characters' : null),
                 const SizedBox(height: 20),
                 AuthInputField(controller: _confirmPasswordController, label: 'Confirm Password', hintText: '••••••••', prefixIcon: PhosphorIcon(PhosphorIcons.lock(PhosphorIconsStyle.regular)), obscureText: _obscureConfirmPassword, suffixIcon: IconButton(onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword), icon: PhosphorIcon(_obscureConfirmPassword ? PhosphorIcons.eye(PhosphorIconsStyle.regular) : PhosphorIcons.eyeSlash(PhosphorIconsStyle.regular), size: 20)), validator: (v) => v != _passwordController.text ? 'Passwords do not match' : null),
                 const SizedBox(height: 24),

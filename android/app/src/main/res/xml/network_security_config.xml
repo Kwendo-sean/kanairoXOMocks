@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network security configuration.
+  - Blocks all cleartext (HTTP) traffic in release builds.
+  - Only HTTPS connections are permitted to any domain.
+  If your development server is still on HTTP, add a <debug-overrides> block
+  (see the commented-out example below) so cleartext is ONLY allowed during
+  local development and never reaches a production build.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+
+    <!--
+    Uncomment and edit the block below ONLY for local development.
+    Remove or keep commented out for any production / staging build.
+
+    <debug-overrides>
+        <trust-anchors>
+            <certificates src="system" />
+            <certificates src="user" />
+        </trust-anchors>
+    </debug-overrides>
+    -->
+</network-security-config>

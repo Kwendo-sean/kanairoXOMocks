@@ -57,6 +57,7 @@ class AppStrings {
 }
 
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.100.6/api';
+  // Must match ApiClient.baseUrl. Always use HTTPS in production.
+  static const String baseUrl = 'https://api.kanairoxo.com';
   static const int timeout = 30; // seconds
 }

@@ -15,7 +15,9 @@ class AuthException implements Exception {
 }
 
 class ApiClient {
-  static String baseUrl = 'http://192.168.100.227:8000';
+  // TODO: Replace with your production HTTPS URL before deploying.
+  // Never use a plain http:// URL or a private LAN IP in production.
+  static const String baseUrl = 'https://api.kanairoxo.com';
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -23,7 +25,7 @@ class ApiClient {
 
   final _secureStorage = const FlutterSecureStorage();
   bool _isRefreshing = false;
-  Completer<void>? _refreshCompleter;
+  Completer<bool>? _refreshCompleter;
 
   Future<Map<String, String>> _getHeaders({bool hasToken = true}) async {
     final headers = {
@@ -47,12 +49,13 @@ class ApiClient {
     });
   }
 
-  Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
+  Future<dynamic> post(String endpoint, Map<String, dynamic> data,
+      {bool hasToken = true}) async {
     return _handleRequest(() async {
       final url = Uri.parse('${ApiClient.baseUrl}/$endpoint');
       return http.post(
         url,
-        headers: await _getHeaders(hasToken: !endpoint.contains('login')),
+        headers: await _getHeaders(hasToken: hasToken),
         body: jsonEncode(data),
       );
     });
@@ -113,20 +116,20 @@ class ApiClient {
 
   Future<bool> _refreshToken() async {
     if (_isRefreshing) {
-      await _refreshCompleter?.future;
-      return true; // Assume success if another process is already refreshing
+      // Wait for the in-progress refresh and return its actual result.
+      return await _refreshCompleter!.future;
     }
 
     _isRefreshing = true;
-    _refreshCompleter = Completer<void>();
+    _refreshCompleter = Completer<bool>();
 
+    bool success = false;
     try {
       final refreshToken = await getRefreshToken();
       if (refreshToken == null) {
         return false; // Can't refresh without a refresh token
       }
 
-      // Use the full path for token refresh, as it's a specific auth endpoint
       final response = await http.post(
         Uri.parse('${ApiClient.baseUrl}/api/v1/auth/token/refresh/'),
         headers: {'Content-Type': 'application/json'},
@@ -135,23 +138,21 @@ class ApiClient {
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await saveTokens(data['access'], refreshToken); // Keep the same refresh token
+        await saveTokens(data['access'], refreshToken);
         if (kDebugMode) print('✅ Token refreshed successfully');
-        return true;
+        success = true;
       } else {
-        if (kDebugMode) print('❌ Failed to refresh token, status: ${response.statusCode}');
-        // If refresh fails, clear tokens as they are invalid
+        if (kDebugMode) print('❌ Failed to refresh token');
         await clearTokens();
-        return false;
       }
     } catch (e) {
       if (kDebugMode) print('❌ Error during token refresh: $e');
       await clearTokens();
-      return false;
     } finally {
       _isRefreshing = false;
-      _refreshCompleter?.complete();
+      _refreshCompleter!.complete(success);
     }
+    return success;
   }
 
   Future<String?> getAccessToken() async {
@@ -178,16 +179,46 @@ class ApiClient {
       if (response.body.isEmpty) return {};
       return jsonDecode(response.body);
     } else {
-      String errorMessage = 'An unknown error occurred';
-      if (response.body.isNotEmpty) {
-        try {
-          final errorData = jsonDecode(response.body);
-          errorMessage = errorData['detail'] ?? errorData.toString();
-        } catch (e) {
-          errorMessage = response.body;
+      // Extract a user-friendly message from the backend without leaking
+      // raw response bodies or internal stack details.
+      String userMessage = _extractUserMessage(response);
+      throw Exception(userMessage);
+    }
+  }
+
+  String _extractUserMessage(http.Response response) {
+    if (response.body.isNotEmpty) {
+      try {
+        final errorData = jsonDecode(response.body);
+        // Use the 'detail' field if present — it is a standard DRF field and
+        // safe to surface. Avoid exposing full errorData.toString() which may
+        // include internal field names or stack traces.
+        if (errorData is Map && errorData.containsKey('detail')) {
+          final detail = errorData['detail'];
+          if (detail is String && detail.isNotEmpty) return detail;
         }
+      } catch (_) {
+        // JSON parse failure — fall through to generic message.
       }
-      throw Exception('Error ${response.statusCode}: $errorMessage');
+    }
+
+    switch (response.statusCode) {
+      case 400:
+        return 'Invalid request. Please check your input and try again.';
+      case 401:
+        return 'Authentication failed. Please log in again.';
+      case 403:
+        return 'You do not have permission to perform this action.';
+      case 404:
+        return 'The requested resource was not found.';
+      case 429:
+        return 'Too many requests. Please wait a moment and try again.';
+      case 500:
+      case 502:
+      case 503:
+        return 'A server error occurred. Please try again later.';
+      default:
+        return 'An unexpected error occurred. Please try again.';
     }
   }
 }
