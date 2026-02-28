@@ -107,7 +107,7 @@ class MemoryService {
       final json = jsonDecode(response.body);
       return Memory.fromJson(json);
     } else {
-      throw Exception('Failed to create memory: ${response.body}');
+      throw Exception('Failed to create memory. Please try again.');
     }
   }
 
