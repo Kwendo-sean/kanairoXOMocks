@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/utils/constants.dart';
-import 'package:kanairoxo/services/memory_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:kanairoxo/services/memory_service.dart';
+import 'package:kanairoxo/widgets/three_d_carousel.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:kanairoxo/screens/couples/add_memory_screen.dart';
 import 'package:kanairoxo/screens/couples/memory_detail_screen.dart';
 
@@ -23,18 +26,18 @@ class _MemoriesEnhancedScreenState extends State<MemoriesEnhancedScreen>
   List<Memory>? _favorites;
   MemoryStats? _stats;
   bool _isLoading = true;
-  String _viewMode = 'grid'; // 'grid' or 'timeline'
+  int _carouselIndex = 0;
+  String _selectedFilter = 'All';
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _loadMemories();
   }
 
   Future<void> _loadMemories() async {
     setState(() => _isLoading = true);
-
     try {
       final timeline = await _memoryService.getTimeline();
       final favorites = await _memoryService.getMemories(isFavorite: true);
@@ -48,423 +51,375 @@ class _MemoriesEnhancedScreenState extends State<MemoriesEnhancedScreen>
       });
     } catch (e) {
       setState(() => _isLoading = false);
-      // Show error
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final allMemories = _getAllMemories();
+    final filteredMemories = _selectedFilter == 'All'
+        ? allMemories
+        : allMemories.where((m) => m.memoryType.toLowerCase() == _selectedFilter.toLowerCase()).toList();
 
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
-      body: SafeArea(
-        child: Column(
-          children: [
-            // Header with view toggle
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Our Memories',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppConstants.primaryBlack,
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      // Toggle view mode
-                      IconButton(
-                        onPressed: () {
-                          setState(() {
-                            _viewMode = _viewMode == 'grid' ? 'timeline' : 'grid';
-                          });
-                        },
-                        icon: PhosphorIcon(
-                          _viewMode == 'grid'
-                              ? PhosphorIcons.list(PhosphorIconsStyle.regular)
-                              : PhosphorIcons.gridFour(PhosphorIconsStyle.regular),
-                          color: AppConstants.primaryBlack,
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () {
-                          // Navigate to add memory
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => const AddMemoryScreen(),
-                            ),
-                          ).then((_) => _loadMemories());
-                        },
-                        icon: PhosphorIcon(
-                          PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                          color: AppConstants.primaryRed,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-
-            // Stats bar
-            if (_stats != null) _buildStatsBar(theme),
-
-            // Tabs
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppConstants.primaryRed,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: AppConstants.secondaryGray,
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'All'),
-                  Tab(text: 'Favorites'),
-                  Tab(text: 'Photos'),
-                ],
-              ),
-            ),
-
-            const SizedBox(height: 16),
-
-            // Content
-            Expanded(
-              child: _isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildAllMemories(),
-                  _buildFavorites(),
-                  _buildPhotoGrid(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsBar(ThemeData theme) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildStatItem(theme, _stats!.total.toString(), 'Total'),
-          _buildStatItem(theme, _stats!.favorites.toString(), 'Favorites'),
-          _buildStatItem(theme, _stats!.recent30Days.toString(), 'This Month'),
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        automaticallyImplyLeading: false, // REMOVED BACK BUTTON
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: Text('Our Memories', style: AppTypography.screenTitle),
+        actions: [
+          _buildCreateButton(context),
+          const SizedBox(width: 8),
         ],
       ),
-    );
-  }
-
-  Widget _buildStatItem(ThemeData theme, String value, String label) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
-            color: AppConstants.primaryRed,
-          ),
-        ),
-        Text(
-          label,
-          style: theme.textTheme.bodySmall?.copyWith(
-            color: AppConstants.secondaryGray,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildAllMemories() {
-    if (_viewMode == 'grid') {
-      // Grid view of all memories
-      return _buildPhotoGrid();
-    } else {
-      // Timeline view
-      return _buildTimelineView();
-    }
-  }
-
-  Widget _buildTimelineView() {
-    if (_timeline == null || _timeline!.isEmpty) {
-      return _buildEmptyState();
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _timeline!.length,
-      itemBuilder: (context, index) {
-        final entry = _timeline!.entries.elementAt(index);
-        final month = entry.value;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Month header
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              child: Text(
-                month.label,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: AppConstants.primaryBlack,
-                ),
-              ),
-            ),
-            // Memories in that month
-            ...month.memories.map((memory) => Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: _buildMemoryCard(memory),
-            )),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildMemoryCard(Memory memory) {
-    return InkWell(
-      onTap: () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => MemoryDetailScreen(memory: memory),
-          ),
-        ).then((_) => _loadMemories());
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.05),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            // Photo thumbnail
-            if (memory.photo != null)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: CachedNetworkImage(
-                  imageUrl: memory.photo!,
-                  width: 80,
-                  height: 80,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    color: AppConstants.primaryBeige,
-                    child: const Center(child: CircularProgressIndicator()),
-                  ),
-                ),
-              )
-            else
-              Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryRed.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: PhosphorIcon(
-                    PhosphorIcons.image(PhosphorIconsStyle.regular),
-                    size: 32,
-                    color: AppConstants.primaryRed,
-                  ),
-                ),
-              ),
-            const SizedBox(width: 12),
-            // Details
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    memory.title,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: AppConstants.primaryBlack,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  if (memory.description != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      memory.description!,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: AppConstants.secondaryGray,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-                  Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : CustomScrollView(
+              slivers: [
+                // 1. HERO: 3D Carousel (Favorites or Recent)
+                SliverToBoxAdapter(
+                  child: Column(
                     children: [
-                      Text(
-                        DateFormat('MMM d, yyyy').format(memory.memoryDate),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: AppConstants.secondaryGray,
+                      if (allMemories.isNotEmpty)
+                        ThreeDCarousel(
+                          height: 260,
+                          imageUrls: allMemories.take(5).map((m) => m.photo ?? '').where((url) => url.isNotEmpty).toList(),
+                          onPageChanged: (index) => setState(() => _carouselIndex = index),
+                          onCardTap: (index) {
+                            final memoriesWithPhotos = allMemories.where((m) => m.photo != null && m.photo!.isNotEmpty).toList();
+                            if (index < memoriesWithPhotos.length) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (_) => MemoryDetailScreen(memory: memoriesWithPhotos[index])),
+                              );
+                            }
+                          },
                         ),
-                      ),
-                      const Spacer(),
-                      if (memory.reactionCount > 0) ...[
-                        PhosphorIcon(
-                          PhosphorIcons.heart(PhosphorIconsStyle.fill),
-                          size: 14,
-                          color: AppConstants.primaryRed,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          memory.reactionCount.toString(),
-                          style:
-                          Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: AppConstants.secondaryGray,
+                      if (allMemories.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: List.generate(
+                            allMemories.take(5).where((m) => m.photo != null && m.photo!.isNotEmpty).length,
+                            (index) => Container(
+                              width: 6, height: 6,
+                              margin: const EdgeInsets.symmetric(horizontal: 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: _carouselIndex == index ? AppColors.primary : AppColors.textMuted,
+                              ),
+                            ),
                           ),
                         ),
                       ],
+                      const SizedBox(height: 12),
+                      Text('Your social story', style: AppTypography.caption.copyWith(color: AppColors.textSecondary)),
+                      const SizedBox(height: 16),
                     ],
                   ),
-                ],
-              ),
+                ),
+
+                // 2. FILTER TABS
+                SliverToBoxAdapter(
+                  child: SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: ['All', 'Event', 'Date', 'Vibe'].map((filter) {
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: _MemoryFilterChip(
+                            label: filter,
+                            isSelected: _selectedFilter == filter,
+                            onTap: () => setState(() => _selectedFilter = filter),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+
+                const SliverToBoxAdapter(child: SizedBox(height: 16)),
+
+                // 3. MEMORIES FEED
+                if (filteredMemories.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _buildEmptyState(context),
+                  )
+                else
+                  SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (context, index) => _MemoryCard(
+                        memory: filteredMemories[index],
+                        onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => MemoryDetailScreen(memory: filteredMemories[index])),
+                        ).then((_) => _loadMemories()),
+                      ),
+                      childCount: filteredMemories.length,
+                    ),
+                  ),
+                
+                const SliverToBoxAdapter(child: SizedBox(height: 80)),
+              ],
             ),
-            if (memory.isFavorite)
-              PhosphorIcon(
-                PhosphorIcons.star(PhosphorIconsStyle.fill),
-                color: Colors.amber,
-                size: 20,
-              ),
-          ],
-        ),
-      ),
     );
   }
 
-  Widget _buildFavorites() {
-    if (_favorites == null || _favorites!.isEmpty) {
-      return _buildEmptyState(message: 'No favorite memories yet');
-    }
-
-    return ListView.builder(
-      padding: const EdgeInsets.all(20),
-      itemCount: _favorites!.length,
-      itemBuilder: (context, index) => Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: _buildMemoryCard(_favorites![index]),
-      ),
-    );
-  }
-
-  Widget _buildPhotoGrid() {
-    // Get all memories with photos
-    final List<Memory> allMemories = [];
+  List<Memory> _getAllMemories() {
+    final List<Memory> all = [];
     _timeline?.values.forEach((month) {
-      allMemories.addAll(month.memories.where((m) => m.photo != null));
+      all.addAll(month.memories);
     });
+    return all;
+  }
 
-    if (allMemories.isEmpty) {
-      return _buildEmptyState(message: 'No photos yet');
-    }
-
-    return GridView.builder(
-      padding: const EdgeInsets.all(20),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: 8,
-        mainAxisSpacing: 8,
-      ),
-      itemCount: allMemories.length,
-      itemBuilder: (context, index) {
-        final memory = allMemories[index];
-        return GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => MemoryDetailScreen(memory: memory),
-              ),
-            );
-          },
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: CachedNetworkImage(
-              imageUrl: memory.photo!,
-              fit: BoxFit.cover,
-            ),
-          ),
-        );
+  Widget _buildCreateButton(BuildContext context) {
+    return TextButton.icon(
+      icon: const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
+      label: Text('Create',
+          style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+      onPressed: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const AddMemoryScreen()),
+        ).then((_) => _loadMemories());
       },
     );
   }
 
-  Widget _buildEmptyState({String? message}) {
+  Widget _buildEmptyState(BuildContext context) {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          PhosphorIcon(
-            PhosphorIcons.images(PhosphorIconsStyle.regular),
-            size: 64,
-            color: AppConstants.secondaryGray,
-          ),
+          const Icon(Icons.photo_library_outlined, size: 48, color: AppColors.textMuted),
+          const SizedBox(height: 12),
+          Text('No memories yet', style: AppTypography.bodyMedium),
+          const SizedBox(height: 8),
+          Text('Share your first experience together', style: AppTypography.caption),
           const SizedBox(height: 16),
-          Text(
-            message ?? 'No memories yet',
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: AppConstants.secondaryGray,
-            ),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton.icon(
+          LiquidGlassButton(
+            size: LiquidButtonSize.md,
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(
-                  builder: (_) => const AddMemoryScreen(),
-                ),
+                MaterialPageRoute(builder: (_) => const AddMemoryScreen()),
               ).then((_) => _loadMemories());
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppConstants.primaryRed,
-              foregroundColor: Colors.white,
-            ),
-            icon: PhosphorIcon(
-              PhosphorIcons.plus(PhosphorIconsStyle.bold),
-              size: 18,
-            ),
-            label: const Text('Add First Memory'),
+            child: Text('Add Memory', style: AppTypography.buttonText),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _MemoryFilterChip extends StatelessWidget {
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _MemoryFilterChip({
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.primary : Colors.white,
+          borderRadius: AppRadius.full,
+          border: isSelected ? null : Border.all(color: Colors.grey.shade200),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : AppColors.textSecondary,
+            fontSize: 12,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MemoryCard extends StatelessWidget {
+  final Memory memory;
+  final VoidCallback onTap;
+
+  const _MemoryCard({required this.memory, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.lg,
+        border: Border.all(color: Colors.grey.shade100, width: 1),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 3),
+          )
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 1. CARD HEADER
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
+            child: Row(
+              children: [
+                const CircleAvatar(radius: 18, child: Icon(Icons.favorite, size: 16, color: AppColors.primary)),
+                const SizedBox(width: 10),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(memory.title,
+                        style: AppTypography.labelMedium
+                            .copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.w600)),
+                    Text(_formatDate(memory.memoryDate), style: AppTypography.caption),
+                  ],
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryGlass,
+                    borderRadius: AppRadius.full,
+                  ),
+                  child: Text(
+                    memory.memoryType.toUpperCase(),
+                    style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                if (memory.isFavorite)
+                  const Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Icon(Icons.star, color: Colors.amber, size: 18),
+                  ),
+              ],
+            ),
+          ),
+
+          // 2. MOMENT IMAGE
+          if (memory.photo != null && memory.photo!.isNotEmpty)
+            GestureDetector(
+              onTap: onTap,
+              child: CachedNetworkImage(
+                imageUrl: memory.photo!,
+                height: 240,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(color: Colors.grey[100]),
+                errorWidget: (context, url, error) => Container(
+                  height: 240,
+                  color: Colors.grey[200],
+                  child: const Icon(Icons.broken_image, color: Colors.grey),
+                ),
+              ),
+            ),
+
+          // 3. LOCATION TAG
+          if (memory.locationName != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              child: Row(
+                children: [
+                  const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+                  const SizedBox(width: 3),
+                  Text(memory.locationName!, style: AppTypography.caption),
+                ],
+              ),
+            ),
+
+          // 4. CAPTION/DESCRIPTION
+          if (memory.description != null && memory.description!.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+              child: Text(
+                memory.description!,
+                style: AppTypography.bodyMedium,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+
+          // 5. ACTION BAR
+          Padding(
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
+            child: Row(
+              children: [
+                _MemoryAction(
+                  icon: memory.userReaction != null ? Icons.favorite : Icons.favorite_border,
+                  color: memory.userReaction != null ? AppColors.primary : AppColors.textMuted,
+                  label: '${memory.reactionCount}',
+                  onTap: () {},
+                ),
+                const SizedBox(width: 4),
+                _MemoryAction(
+                  icon: Icons.chat_bubble_outline,
+                  label: '${memory.commentCount}',
+                  onTap: () {},
+                ),
+                const Spacer(),
+                _MemoryAction(
+                  icon: Icons.share_outlined,
+                  label: '',
+                  onTap: () {},
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    final difference = DateTime.now().difference(date);
+    if (difference.inDays == 0) return 'Today';
+    if (difference.inDays == 1) return 'Yesterday';
+    if (difference.inDays < 7) return '${difference.inDays} days ago';
+    return '${date.day}/${date.month}/${date.year}';
+  }
+}
+
+class _MemoryAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color? color;
+  final VoidCallback onTap;
+
+  const _MemoryAction({
+    required this.icon,
+    required this.label,
+    this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16, color: color ?? AppColors.textMuted),
+      label: label.isNotEmpty ? Text(label, style: AppTypography.caption) : const SizedBox.shrink(),
+      style: TextButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        minimumSize: Size.zero,
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
     );
   }

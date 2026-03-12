@@ -1,9 +1,11 @@
 import 'package:flutter/foundation.dart';
-import '../services/api_client.dart'; // For baseUrl
+import 'package:kanairoxo/utils/constants.dart';
 
 // ---------------------------------------------------------------------------
 // Main User Model
 // ---------------------------------------------------------------------------
+
+enum AccountType { single, couple, searching, host }
 
 class User {
   final String id;
@@ -13,7 +15,7 @@ class User {
   final String? lastName;
   final String? displayName;
   final String role;
-  final String accountType; // 'single' | 'couple'
+  final String accountType; // 'single' | 'couple' | 'searching' | 'host'
   final bool isVerified;
   final DateTime dateJoined;
   final DateTime? lastActive;
@@ -37,6 +39,7 @@ class User {
   bool get isCoupleAccount => accountType == 'couple';
   bool get isSingleAccount => accountType == 'single';
   bool get isSearchingAccount => accountType == 'searching';
+  bool get isHostAccount => accountType == 'host';
 
   String get fullName {
     final fName = firstName ?? '';
@@ -50,6 +53,10 @@ class User {
     if (kDebugMode) {
       print("User.fromJson received account_type: ${json['account_type']}");
     }
+    
+    // Safely determine account type, defaulting to 'single'
+    final accountType = json['account_type']?.toString() ?? 'single';
+
     return User(
       id: json['public_id']?.toString() ?? json['id']?.toString() ?? '',
       phoneNumber: json['phone_number']?.toString() ?? '',
@@ -58,7 +65,7 @@ class User {
       lastName: json['last_name']?.toString(),
       displayName: json['display_name']?.toString(),
       role: json['role']?.toString() ?? 'standard',
-      accountType: json['account_type']?.toString() ?? 'single',
+      accountType: accountType,
       isVerified: json['is_verified'] == true,
       dateJoined: json['date_joined'] != null
           ? DateTime.parse(json['date_joined'])
@@ -66,7 +73,7 @@ class User {
       lastActive: json['last_active'] != null
           ? DateTime.parse(json['last_active'])
           : null,
-      profile: UserProfile.fromJson(json),
+      profile: json['profile'] != null ? UserProfile.fromJson(json['profile'], accountType: accountType) : null,
     );
   }
 
@@ -111,6 +118,8 @@ class UserProfile {
   final int profileSavesCount;
   final String? voiceIntro;
   final String? voiceIntroStatus;
+  final String? journalEntry; // Couple only
+  final String? specialMessage; // Couple only
 
   String get neighborhoodDisplay {
     final value = primaryNeighborhood ?? neighborhood;
@@ -145,17 +154,19 @@ class UserProfile {
     this.profileSavesCount = 0,
     this.voiceIntro,
     this.voiceIntroStatus,
+    this.journalEntry,
+    this.specialMessage,
   });
 
-  factory UserProfile.fromJson(Map<String, dynamic> json) {
+  factory UserProfile.fromJson(Map<String, dynamic> json, {String accountType = 'single'}) {
     final profileData = json['profile'] ?? json;
     if (profileData is! Map<String, dynamic>) return UserProfile();
 
-    String? _constructFullUrl(String? path) {
-      if (path == null || path.isEmpty || path.startsWith('http')) return path;
-      final uri = Uri.parse(ApiClient.baseUrl);
-      final baseUrl = '${uri.scheme}://${uri.host}:${uri.port}';
-      return '$baseUrl$path';
+    String? _processUrl(String? path) {
+      if (path == null || path.isEmpty) return null;
+      if (path.startsWith('http')) return path;
+      final baseUrl = Uri.parse(ApiConstants.baseUrl);
+      return baseUrl.resolve(path).toString();
     }
 
     List<Map<String, dynamic>> photos = (profileData['profile_photos'] ?? [])
@@ -164,11 +175,11 @@ class UserProfile {
           final typedPhoto = Map<String, dynamic>.from(photoMap);
           return {
             ...typedPhoto,
-            'url': _constructFullUrl(typedPhoto['url'] as String?),
+            'url': _processUrl(typedPhoto['url'] as String?),
           };
         }).toList();
 
-    String? mainPhotoUrl = _constructFullUrl(profileData['main_profile_photo'] as String?);
+    String? mainPhotoUrl = _processUrl(profileData['main_profile_photo'] as String?);
     if (mainPhotoUrl == null || mainPhotoUrl.isEmpty) {
       try {
         mainPhotoUrl = photos.firstWhere((p) => p['is_main'] == true)['url'];
@@ -194,13 +205,16 @@ class UserProfile {
       profileCompletionPercentage: int.tryParse(profileData['profile_completion_percentage']?.toString() ?? '0') ?? 0,
       profileViewsCount: int.tryParse(profileData['profile_views_count']?.toString() ?? '0') ?? 0,
       profileSavesCount: int.tryParse(profileData['profile_saves_count']?.toString() ?? '0') ?? 0,
-      voiceIntro: _constructFullUrl(profileData['voice_intro'] as String?),
+      voiceIntro: _processUrl(profileData['voice_intro'] as String?),
       voiceIntroStatus: profileData['voice_intro_status']?.toString(),
+      // Conditionally parse couple-specific fields
+      journalEntry: accountType == 'couple' ? profileData['journal_entry']?.toString() : null,
+      specialMessage: accountType == 'couple' ? profileData['special_message']?.toString() : null,
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
+    final json = {
       'bio': bio,
       'headline': headline,
       'occupation': occupation,
@@ -220,6 +234,15 @@ class UserProfile {
       'voice_intro': voiceIntro,
       'voice_intro_status': voiceIntroStatus,
     };
+
+    if (journalEntry != null) {
+      json['journal_entry'] = journalEntry;
+    }
+    if (specialMessage != null) {
+      json['special_message'] = specialMessage;
+    }
+
+    return json;
   }
 }
 

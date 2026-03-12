@@ -39,6 +39,9 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     try {
       final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
       await profileProvider.uploadProfilePhotos(_selectedImages);
+      
+      // After upload, reload the profile to get the updated photo list
+      await profileProvider.loadMyProfile();
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

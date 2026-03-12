@@ -9,6 +9,8 @@ class AuthProvider with ChangeNotifier {
 
   User? _user;
   CoupleStatus? _coupleStatus;
+  List<User>? _coupleUsers;
+  User? _selectedPartner;
   bool _isLoading = false;
   String? _error;
 
@@ -19,6 +21,8 @@ class AuthProvider with ChangeNotifier {
 
   User? get user => _user;
   CoupleStatus? get coupleStatus => _coupleStatus;
+  List<User>? get coupleUsers => _coupleUsers;
+  User? get selectedPartner => _selectedPartner;
   Stream<User?> get userStream => _userController.stream;
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
@@ -54,6 +58,12 @@ class AuthProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setCoupleUser(User user) {
+    _selectedPartner = user;
+    _user = user;
+    notifyListeners();
+  }
+
   // ── Auth flow ─────────────────────────────────────────────────────────────
 
   Future<void> _checkLoginStatus() async {
@@ -61,20 +71,41 @@ class AuthProvider with ChangeNotifier {
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       if (isLoggedIn) {
-        // Fetch the real profile so accountType is always accurate on resume
         final profile = await _authService.getProfile();
-        _setUser(profile);
 
-        // If user has a couple account, fetch their couple relationship status
-        if (profile.isCoupleAccount) {
-          _coupleStatus = await _authService.getCoupleStatus();
-          notifyListeners(); // notify again after couple status loads
+        try {
+          // Attempt to fetch couple status to determine the correct account type.
+          _coupleUsers = await _authService.getCoupleUsers();
+
+          // If successful, the user is part of a couple. Re-create the user
+          // object with the correct account_type to ensure UI consistency.
+          final correctedUser = User(
+            id: profile.id,
+            phoneNumber: profile.phoneNumber,
+            email: profile.email,
+            firstName: profile.firstName,
+            lastName: profile.lastName,
+            displayName: profile.displayName,
+            role: profile.role,
+            accountType: 'couple', // Manually correct the account type.
+            isVerified: profile.isVerified,
+            dateJoined: profile.dateJoined,
+            lastActive: profile.lastActive,
+            profile: profile.profile,
+          );
+          _setUser(correctedUser);
+        } catch (e) {
+          // If fetching couple status fails, it's likely a single user.
+          _coupleStatus = null;
+          _setUser(profile);
         }
+
+        notifyListeners();
       } else {
         _setUser(null);
       }
     } catch (e) {
-      // Token expired or network error — treat as logged out
+      // Token expired or network error — treat as logged out.
       await _authService.logout();
       _setUser(null);
     } finally {
@@ -86,17 +117,11 @@ class AuthProvider with ChangeNotifier {
     _setLoading(true);
     _error = null;
     try {
-      final response = await _authService.login(
+      await _authService.login(
         phoneNumber: phoneNumber,
         password: password,
       );
-      _setUser(response.user); // User is from user_model.dart — no conflict
-
-      // If couple account, fetch relationship status
-      if (response.user.isCoupleAccount) {
-        _coupleStatus = await _authService.getCoupleStatus();
-        notifyListeners();
-      }
+      await _checkLoginStatus(); // Fetch full profile after login
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -110,7 +135,11 @@ class AuthProvider with ChangeNotifier {
     _setLoading(true);
     _error = null;
     try {
-      final response = await _authService.register(
+      DateTime? dateOfBirth = data['dateOfBirth'] != null
+          ? DateTime.parse(data['dateOfBirth'])
+          : null;
+
+      await _authService.register(
         phoneNumber: data['phoneNumber'],
         email: data['email'] ?? '',
         password: data['password'],
@@ -121,18 +150,15 @@ class AuthProvider with ChangeNotifier {
         privacyPolicyAccepted: data['privacyPolicyAccepted'],
         accountType: data['accountType'] ?? 'single',
         gender: data['gender'],
-        dateOfBirth: data['dateOfBirth'],
+        dateOfBirth: dateOfBirth,
         partnerFirstName: data['partnerFirstName'],
         partnerLastName: data['partnerLastName'],
         partnerEmail: data['partnerEmail'],
       );
-      _setUser(response.user); // Same User type — no conflict
 
-      // If couple account, try to fetch couple status (likely null on first register)
-      if (response.user.isCoupleAccount) {
-        _coupleStatus = await _authService.getCoupleStatus();
-        notifyListeners();
-      }
+      // After registration, immediately fetch the complete user profile.
+      await _checkLoginStatus();
+
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -143,23 +169,39 @@ class AuthProvider with ChangeNotifier {
   }
 
   Future<void> refreshProfile() async {
+    if (_user == null) return;
     try {
-      final profile = await _authService.getProfile();
-      _setUser(profile);
+      final profileData = await _authService.getProfile();
+      final updatedUser = User(
+        id: _user!.id,
+        phoneNumber: _user!.phoneNumber,
+        email: profileData.email ?? _user!.email,
+        firstName: profileData.firstName ?? _user!.firstName,
+        lastName: profileData.lastName ?? _user!.lastName,
+        displayName: profileData.displayName ?? _user!.displayName,
+        role: _user!.role,
+        accountType: _user!.accountType,
+        isVerified: profileData.isVerified,
+        dateJoined: _user!.dateJoined,
+        lastActive: profileData.lastActive,
+        profile: profileData.profile,
+      );
+      _setUser(updatedUser);
 
-      // Also refresh couple status if applicable
-      if (profile.isCoupleAccount) {
+      if (updatedUser.isCoupleAccount) {
         _coupleStatus = await _authService.getCoupleStatus();
         notifyListeners();
       }
     } catch (e) {
-      // Non-fatal — keep existing user state
+      // Non-fatal
     }
   }
 
   Future<void> logout() async {
     await _authService.logout();
     _coupleStatus = null;
+    _coupleUsers = null;
+    _selectedPartner = null;
     _setUser(null);
   }
 

@@ -1,10 +1,16 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/user_model.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:kanairoxo/screens/couples/settings_screen.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/services/couple_service.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 
 class CoupleProfileScreen extends StatefulWidget {
   const CoupleProfileScreen({super.key});
@@ -17,6 +23,7 @@ class _CoupleProfileScreenState extends State<CoupleProfileScreen> {
   final CoupleService _coupleService = CoupleService();
   CouplesDashboard? _dashboard;
   bool _isLoading = true;
+  String? _error;
 
   @override
   void initState() {
@@ -26,7 +33,10 @@ class _CoupleProfileScreenState extends State<CoupleProfileScreen> {
 
   Future<void> _loadData() async {
     if (!mounted) return;
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
     try {
       final dashboard = await _coupleService.getDashboard();
       if (mounted) {
@@ -37,163 +47,280 @@ class _CoupleProfileScreenState extends State<CoupleProfileScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() => _isLoading = false);
+        setState(() {
+          _isLoading = false;
+          _error = e.toString();
+        });
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator(color: AppColors.primary)));
+    if (_error != null) return _buildErrorScreen(_error!);
+    if (_dashboard == null) return const Scaffold(body: Center(child: Text('Profile not found')));
+
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _dashboard == null
-              ? const Center(child: Text('Could not load profile.'))
-              : _buildProfileContent(context, _dashboard!),
-    );
-  }
-
-  Widget _buildProfileContent(BuildContext context, CouplesDashboard dashboard) {
-    final theme = Theme.of(context);
-    final auth = context.read<AuthProvider>();
-    final daysTogether = dashboard.couple.anniversaryDate != null
-        ? DateTime.now().difference(dashboard.couple.anniversaryDate!).inDays
-        : 0;
-
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          backgroundColor: AppConstants.primaryBeige,
-          elevation: 0,
-          centerTitle: true,
-          pinned: true,
-          title: Text(
-            'Our Space',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w700,
-              color: AppConstants.primaryBlack,
-            ),
-          ),
-          actions: [
-            IconButton(
-              onPressed: () {},
-              icon: PhosphorIcon(
-                PhosphorIcons.gear(PhosphorIconsStyle.regular),
-                color: AppConstants.primaryBlack,
+      backgroundColor: AppColors.background,
+      body: RefreshIndicator(
+        onRefresh: _loadData,
+        child: CustomScrollView(
+          slivers: [
+            _buildSliverHeader(),
+            SliverPadding(
+              padding: const EdgeInsets.all(16.0),
+              sliver: SliverList(
+                delegate: SliverChildListDelegate([
+                  const SizedBox(height: 32),
+                  _buildNamesAndInfo(),
+                  const SizedBox(height: 24),
+                  _buildAppreciationWall(),
+                  const SizedBox(height: 16),
+                  _buildLoveLanguagesCard(),
+                  const SizedBox(height: 100),
+                ]),
               ),
             ),
           ],
         ),
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(20.0),
-            child: Column(
-              children: [
-                _buildProfileHeader(theme, auth.user!, auth.partner!, daysTogether),
-                const SizedBox(height: 24),
-                _buildAffirmationCard(theme, 'Every day with you is my favorite day.'),
-                const SizedBox(height: 24),
-                _buildJourneySection(theme, dashboard.stats),
-              ],
+      ),
+    );
+  }
+
+  Widget _buildSliverHeader() {
+    final auth = context.read<AuthProvider>();
+    final partner = auth.partner;
+
+    return SliverAppBar(
+      automaticallyImplyLeading: false, // REMOVED BACK BUTTON
+      expandedHeight: 160,
+      backgroundColor: AppColors.primary,
+      pinned: true,
+      elevation: 0,
+      flexibleSpace: FlexibleSpaceBar(
+        background: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [AppColors.primary, AppColors.primaryLight],
             ),
           ),
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                bottom: -30,
+                left: 0,
+                right: 0,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _buildAvatar(auth.user?.profile?.mainProfilePhoto),
+                    Container(
+                      width: 32, height: 32,
+                      margin: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Colors.white, width: 2),
+                      ),
+                      child: const Icon(Icons.favorite, color: Colors.white, size: 16),
+                    ),
+                    _buildAvatar(partner?.profile?.mainProfilePhoto),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
+      ),
+      actions: [
+        IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen())),
+        ),
+        const SizedBox(width: 8),
       ],
     );
   }
 
-  Widget _buildProfileHeader(ThemeData theme, User currentUser, User partner, int daysTogether) {
+  Widget _buildAvatar(String? url) {
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+      child: CircleAvatar(
+        radius: 36,
+        backgroundColor: Colors.grey[200],
+        backgroundImage: url != null ? NetworkImage(url) : null,
+        child: url == null ? const Icon(Icons.person, color: Colors.grey) : null,
+      ),
+    );
+  }
+
+  Widget _buildNamesAndInfo() {
+    final auth = context.read<AuthProvider>();
+    final partner = auth.partner;
+    final anniversary = _dashboard?.couple.anniversaryDate;
+    final sinceStr = anniversary != null ? '${anniversary.day}/${anniversary.month}/${anniversary.year}' : 'Set date';
+
     return Column(
       children: [
+        Text(
+          '${auth.user?.firstName ?? ''} & ${partner?.firstName ?? ''}',
+          style: AppTypography.displayLarge,
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: 4),
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircleAvatar(radius: 40, backgroundColor: AppConstants.primaryRed.withOpacity(0.2)),
-            const SizedBox(width: 12),
-            CircleAvatar(radius: 40, backgroundColor: AppConstants.primaryRed.withOpacity(0.2)),
+            const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.textMuted),
+            const SizedBox(width: 4),
+            Text('Together since $sinceStr', style: AppTypography.caption),
           ],
-        ),
-        const SizedBox(height: 12),
-        Text(
-          '${currentUser.firstName} & ${partner.firstName}',
-          style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          '$daysTogether Days Together',
-          style: theme.textTheme.titleMedium?.copyWith(color: AppConstants.secondaryGray),
         ),
       ],
     );
   }
 
-  Widget _buildAffirmationCard(ThemeData theme, String affirmation) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [AppConstants.primaryRed.withOpacity(0.8), AppConstants.primaryRed],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(20),
-      ),
+  Widget _buildAppreciationWall() {
+    return GlassCard(
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          PhosphorIcon(PhosphorIcons.quotes(PhosphorIconsStyle.fill), color: Colors.white, size: 32),
+          Row(
+            children: [
+              const Icon(Icons.favorite_outline, color: AppColors.primary, size: 16),
+              const SizedBox(width: 6),
+              Text('Appreciation Wall', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+              const Spacer(),
+              TextButton(
+                onPressed: () => _showSendAppreciationSheet(),
+                child: Text('Send', style: AppTypography.caption.copyWith(color: AppColors.primary)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          // Placeholder list
+          _buildAppreciationItem('Trevor', 'You made my day yesterday with the surprise coffee!'),
+          const Divider(height: 24),
+          _buildAppreciationItem('Suki', 'Thank you for always listening to my long stories.'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAppreciationItem(String name, String message) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        CircleAvatar(radius: 12, backgroundColor: AppColors.primaryGlass, child: Text(name[0], style: const TextStyle(fontSize: 10))),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(name, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600)),
+              Text(message, style: AppTypography.caption, maxLines: 2),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLoveLanguagesCard() {
+    final auth = context.read<AuthProvider>();
+    final partner = auth.partner;
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Love Languages', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildPartnerLoveLang(auth.user?.firstName ?? 'Me', 'Physical Touch')),
+              const SizedBox(width: 16),
+              Expanded(child: _buildPartnerLoveLang(partner?.firstName ?? 'Partner', 'Quality Time')),
+            ],
+          ),
           const SizedBox(height: 16),
-          Text(
-            affirmation,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleLarge?.copyWith(color: Colors.white, fontStyle: FontStyle.italic),
+          LiquidGlassButton(
+            size: LiquidButtonSize.sm,
+            width: double.infinity,
+            onPressed: () {},
+            child: Text('Take the Quiz', style: AppTypography.buttonText),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildJourneySection(ThemeData theme, DashboardStats stats) {
+  Widget _buildPartnerLoveLang(String name, String lang) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Our Journey',
-          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-        ),
-        const SizedBox(height: 16),
-        GridView.count(
-          crossAxisCount: 2,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisSpacing: 16,
-          mainAxisSpacing: 16,
-          childAspectRatio: 1.5,
-          children: [
-            _buildJourneyStat(theme, 'Memories Created', stats.memoryCount.toString(), PhosphorIcons.camera(PhosphorIconsStyle.regular)),
-            _buildJourneyStat(theme, 'Dates Planned', stats.dateCount.toString(), PhosphorIcons.calendarHeart(PhosphorIconsStyle.regular)),
-          ],
+        Text(name, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          decoration: BoxDecoration(color: AppColors.primaryGlass, borderRadius: AppRadius.full),
+          child: Text(lang, style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
         ),
       ],
     );
   }
 
-  Widget _buildJourneyStat(ThemeData theme, String label, String value, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+  void _showSendAppreciationSheet() {
+    final controller = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => GlassCard(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Send Appreciation', style: AppTypography.displayMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLines: 3,
+                decoration: const InputDecoration(hintText: 'Tell your partner something you appreciate...'),
+              ),
+              const SizedBox(height: 24),
+              LiquidGlassButton(
+                width: double.infinity,
+                onPressed: () => Navigator.pop(context),
+                child: Text('Send', style: AppTypography.buttonText),
+              ),
+            ],
+          ),
+        ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PhosphorIcon(icon, color: AppConstants.primaryRed, size: 24),
-          const Spacer(),
-          Text(value, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-          Text(label, style: theme.textTheme.bodySmall?.copyWith(color: AppConstants.secondaryGray)),
-        ],
+    );
+  }
+
+  Widget _buildErrorScreen(String error) {
+    return Scaffold(
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.primary, size: 48),
+            const SizedBox(height: 16),
+            Text(error, style: AppTypography.bodyMedium, textAlign: TextAlign.center),
+            const SizedBox(height: 20),
+            LiquidGlassButton(size: LiquidButtonSize.md, onPressed: _loadData, child: Text('Retry', style: AppTypography.buttonText)),
+          ],
+        ),
       ),
     );
   }

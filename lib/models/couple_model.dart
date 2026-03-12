@@ -47,6 +47,14 @@ class Couple {
   }
 
   factory Couple.fromJson(Map<String, dynamic> json) {
+    // Manually add 'account_type' to ensure it's always set for couple users
+    if (json['user1'] is Map<String, dynamic>) {
+      json['user1']['account_type'] = 'couple';
+    }
+    if (json['user2'] is Map<String, dynamic>) {
+      json['user2']['account_type'] = 'couple';
+    }
+
     return Couple(
       id: json['id'].toString(),
       user1: User.fromJson(json['user1']),
@@ -111,17 +119,25 @@ class CoupleStatus {
     // The API returns the full couple object with both users
     // We need to identify which one is the partner
     final currentUserId = json['current_user_id']?.toString();
-    final user1 = json['user1'];
-    final user2 = json['user2'];
+    final user1Data = json['user1'];
+    final user2Data = json['user2'];
+
+    // Manually add 'account_type' before parsing
+    if (user1Data is Map<String, dynamic>) {
+      user1Data['account_type'] = 'couple';
+    }
+    if (user2Data is Map<String, dynamic>) {
+      user2Data['account_type'] = 'couple';
+    }
 
     User partner;
     if (currentUserId != null) {
-      partner = user1['id'].toString() == currentUserId
-          ? User.fromJson(user2)
-          : User.fromJson(user1);
+      partner = user1Data['id'].toString() == currentUserId
+          ? User.fromJson(user2Data)
+          : User.fromJson(user1Data);
     } else {
       // Fallback: assume user2 is partner (shouldn't happen with proper API response)
-      partner = User.fromJson(user2);
+      partner = User.fromJson(user2Data);
     }
 
     return CoupleStatus(

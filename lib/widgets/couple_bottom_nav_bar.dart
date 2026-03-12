@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
 
 class CoupleBottomNavBar extends StatelessWidget {
   final int currentIndex;
@@ -17,7 +18,7 @@ class CoupleBottomNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(24),
@@ -30,7 +31,7 @@ class CoupleBottomNavBar extends StatelessWidget {
         ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: [
           _buildNavItem(context, 0, PhosphorIcons.house(PhosphorIconsStyle.regular), 'Dashboard'),
           _buildNavItem(context, 1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Calendar'),
@@ -44,34 +45,34 @@ class CoupleBottomNavBar extends StatelessWidget {
 
   Widget _buildNavItem(BuildContext context, int index, IconData icon, String label) {
     final isActive = index == currentIndex;
-    return GestureDetector(
-      onTap: () => onTap(index),
-      onLongPress: index == 4 ? onSettingsLongPress : null,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        decoration: BoxDecoration(
-          color: isActive ? AppConstants.primaryBeige : Colors.transparent,
-          borderRadius: BorderRadius.circular(20),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            PhosphorIcon(
-              icon,
-              size: 22,
-              color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                color: isActive ? AppConstants.primaryRed : AppConstants.secondaryGray,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+    return Flexible(
+      child: InkWell(
+        onTap: () => onTap(index),
+        onLongPress: index == 4 ? onSettingsLongPress : null,
+        borderRadius: BorderRadius.circular(20),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PhosphorIcon(
+                icon,
+                size: 20,
+                color: isActive ? AppColors.primary : AppColors.textMuted,
               ),
-            ),
-          ],
+              const SizedBox(height: 2),
+              Text(
+                label,
+                style: AppTypography.caption.copyWith(
+                  fontSize: 10,
+                  color: isActive ? AppColors.primary : AppColors.textMuted,
+                  fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
         ),
       ),
     );

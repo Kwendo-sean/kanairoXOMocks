@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/models/user_model.dart';
+import 'package:kanairoxo/screens/profile/photo_upload_screen.dart';
 
 class ProfileHeader extends StatelessWidget {
   final User user;
@@ -23,6 +24,20 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final profile = user.profile;
     if (profile == null) return const SizedBox.shrink(); // or a placeholder
+
+    // Helper to construct the full URL for a given path.
+    String? getFullImageUrl(String? path) {
+      if (path == null || path.isEmpty || path.startsWith('http')) {
+        return path;
+      }
+      final baseUrl = ApiConstants.baseUrl;
+      if (baseUrl.endsWith('/')) {
+        return baseUrl + (path.startsWith('/') ? path.substring(1) : path);
+      }
+      return '$baseUrl/' + (path.startsWith('/') ? path.substring(1) : path);
+    }
+
+    final fullPhotoUrl = getFullImageUrl(profile.mainProfilePhoto);
 
     return Container(
       decoration: BoxDecoration(
@@ -84,6 +99,7 @@ class ProfileHeader extends StatelessWidget {
 
             // Profile image
             Stack(
+              alignment: Alignment.bottomRight,
               children: [
                 Container(
                   width: 140,
@@ -103,11 +119,12 @@ class ProfileHeader extends StatelessWidget {
                     ],
                   ),
                   child: ClipOval(
-                    child: profile.mainProfilePhoto != null && profile.mainProfilePhoto!.isNotEmpty
+                    child: fullPhotoUrl != null && fullPhotoUrl.isNotEmpty
                         ? Image.network(
-                            profile.mainProfilePhoto!,
+                            fullPhotoUrl,
                             fit: BoxFit.cover,
                             errorBuilder: (context, error, stackTrace) {
+                              print("Error loading profile image: $error"); // Debug print
                               return Container(
                                 color: Colors.grey[200],
                                 child: Center(
@@ -132,6 +149,31 @@ class ProfileHeader extends StatelessWidget {
                           ),
                   ),
                 ),
+
+                // Edit/Add photo button
+                if (onEditPressed != null)
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => const PhotoUploadScreen()),
+                      );
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: AppConstants.primaryRed,
+                        shape: BoxShape.circle,
+                      ),
+                      child: PhosphorIcon(
+                        fullPhotoUrl != null && fullPhotoUrl.isNotEmpty
+                          ? PhosphorIcons.pencil(PhosphorIconsStyle.fill)
+                          : PhosphorIcons.plus(PhosphorIconsStyle.fill),
+                        color: Colors.white,
+                        size: 20,
+                      ),
+                    ),
+                  ),
 
                 // Verification badge
                 if (user.isVerified)

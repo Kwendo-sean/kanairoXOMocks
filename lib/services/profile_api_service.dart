@@ -9,7 +9,8 @@ class ProfileApiService {
 
   Future<User> getMyProfile() async {
     try {
-      final response = await _apiClient.get('api/v1/profiles/me/');
+      // Corrected endpoint to fetch the full user profile
+      final response = await _apiClient.get('api/v1/auth/profile/');
       return User.fromJson(response);
     } catch (e) {
       if (e.toString().contains('Error 500')) {

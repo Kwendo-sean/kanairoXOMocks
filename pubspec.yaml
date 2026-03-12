@@ -22,14 +22,14 @@ dependencies:
   
   # For image picking
   image_picker: ^0.8.7+4
-  cached_network_image: ^3.3.0
+  cached_network_image: ^3.3.1
 
   # For date/time pickers
   intl: ^0.18.1
   
   # Existing dependencies
   cupertino_icons: ^1.0.6
-  google_fonts: ^6.1.0
+  google_fonts: ^6.2.1
   phosphor_flutter: ^2.1.0
   http: ^1.1.0
   flutter_secure_storage: ^9.0.0
@@ -37,6 +37,12 @@ dependencies:
   file_picker: ^8.0.0+1
   dio: ^5.4.0
   url_launcher: ^6.2.1
+  flutter_local_notifications: ^17.0.0
+
+  # UI Upgrades
+  flutter_animate: ^4.5.0
+  card_swiper: ^3.0.1
+  glassmorphism: ^3.0.0
 
 dev_dependencies:
   flutter_test:

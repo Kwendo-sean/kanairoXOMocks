@@ -71,6 +71,17 @@ class AuthService {
     return User.fromJson(response);
   }
 
+  Future<List<User>> getCoupleUsers() async {
+    final response = await _api.get('api/v1/auth/couple-users/') as List;
+    // Manually inject the account_type before parsing.
+    for (var userData in response) {
+      if (userData is Map<String, dynamic>) {
+        userData['account_type'] = 'couple';
+      }
+    }
+    return response.map((user) => User.fromJson(user)).toList();
+  }
+
   Future<void> logout() async {
     try {
       final refreshToken = await _api.getRefreshToken();

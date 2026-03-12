@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/services/discovery_service.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:provider/provider.dart';
-import '../providers/connection_provider.dart';
-import '../providers/notification_provider.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({Key? key}) : super(key: key);
@@ -39,7 +39,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
     _slideAnimation = Tween<Offset>(
       begin: Offset.zero,
-      end: const Offset(-1.5, 0.0), // Swoosh to the left
+      end: const Offset(-1.5, 0.0),
     ).animate(CurvedAnimation(
       parent: _animationController,
       curve: Curves.easeInOut,
@@ -63,7 +63,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     });
 
     try {
-      // Start a new session or continue existing one
       if (_currentSession == null) {
         try {
           final session = await _discoveryService.startDiscoverySession();
@@ -72,12 +71,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
             _currentSession = session;
           });
         } catch (e) {
-          print('Error starting session: $e');
-          // Try to get existing active sessions
           try {
             final sessions = await _discoveryService.getMySessions();
             final activeSessions = sessions.where((s) => s.isActive).toList();
-
             if (activeSessions.isNotEmpty) {
               if (!mounted) return;
               setState(() {
@@ -87,35 +83,27 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
               throw Exception('Could not start or find a discovery session.');
             }
           } catch (e2) {
-            print('Error getting existing sessions: $e2');
             rethrow;
           }
         }
       }
 
-      // Get discovery batch
       if (_currentSession != null) {
         try {
           final batch = await _discoveryService.getDiscoveryBatch(
             _currentSession!.sessionId,
             batchSize: 10,
           );
-
-          print('Received ${batch.discoveries.length} discoveries');
           if (!mounted) return;
           setState(() {
             _discoveries = batch.discoveries;
             _currentIndex = 0;
             _isLoading = false;
           });
-
-          // Reset page controller if needed
           if (_pageController.hasClients) {
             _pageController.jumpToPage(0);
           }
-
         } catch (e) {
-          print('Error getting batch: $e');
           if (!mounted) return;
           setState(() {
             _error = 'Failed to load discoveries. Please try again.';
@@ -124,46 +112,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         }
       }
     } catch (e) {
-      print('Unexpected error: $e');
       if (!mounted) return;
       setState(() {
         _error = 'Something went wrong. Please try again.';
         _isLoading = false;
       });
-    }
-  }
-
-  Future<void> _handleNotNow() async {
-    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
-    if (!mounted) return;
-    setState(() {
-      _isProcessingAction = true;
-    });
-
-    await _animationController.forward();
-
-    final currentItem = _discoveries[_currentIndex];
-
-    try {
-      await _discoveryService.recordUserAction(
-        currentItem.id,
-        'pass',
-      );
-
-      // Move to next profile immediately
-      _moveToNextProfile();
-
-    } catch (e) {
-      print('Error passing: $e');
-      // Silently handle error, still move to next profile
-      _moveToNextProfile();
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessingAction = false;
-          _animationController.reset();
-        });
-      }
     }
   }
 
@@ -175,55 +128,25 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     });
 
     await _animationController.forward();
-
     final currentItem = _discoveries[_currentIndex];
-    final profile = _getCurrentProfile();
-    final profileName = profile?.displayName ?? 'user';
 
     try {
-      await _discoveryService.recordUserAction(
-        currentItem.id,
-        'save',
-      );
-
-      // Show success message
+      await _discoveryService.recordUserAction(currentItem.id, 'save');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Saved $profileName for later! 💾',
-              style: const TextStyle(fontSize: 16),
-            ),
-            backgroundColor: Colors.blue,
-            duration: const Duration(seconds: 2),
+            content: const Text('Saved for later! 💾'),
+            backgroundColor: AppColors.primary,
             behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
           ),
         );
       }
-
-      // Move to next profile after a short delay
       await Future.delayed(const Duration(milliseconds: 800));
       _moveToNextProfile();
-
     } catch (e) {
-      print('Error saving: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Failed to save. Please try again.',
-              style: const TextStyle(fontSize: 16),
-            ),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 2),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-          ),
+          const SnackBar(content: Text('Failed to save.')),
         );
       }
     } finally {
@@ -238,11 +161,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   void _moveToNextProfile() {
     if (_isProcessingAction || !mounted) return;
-
     setState(() {
       _currentIndex++;
       if (_currentIndex >= _discoveries.length) {
-        // Load more if we're at the end
         _initializeDiscovery();
       } else if (_pageController.hasClients) {
         _pageController.animateToPage(
@@ -254,93 +175,71 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     });
   }
 
-  DiscoveryProfile? _getCurrentProfile() {
-    if (_currentIndex >= _discoveries.length) return null;
-
-    final currentItem = _discoveries[_currentIndex];
-    if (currentItem.isProfile && currentItem.profileDetails.isNotEmpty) {
-      try {
-        return DiscoveryProfile.fromJson(currentItem.profileDetails);
-      } catch (e) {
-        print('Error getting profile: $e');
-        return null;
-      }
-    }
-    return null;
-  }
-
   DiscoveryProfile? _getProfileAtIndex(int index) {
     if (index >= _discoveries.length) return null;
-
     final item = _discoveries[index];
     if (item.isProfile && item.profileDetails.isNotEmpty) {
       try {
         return DiscoveryProfile.fromJson(item.profileDetails);
       } catch (e) {
-        print('Error getting profile at index $index: $e');
         return null;
       }
     }
     return null;
   }
 
-  Widget _buildLoading() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(
-              Theme.of(context).colorScheme.primary,
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        title: Text('Discover', style: AppTypography.screenTitle),
+        centerTitle: true,
+        automaticallyImplyLeading: false,
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_outlined,
+              color: Color(0xFF1A1A1A),
+              size: 22,
             ),
-            strokeWidth: 3,
-          ),
-          const SizedBox(height: 20),
-          Text(
-            'Finding great matches for you...',
-            style: TextStyle(
-              fontSize: 16,
-              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+            onPressed: () {
+              Navigator.pushNamed(context, '/notifications');
+            },
+            style: IconButton.styleFrom(
+              backgroundColor: Colors.transparent,
+              foregroundColor: const Color(0xFF1A1A1A),
             ),
           ),
+          const SizedBox(width: 8),
         ],
       ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _error != null
+              ? _buildError()
+              : _discoveries.isEmpty
+                  ? _buildEmpty()
+                  : _buildPageView(),
     );
   }
 
   Widget _buildError() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Theme.of(context).colorScheme.error,
-            ),
-            const SizedBox(height: 20),
-            Text(
-              _error ?? 'An error occurred',
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 18,
-                color: Theme.of(context).colorScheme.error,
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
+            const Icon(Icons.error_outline, size: 48, color: AppColors.primary),
+            const SizedBox(height: 12),
+            Text(_error ?? 'An error occurred', textAlign: TextAlign.center, style: AppTypography.bodyLarge),
+            const SizedBox(height: 12),
+            LiquidGlassButton(
+              size: LiquidButtonSize.md,
               onPressed: _initializeDiscovery,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-              ),
-              child: const Text('Try Again', style: TextStyle(fontSize: 16)),
+              child: Text('Try Again', style: AppTypography.buttonText),
             ),
           ],
         ),
@@ -351,45 +250,20 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   Widget _buildEmpty() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.people_outline,
-              size: 80,
-              color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'No profiles to show right now',
-              style: TextStyle(
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(context).colorScheme.onSurface,
-              ),
-            ),
-            const SizedBox(height: 15),
-            Text(
-              "Check back later for new matches!",
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
-              ),
-            ),
-            const SizedBox(height: 30),
-            ElevatedButton(
+            const Icon(Icons.people_outline, size: 60, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            Text('No profiles right now', style: AppTypography.displayMedium),
+            const SizedBox(height: 8),
+            Text("Check back later!", style: AppTypography.bodyMedium),
+            const SizedBox(height: 16),
+            LiquidGlassButton(
+              size: LiquidButtonSize.md,
               onPressed: _initializeDiscovery,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(25),
-                ),
-              ),
-              child: const Text('Refresh'),
+              child: Text('Refresh', style: AppTypography.buttonText),
             ),
           ],
         ),
@@ -401,64 +275,56 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     return PageView.builder(
       controller: _pageController,
       itemCount: _discoveries.length,
+      physics: const NeverScrollableScrollPhysics(),
       itemBuilder: (context, index) {
         final profile = _getProfileAtIndex(index);
-        if (profile == null) {
-          return const SizedBox.shrink(); // Should not happen if itemCount is correct
-        }
+        if (profile == null) return const SizedBox.shrink();
 
         final discoveryItem = _discoveries[index];
 
-        return SlideTransition(
-          position: _slideAnimation,
-          child: ProfileCard(
-            profile: profile,
-            compatibilityScore: discoveryItem.overallScore,
-            compatibilityText: discoveryItem.compatibilityText,
-            explanation: discoveryItem.explanation,
-            onNotNow: () {
-              // Handle not now
-              _moveToNextProfile();
-            },
-            onSave: () {
-              // Handle save
-              _handleSave();
-            },
-            onConnectionSuccess: () {
-              // Optional: Load next profile after successful connection
-              Future.delayed(const Duration(seconds: 1), () {
-                _moveToNextProfile();
-              });
-            },
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+          child: Column(
+            children: [
+              if (discoveryItem.explanation.isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: GlassCard(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            discoveryItem.explanation,
+                            style: AppTypography.bodyMedium.copyWith(fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              Expanded(
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: ProfileCard(
+                    profile: profile,
+                    compatibilityScore: discoveryItem.overallScore,
+                    compatibilityText: discoveryItem.compatibilityText,
+                    explanation: discoveryItem.explanation,
+                    onNotNow: _moveToNextProfile,
+                    onSave: _handleSave,
+                    onConnectionSuccess: () {
+                      Future.delayed(const Duration(seconds: 1), _moveToNextProfile);
+                    },
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Discover'),
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        actions: [
-          IconButton(
-            icon: Icon(PhosphorIcons.bell()),
-            onPressed: () {
-              Navigator.pushNamed(context, '/notifications');
-            },
-          ),
-        ],
-      ),
-      body: _isLoading
-          ? _buildLoading()
-          : _error != null
-              ? _buildError()
-              : _discoveries.isEmpty
-                  ? _buildEmpty()
-                  : _buildPageView(),
     );
   }
 }

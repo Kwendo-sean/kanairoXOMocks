@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:kanairoxo/utils/constants.dart';
 
 /// Custom exception for authentication errors.
 class AuthException implements Exception {
@@ -15,7 +16,7 @@ class AuthException implements Exception {
 }
 
 class ApiClient {
-  static String baseUrl = 'http://192.168.100.227:8000';
+  static String baseUrl = ApiConstants.baseUrl;
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
@@ -42,14 +43,14 @@ class ApiClient {
 
   Future<dynamic> get(String endpoint, {Map<String, String>? queryParameters}) async {
     return _handleRequest(() async {
-      final url = Uri.parse('${ApiClient.baseUrl}/$endpoint').replace(queryParameters: queryParameters);
+      final url = Uri.parse('$baseUrl/$endpoint').replace(queryParameters: queryParameters);
       return http.get(url, headers: await _getHeaders());
     });
   }
 
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     return _handleRequest(() async {
-      final url = Uri.parse('${ApiClient.baseUrl}/$endpoint');
+      final url = Uri.parse('$baseUrl/$endpoint');
       return http.post(
         url,
         headers: await _getHeaders(hasToken: !endpoint.contains('login')),
@@ -60,14 +61,14 @@ class ApiClient {
 
   Future<dynamic> patch(String endpoint, Map<String, dynamic> data) async {
     return _handleRequest(() async {
-      final url = Uri.parse('${ApiClient.baseUrl}/$endpoint');
+      final url = Uri.parse('$baseUrl/$endpoint');
       return http.patch(url, headers: await _getHeaders(), body: jsonEncode(data));
     });
   }
 
   Future<dynamic> delete(String endpoint, {Map<String, dynamic>? body}) async {
     return _handleRequest(() async {
-      final url = Uri.parse('${ApiClient.baseUrl}/$endpoint');
+      final url = Uri.parse('$baseUrl/$endpoint');
       final request = http.Request('DELETE', url);
       request.headers.addAll(await _getHeaders());
       if (body != null) {
@@ -80,7 +81,7 @@ class ApiClient {
 
   Future<dynamic> uploadMultipleFiles(String endpoint, {required List<XFile> files, required String fileFieldName}) async {
     return _handleRequest(() async {
-      final url = Uri.parse('${ApiClient.baseUrl}/$endpoint');
+      final url = Uri.parse('$baseUrl/$endpoint');
       final request = http.MultipartRequest('POST', url);
       final token = await getAccessToken();
       if (token != null) {
@@ -128,7 +129,7 @@ class ApiClient {
 
       // Use the full path for token refresh, as it's a specific auth endpoint
       final response = await http.post(
-        Uri.parse('${ApiClient.baseUrl}/api/v1/auth/token/refresh/'),
+        Uri.parse('$baseUrl/v1/auth/token/refresh/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refresh': refreshToken}),
       );
@@ -174,6 +175,12 @@ class ApiClient {
   }
 
   dynamic _handleResponse(http.Response response) {
+    if (kDebugMode) {
+      print('[API] ${response.request?.method} ${response.request?.url} -> ${response.statusCode}');
+      if (response.body.isNotEmpty) {
+        print('[API] Body: ${response.body}');
+      }
+    }
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {};
       return jsonDecode(response.body);

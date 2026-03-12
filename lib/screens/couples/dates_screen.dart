@@ -1,9 +1,14 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/date_model.dart';
 import 'package:kanairoxo/services/date_service.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:kanairoxo/screens/couples/plan_date_screen.dart';
+import 'package:kanairoxo/screens/couples/book_date_screen.dart';
 
 class DatesScreen extends StatefulWidget {
   const DatesScreen({super.key});
@@ -12,25 +17,36 @@ class DatesScreen extends StatefulWidget {
   State<DatesScreen> createState() => _DatesScreenState();
 }
 
-class _DatesScreenState extends State<DatesScreen>
-    with SingleTickerProviderStateMixin {
+class _DatesScreenState extends State<DatesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final DateService _dateService = DateService();
-  late Future<List<DateNight>> _upcomingDatesFuture;
-  late Future<List<DateIdea>> _dateIdeasFuture;
-  late Future<List<DateNight>> _pastDatesFuture;
+  List<DateNight> _upcomingDates = [];
+  List<DateNight> _pastDates = [];
+  List<DateIdea> _dateJar = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _loadData();
   }
 
-  void _loadData() {
-    _upcomingDatesFuture = _dateService.getDates();
-    _dateIdeasFuture = _dateService.getDateIdeas();
-    _pastDatesFuture = _dateService.getDates(); // This should be filtered for past dates
+  Future<void> _loadData() async {
+    setState(() => _isLoading = true);
+    try {
+      final upcoming = await _dateService.getUpcomingDates();
+      final past = await _dateService.getPastDates();
+      final jar = await _dateService.getDateJar();
+      setState(() {
+        _upcomingDates = upcoming;
+        _pastDates = past;
+        _dateJar = jar;
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -41,89 +57,47 @@ class _DatesScreenState extends State<DatesScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
+      backgroundColor: AppColors.background,
       body: SafeArea(
         child: Column(
           children: [
-            // Header
             Padding(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Date Nights',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: AppConstants.primaryBlack,
-                    ),
-                  ),
-                  ElevatedButton.icon(
+                  Text('Dates & Aspirations', style: AppTypography.screenTitle),
+                  const Spacer(),
+                  LiquidGlassButton(
+                    size: LiquidButtonSize.sm,
                     onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (context) => const PlanDateScreen()),
-                      ).then((_) => _loadData());
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const PlanDateScreen())).then((_) => _loadData());
                     },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConstants.primaryRed,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.add, size: 14, color: Colors.white),
+                        const SizedBox(width: 4),
+                        Text('Plan Date', style: AppTypography.buttonText.copyWith(fontSize: 12)),
+                      ],
                     ),
-                    icon: PhosphorIcon(
-                      PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                      size: 18,
-                    ),
-                    label: const Text('Plan Date'),
                   ),
                 ],
               ),
             ),
-
-            // Tabs
-            Container(
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicator: BoxDecoration(
-                  color: AppConstants.primaryRed,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: AppConstants.secondaryGray,
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                tabs: const [
-                  Tab(text: 'Upcoming'),
-                  Tab(text: 'Ideas'),
-                  Tab(text: 'Past'),
-                ],
-              ),
+            TabBar(
+              controller: _tabController,
+              labelColor: AppColors.primary,
+              unselectedLabelColor: AppColors.textMuted,
+              labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
+              indicatorColor: AppColors.primary,
+              tabs: const [Tab(text: 'Dates'), Tab(text: 'Aspirations')],
             ),
-
-            const SizedBox(height: 16),
-
-            // Content
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _buildUpcomingDates(theme),
-                  _buildDateIdeas(theme),
-                  _buildPastDates(theme),
+                  _isLoading ? const Center(child: CircularProgressIndicator()) : _buildDatesTab(),
+                  const _AspirationsTab(),
                 ],
               ),
             ),
@@ -133,300 +107,252 @@ class _DatesScreenState extends State<DatesScreen>
     );
   }
 
-  Widget _buildUpcomingDates(ThemeData theme) {
-    return FutureBuilder<List<DateNight>>(
-      future: _upcomingDatesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No upcoming dates.'));
-        } else {
-          final upcomingDates = snapshot.data!.where((date) => date.date.isAfter(DateTime.now())).toList();
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: upcomingDates.length,
-            itemBuilder: (context, index) {
-              final date = upcomingDates[index];
-              return _buildDateCard(
-                theme,
-                date.title,
-                date.date.toString(),
-                date.location ?? '',
-                PhosphorIcons.calendar(PhosphorIconsStyle.regular),
-                AppConstants.primaryRed,
-              );
-            },
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildDateIdeas(ThemeData theme) {
-    return FutureBuilder<List<DateIdea>>(
-      future: _dateIdeasFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No date ideas.'));
-        } else {
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: snapshot.data!.length,
-            itemBuilder: (context, index) {
-              final idea = snapshot.data![index];
-              return _buildIdeaCard(
-                theme,
-                idea.title,
-                idea.description ?? '',
-                PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
-                Colors.orange,
-              );
-            },
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildPastDates(ThemeData theme) {
-    return FutureBuilder<List<DateNight>>(
-      future: _pastDatesFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        } else if (snapshot.hasError) {
-          return Center(child: Text('Error: ${snapshot.error}'));
-        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
-          return const Center(child: Text('No past dates.'));
-        } else {
-          final pastDates = snapshot.data!.where((date) => date.date.isBefore(DateTime.now())).toList();
-          return ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: pastDates.length,
-            itemBuilder: (context, index) {
-              final date = pastDates[index];
-              return _buildPastDateCard(
-                theme,
-                date.title,
-                date.date.toString(),
-                '',
-              );
-            },
-          );
-        }
-      },
-    );
-  }
-
-  Widget _buildDateCard(
-      ThemeData theme,
-      String title,
-      String dateTime,
-      String location,
-      PhosphorIconData icon,
-      Color color,
-      ) {
-    return Container(
+  Widget _buildDatesTab() {
+    return ListView(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+      children: [
+        _buildBookADate(),
+        const SizedBox(height: 16),
+        _buildDateJar(),
+        const SizedBox(height: 24),
+        Text('Upcoming Dates', style: AppTypography.displayMedium.copyWith(fontSize: 16)),
+        const SizedBox(height: 12),
+        ..._upcomingDates.map((date) => _DateCard(date: date)),
+        const SizedBox(height: 24),
+        Text('Past Dates', style: AppTypography.displayMedium.copyWith(fontSize: 16)),
+        const SizedBox(height: 12),
+        ..._pastDates.map((date) => _DateCard(date: date, isPast: true)),
+        const SizedBox(height: 80),
+      ],
+    );
+  }
+
+  Widget _buildBookADate() {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Book a Curated Date', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text('Explore partnered restaurants and book a date.', style: AppTypography.bodyMedium),
+          const SizedBox(height: 12),
+          LiquidGlassButton(
+            width: double.infinity,
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const BookDateScreen()));
+            },
+            child: Text('Explore Restaurants', style: AppTypography.buttonText),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildDateJar() {
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.shuffle_outlined, color: AppColors.primary, size: 16),
+              const SizedBox(width: 6),
+              Text('Date Jar', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+          Text('Add ideas, spin when you cannot decide', style: AppTypography.caption),
+          const SizedBox(height: 8),
+          Text('\${_dateJar.length} ideas in your jar', style: AppTypography.caption),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: LiquidGlassButton(
+                  size: LiquidButtonSize.md,
+                  onPressed: () => _spinJar(),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.shuffle, size: 16, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text('Spin Jar', style: AppTypography.buttonText),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton.icon(
+                icon: const Icon(Icons.add, size: 14, color: AppColors.primary),
+                label: Text('Add Idea', style: AppTypography.labelMedium.copyWith(color: AppColors.primary)),
+                onPressed: () => _showAddIdeaSheet(),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _spinJar() async {
+    try {
+      final idea = await _dateService.spinDateJar();
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text('Your next date:', style: AppTypography.caption),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(idea.title, style: AppTypography.displayMedium),
+              if (idea.description != null) Text(idea.description!, style: AppTypography.bodyMedium),
+            ],
+          ),
+          actions: [
+            LiquidGlassButton(onPressed: () => Navigator.pop(context), child: Text('Let\'s Do It', style: AppTypography.buttonText)),
+          ],
+        ),
+      );
+    } catch (e) {}
+  }
+
+  void _showAddIdeaSheet() {
+    final titleController = TextEditingController();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => GlassCard(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Add a Date Idea', style: AppTypography.displayMedium),
+              const SizedBox(height: 16),
+              TextField(
+                controller: titleController,
+                decoration: const InputDecoration(hintText: 'Idea title...'),
+              ),
+              const SizedBox(height: 24),
+              LiquidGlassButton(
+                width: double.infinity,
+                onPressed: () async {
+                  await _dateService.addDateIdea(titleController.text, 'romantic');
+                  Navigator.pop(context);
+                  _loadData();
+                },
+                child: Text('Add to Jar', style: AppTypography.buttonText),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DateCard extends StatelessWidget {
+  final DateNight date;
+  final bool isPast;
+  const _DateCard({required this.date, this.isPast = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final day = date.date.day.toString();
+    final month = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][date.date.month - 1];
+
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 6),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: AppRadius.md,
+        border: Border.all(color: Colors.grey.shade100),
       ),
       child: Row(
         children: [
           Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: PhosphorIcon(icon, size: 28, color: color),
+            width: 44, height: 44,
+            decoration: BoxDecoration(color: AppColors.primaryGlass, borderRadius: AppRadius.sm),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(day, style: AppTypography.displayMedium.copyWith(color: AppColors.primary, fontSize: 16)),
+                Text(month, style: AppTypography.caption.copyWith(color: AppColors.primary, fontSize: 10)),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppConstants.primaryBlack,
+                Text(date.title, style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: isPast ? AppColors.textSecondary : AppColors.textPrimary)),
+                if (date.location != null)
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on_outlined, size: 12, color: AppColors.textMuted),
+                      const SizedBox(width: 2),
+                      Text(date.location!, style: AppTypography.caption),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  dateTime,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppConstants.secondaryGray,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    PhosphorIcon(
-                      PhosphorIcons.mapPin(PhosphorIconsStyle.regular),
-                      size: 14,
-                      color: AppConstants.secondaryGray,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      location,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: AppConstants.secondaryGray,
-                      ),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),
-          PhosphorIcon(
-            PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-            color: AppConstants.secondaryGray,
-          ),
+          if (isPast && date.rating == null)
+            const Icon(Icons.star_border, size: 18, color: AppColors.textMuted)
+          else if (isPast && date.rating != null)
+            const Icon(Icons.star, size: 18, color: Color(0xFFFFB800)),
         ],
       ),
     );
   }
+}
 
-  Widget _buildIdeaCard(
-      ThemeData theme,
-      String title,
-      String subtitle,
-      PhosphorIconData icon,
-      Color color,
-      ) {
-    return Container(
+class _AspirationsTab extends StatelessWidget {
+  const _AspirationsTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Center(
-              child: PhosphorIcon(icon, size: 24, color: color),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppConstants.primaryBlack,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppConstants.secondaryGray,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: PhosphorIcon(
-              PhosphorIcons.plus(PhosphorIconsStyle.regular),
-              color: color,
-            ),
-          ),
-        ],
-      ),
+      children: [
+        _buildBucketList(),
+        const SizedBox(height: 24),
+        _buildSharedGoals(),
+      ],
     );
   }
 
-  Widget _buildPastDateCard(
-      ThemeData theme,
-      String title,
-      String date,
-      String rating,
-      ) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w600,
-                    color: AppConstants.primaryBlack,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  date,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: AppConstants.secondaryGray,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  rating,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-          PhosphorIcon(
-            PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-            color: AppConstants.secondaryGray,
-          ),
-        ],
-      ),
+  Widget _buildBucketList() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Bucket List', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            TextButton.icon(icon: const Icon(Icons.add, size: 14), label: const Text('Add'), onPressed: () {}),
+          ],
+        ),
+        // Placeholder for items from API
+      ],
+    );
+  }
+
+  Widget _buildSharedGoals() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text('Shared Goals', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            TextButton(onPressed: () {}, child: const Text('Add Goal')),
+          ],
+        ),
+        // Placeholder for GoalCard from API
+      ],
     );
   }
 }

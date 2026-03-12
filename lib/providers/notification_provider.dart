@@ -38,10 +38,19 @@ class NotificationProvider with ChangeNotifier {
 
     try {
       // Load all notifications
-      _notifications = await _notificationService.getNotifications();
+      // _notifications = await _notificationService.getNotifications();
+
+      // Show a notification for the newest unread notification
+      if (unreadCount > 0) {
+        final latestNotification = _notifications.firstWhere((n) => !n.isRead);
+        await _notificationService.showNotification(
+          latestNotification.title,
+          latestNotification.body,
+        );
+      }
 
       // Load stats
-      _stats = await _notificationService.getNotificationStats();
+      // _stats = await _notificationService.getNotificationStats();
 
       // Filter connection requests
       _connectionRequests = _notifications
@@ -65,7 +74,7 @@ class NotificationProvider with ChangeNotifier {
   // Mark notification as read
   Future<void> markAsRead(String notificationId) async {
     try {
-      await _notificationService.markAsRead(notificationId);
+      // await _notificationService.markAsRead(notificationId);
 
       // Update local state
       final index = _notifications.indexWhere((n) => n.id == notificationId);
@@ -90,7 +99,7 @@ class NotificationProvider with ChangeNotifier {
   // Mark all as read
   Future<void> markAllAsRead() async {
     try {
-      await _notificationService.markAllAsRead();
+      // await _notificationService.markAllAsRead();
 
       // Update all notifications locally
       _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
@@ -112,7 +121,7 @@ class NotificationProvider with ChangeNotifier {
   // Delete notification
   Future<void> deleteNotification(String notificationId) async {
     try {
-      await _notificationService.deleteNotification(notificationId);
+      // await _notificationService.deleteNotification(notificationId);
 
       // Remove from local lists
       _notifications.removeWhere((n) => n.id == notificationId);

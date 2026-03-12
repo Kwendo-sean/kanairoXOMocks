@@ -1,4 +1,3 @@
-// lib/screens/profile/profile_editor_screen.dart
 import 'package:flutter/material.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
@@ -8,7 +7,9 @@ import 'package:kanairoxo/widgets/loading_indicator.dart';
 import 'package:kanairoxo/models/user_model.dart';
 
 class ProfileEditorScreen extends StatefulWidget {
-  const ProfileEditorScreen({super.key});
+  final VoidCallback onClose;
+
+  const ProfileEditorScreen({super.key, required this.onClose});
 
   @override
   State<ProfileEditorScreen> createState() => _ProfileEditorScreenState();
@@ -92,7 +93,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         ),
       );
 
-      Navigator.pop(context);
+      widget.onClose(); // Use the callback to navigate
     } catch (e) {
       if (!mounted) return;
 
@@ -161,7 +162,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          onPressed: () => Navigator.pop(context),
+          onPressed: widget.onClose, // Use the callback for the back button
           icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular)),
           color: AppConstants.primaryBlack,
         ),

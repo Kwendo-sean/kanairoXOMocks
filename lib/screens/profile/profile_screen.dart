@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
@@ -10,6 +11,8 @@ import 'package:kanairoxo/widgets/profile/interests_grid.dart';
 import 'package:kanairoxo/widgets/profile/profile_completion_widget.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/widgets/profile/profile_header.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
 
 class ProfileScreen extends StatelessWidget {
   final String? publicId;
@@ -23,7 +26,7 @@ class ProfileScreen extends StatelessWidget {
         final user = profileProvider.currentUser;
 
         if (profileProvider.isLoading && user == null) {
-          return _buildLoadingScreen();
+          return const Scaffold(backgroundColor: AppColors.background, body: Center(child: CircularProgressIndicator()));
         }
 
         if (profileProvider.error != null && user == null) {
@@ -35,31 +38,48 @@ class ProfileScreen extends StatelessWidget {
         }
 
         return Scaffold(
-          backgroundColor: AppConstants.primaryBeige,
+          backgroundColor: AppColors.background,
           body: RefreshIndicator(
             onRefresh: () => profileProvider.loadMyProfile(),
             child: CustomScrollView(
               slivers: [
                 SliverToBoxAdapter(
-                  child: ProfileHeader(
-                    user: user,
-                    showBackButton: publicId != null,
-                    onEditPressed: publicId == null
-                        ? () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const ProfileEditorScreen(),
+                  child: Stack(
+                    children: [
+                      ProfileHeader(
+                        user: user,
+                        showBackButton: publicId != null,
+                        onEditPressed: null,
+                        onLogoutPressed: null,
+                      ),
+                      if (publicId == null)
+                        Positioned(
+                          top: 40,
+                          right: 16,
+                          child: Row(
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
+                                onPressed: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) => ProfileEditorScreen(onClose: () => Navigator.of(context).pop()),
+                                    ),
+                                  );
+                                },
                               ),
-                            );
-                          }
-                        : null,
-                    onLogoutPressed: publicId == null
-                        ? () async {
-                            await context.read<AuthProvider>().logout();
-                            // You might want to navigate to the login screen after logout
-                          }
-                        : null,
+                              const SizedBox(width: 4),
+                              IconButton(
+                                icon: const Icon(Icons.logout_outlined, color: Colors.white, size: 20),
+                                onPressed: () async {
+                                  await context.read<AuthProvider>().logout();
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                    ],
                   ),
                 ),
                 SliverPadding(
@@ -67,19 +87,25 @@ class ProfileScreen extends StatelessWidget {
                   sliver: SliverList(
                     delegate: SliverChildListDelegate([
                       if (publicId == null)
-                        ProfileCompletionCard(user: user),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle(context, 'About Me'),
-                      const SizedBox(height: 12),
-                      _buildBioCard(context, user),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle(context, 'My Interests'),
-                      const SizedBox(height: 12),
+                        GlassCard(child: ProfileCompletionCard(user: user)),
+                      const SizedBox(height: 16),
+                      _buildSectionTitle('About Me'),
+                      const SizedBox(height: 8),
+                      GlassCard(
+                        child: Text(
+                          user.profile?.bio ?? 'No bio available.',
+                          style: AppTypography.bodyLarge,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildSectionTitle('My Interests'),
+                      const SizedBox(height: 8),
                       InterestsGrid(interests: user.profile!.interests),
-                      const SizedBox(height: 24),
-                      _buildSectionTitle(context, 'Gallery'),
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 16),
+                      _buildSectionTitle('Gallery'),
+                      const SizedBox(height: 8),
                       _buildGallery(context, user.profile!.profilePhotos, profileProvider),
+                      const SizedBox(height: 80),
                     ]),
                   ),
                 ),
@@ -91,32 +117,25 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingScreen() {
-    return const Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
-      body: Center(child: CircularProgressIndicator()),
-    );
-  }
-
   Widget _buildErrorScreen(BuildContext context, ProfileProvider profileProvider) {
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
-      appBar: AppBar(title: const Text('Profile'), automaticallyImplyLeading: false,),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Padding(
-          padding: const EdgeInsets.all(20.0),
+          padding: const EdgeInsets.all(16.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.error_outline, color: Colors.red, size: 60),
-              const SizedBox(height: 20),
-              Text('Error Loading Profile', style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 10),
-              Text(profileProvider.error!, textAlign: TextAlign.center),
-              const SizedBox(height: 20),
-              ElevatedButton(
+              const Icon(Icons.error_outline, color: AppColors.primary, size: 48),
+              const SizedBox(height: 12),
+              Text('Error Loading Profile', style: AppTypography.displayMedium),
+              const SizedBox(height: 6),
+              Text(profileProvider.error!, textAlign: TextAlign.center, style: AppTypography.bodyMedium),
+              const SizedBox(height: 16),
+              LiquidGlassButton(
+                size: LiquidButtonSize.md,
                 onPressed: () => profileProvider.loadMyProfile(),
-                child: const Text('Try Again'),
+                child: Text('Try Again', style: AppTypography.buttonText),
               ),
             ],
           ),
@@ -127,17 +146,17 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildNoProfileScreen(BuildContext context, ProfileProvider profileProvider) {
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
-      appBar: AppBar(title: const Text('Profile'), automaticallyImplyLeading: false,),
+      backgroundColor: AppColors.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('No profile data found.'),
-            const SizedBox(height: 20),
-            ElevatedButton(
+            Text('No profile data found.', style: AppTypography.bodyLarge),
+            const SizedBox(height: 12),
+            LiquidGlassButton(
+              size: LiquidButtonSize.md,
               onPressed: () => profileProvider.loadMyProfile(),
-              child: const Text('Reload Profile'),
+              child: Text('Reload Profile', style: AppTypography.buttonText),
             ),
           ],
         ),
@@ -145,57 +164,36 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildSectionTitle(BuildContext context, String title) {
+  Widget _buildSectionTitle(String title) {
     return Text(
       title,
-      style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
-    );
-  }
-
-  Widget _buildBioCard(BuildContext context, User user) {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Text(
-          user.profile?.bio ?? 'No bio available.',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(height: 1.5),
-        ),
-      ),
+      style: AppTypography.displayMedium.copyWith(fontSize: 16),
     );
   }
 
   Widget _buildGallery(BuildContext context, List<Map<String, dynamic>> photos, ProfileProvider profileProvider) {
     if (photos.isEmpty && publicId == null) {
-      return Center(
-        child: Column(
+      return LiquidGlassButton(
+        size: LiquidButtonSize.lg,
+        width: double.infinity,
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const PhotoUploadScreen()),
+          ).then((_) => profileProvider.loadMyProfile());
+        },
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('Your gallery is empty.'),
-            const SizedBox(height: 12),
-            ElevatedButton.icon(
-              onPressed: () {
-                 Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const PhotoUploadScreen()),
-                ).then((_) => profileProvider.loadMyProfile());
-              },
-              icon: const Icon(Icons.add_a_photo_outlined),
-              label: const Text('Upload Photos'),
-              style: ElevatedButton.styleFrom(
-                foregroundColor: Colors.white,
-                backgroundColor: AppConstants.primaryRed,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-            ),
+            const Icon(Icons.add_a_photo_outlined, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Text('Upload Photos', style: AppTypography.buttonText),
           ],
         ),
       );
     }
     if (photos.isEmpty) {
-      return const Center(child: Text('No photos yet.'));
+      return Center(child: Text('No photos yet.', style: AppTypography.bodyMedium));
     }
     return GridView.builder(
       shrinkWrap: true,
@@ -209,7 +207,7 @@ class ProfileScreen extends StatelessWidget {
       itemBuilder: (context, index) {
         final photoUrl = photos[index]['url'];
         return ClipRRect(
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: AppRadius.sm,
           child: Image.network(photoUrl, fit: BoxFit.cover),
         );
       },

@@ -1,11 +1,14 @@
-// lib/screens/events/events_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/widgets/experience_card.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
-import 'package:kanairoxo/screens/events/host_event_screen.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/glass_card.dart';
 
 class EventsScreen extends StatefulWidget {
   final void Function(Experience) onJoinExperience;
@@ -115,7 +118,6 @@ class _EventsScreenState extends State<EventsScreen> {
       final eventsProvider = Provider.of<EventsProvider>(context, listen: false);
 
       if (experience.isFull) {
-        // Show waitlist dialog
         final joinWaitlist = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
@@ -140,29 +142,28 @@ class _EventsScreenState extends State<EventsScreen> {
           if (result['success']) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text("Added to waitlist at position ${result['position']}"),
+                content: Text("Added to waitlist at position \${result['position']}"),
                 backgroundColor: Colors.green,
               ),
             );
           }
         }
       } else {
-        // Show registration dialog
         final shouldRegister = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Join ${experience.title}'),
+            title: Text('Join \${experience.title}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Price: ${experience.priceDisplay}'),
+                Text('Price: \${experience.priceDisplay}'),
                 const SizedBox(height: 8),
-                Text('Date: ${experience.formattedDate} at ${experience.formattedTime}'),
+                Text('Date: \${experience.formattedDate} at \${experience.formattedTime}'),
                 const SizedBox(height: 8),
-                Text('Venue: ${experience.venueName}'),
+                Text('Venue: \${experience.venueName}'),
                 const SizedBox(height: 8),
-                Text('Spots left: ${experience.ticketsAvailable}'),
+                Text('Spots left: \${experience.ticketsAvailable}'),
               ],
             ),
             actions: [
@@ -186,12 +187,11 @@ class _EventsScreenState extends State<EventsScreen> {
           if (result['success']) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully registered for ${experience.title}'),
+                content: Text('Successfully registered for \${experience.title}'),
                 backgroundColor: Colors.green,
               ),
             );
 
-            // Call the callback
             widget.onJoinExperience(experience);
           }
         }
@@ -200,7 +200,7 @@ class _EventsScreenState extends State<EventsScreen> {
       print('Error joining experience: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to register: ${e.toString()}'),
+          content: Text('Failed to register: \${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -215,37 +215,36 @@ class _EventsScreenState extends State<EventsScreen> {
         final featuredExperiences = eventsProvider.featuredExperiences;
 
         return Scaffold(
+          backgroundColor: AppColors.background,
           appBar: AppBar(
+            backgroundColor: AppColors.background,
             title: Text(
               'Experiences',
-              style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                fontSize: 20,
-              ),
+              style: AppTypography.screenTitle,
             ),
             centerTitle: true,
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: [
-              // Host Event Button
               IconButton(
-                icon: const Icon(Icons.add),
-                tooltip: 'Host an Event',
+                icon: const Icon(Icons.add, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/host');
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.search),
+                icon: const Icon(Icons.search, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/search');
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.filter_list),
+                icon: const Icon(Icons.tune_outlined, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   _showFilterDialog();
                 },
               ),
+              const SizedBox(width: 8),
             ],
           ),
           body: _isLoading
@@ -254,22 +253,36 @@ class _EventsScreenState extends State<EventsScreen> {
             onRefresh: _refreshExperiences,
             child: ListView(
               controller: _scrollController,
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 100),
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               children: [
                 // Host Event Section
-                _buildHostEventSection(context),
+                LiquidGlassButton(
+                  variant: LiquidButtonVariant.primary,
+                  size: LiquidButtonSize.lg,
+                  width: double.infinity,
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/events/host');
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.add_circle_outline, color: Colors.white, size: 18),
+                      const SizedBox(width: 8),
+                      Text('Host an Event', style: AppTypography.buttonText),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
                 
                 // Featured experiences section
                 if (featuredExperiences.isNotEmpty) ...[
                   Text(
                     'Featured Experiences',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: AppTypography.displayMedium,
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 12),
                   SizedBox(
-                    height: 200,
+                    height: 180,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: featuredExperiences.length,
@@ -280,12 +293,12 @@ class _EventsScreenState extends State<EventsScreen> {
                             widget.onExperienceSelected(experience);
                             Navigator.pushNamed(
                               context,
-                              '/events/${experience.id}',
+                              '/events/\${experience.id}',
                             );
                           },
                           child: Container(
-                            width: 280,
-                            margin: const EdgeInsets.only(right: 16),
+                            width: 260,
+                            margin: const EdgeInsets.only(right: 12),
                             child: FeaturedExperienceCard(
                               experience: experience,
                             ),
@@ -294,70 +307,74 @@ class _EventsScreenState extends State<EventsScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(height: 32),
+                  const SizedBox(height: 24),
                 ],
 
                 // All experiences
                 Text(
                   'All Experiences',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.displayMedium,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 Text(
                   'Curated gatherings for meaningful connections',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: const Color(0xFF8B7355),
+                  style: AppTypography.bodyLarge.copyWith(
+                    color: AppColors.textSecondary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 16),
 
                 if (experiences.isEmpty)
                   Padding(
-                    padding: const EdgeInsets.all(32.0),
+                    padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.event_available,
-                          size: 64,
-                          color: Colors.grey[400],
+                          size: 48,
+                          color: AppColors.textMuted,
                         ),
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 12),
                         Text(
                           'No experiences available',
-                          style: Theme.of(context).textTheme.titleMedium,
+                          style: AppTypography.bodyLarge,
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 6),
                         Text(
                           'Check back soon for new gatherings',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: AppTypography.bodyMedium,
                         ),
                       ],
                     ),
                   )
                 else ...[
                   ...experiences.map((experience) {
-                    return ExperienceCard(
-                      experience: experience,
-                      onJoin: () {
-                        widget.onExperienceSelected(experience);
-                        _handleJoinExperience(experience);
-                      },
-                      onTap: () {
-                        widget.onExperienceSelected(experience);
-                        Navigator.pushNamed(
-                          context,
-                          '/events/${experience.id}',
-                        );
-                      },
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: GlassCard(
+                        blurSigma: 12,
+                        padding: EdgeInsets.zero,
+                        child: ExperienceCard(
+                          experience: experience,
+                          onJoin: () {
+                            widget.onExperienceSelected(experience);
+                            _handleJoinExperience(experience);
+                          },
+                          onTap: () {
+                            widget.onExperienceSelected(experience);
+                            Navigator.pushNamed(
+                              context,
+                              '/events/\${experience.id}',
+                            );
+                          },
+                        ),
+                      ),
                     );
                   }).toList(),
 
-                  // Load more indicator
                   if (_isLoadingMore)
                     const Padding(
-                      padding: EdgeInsets.all(16.0),
+                      padding: EdgeInsets.all(12.0),
                       child: Center(
                         child: CircularProgressIndicator(),
                       ),
@@ -365,34 +382,30 @@ class _EventsScreenState extends State<EventsScreen> {
 
                   if (!_hasMore && experiences.isNotEmpty)
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding: const EdgeInsets.all(12.0),
                       child: Center(
                         child: Text(
                           'No more experiences to load',
-                          style: Theme.of(context).textTheme.bodyMedium,
+                          style: AppTypography.bodyMedium,
                         ),
                       ),
                     ),
                 ],
 
-                const SizedBox(height: 40),
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F1EA),
-                    borderRadius: BorderRadius.circular(16),
-                  ),
+                const SizedBox(height: 32),
+                GlassCard(
+                  backgroundColor: AppColors.primaryGlass,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Upcoming Experiences',
-                        style: Theme.of(context).textTheme.titleMedium,
+                        style: AppTypography.displayMedium.copyWith(fontSize: 16),
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 6),
                       Text(
                         'New experiences are added weekly. Check back often to find gatherings that match your current mood.',
-                        style: Theme.of(context).textTheme.bodyMedium,
+                        style: AppTypography.bodyMedium,
                       ),
                     ],
                   ),
@@ -405,99 +418,40 @@ class _EventsScreenState extends State<EventsScreen> {
     );
   }
 
-  Widget _buildHostEventSection(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 24),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).primaryColor.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: Theme.of(context).primaryColor.withOpacity(0.3),
-          width: 1,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(
-                Icons.event,
-                color: Theme.of(context).primaryColor,
-                size: 24,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Host Your Own Experience',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Share your passion, host a gathering, and connect with like-minded people in Nairobi.',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.pushNamed(context, '/events/host');
-                  },
-                  icon: const Icon(Icons.add_circle_outline),
-                  label: const Text('Host an Event'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).primaryColor,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
   void _showFilterDialog() {
-    // TODO: Implement filter dialog
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Text(
-                'Filter Experiences',
-                style: Theme.of(context).textTheme.titleLarge,
-              ),
-              // TODO: Add filter options
-              Expanded(
-                child: ListView(
-                  children: const [
-                    // Add filter options here
-                  ],
+        return GlassCard(
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          child: Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              children: [
+                Text(
+                  'Filter Experiences',
+                  style: AppTypography.displayMedium,
                 ),
-              ),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Apply filters
-                  _loadExperiences();
-                },
-                child: const Text('Apply Filters'),
-              ),
-            ],
+                Expanded(
+                  child: ListView(
+                    children: const [
+                      // Add filter options here
+                    ],
+                  ),
+                ),
+                LiquidGlassButton(
+                  size: LiquidButtonSize.lg,
+                  onPressed: () {
+                    Navigator.pop(context);
+                    _loadExperiences();
+                  },
+                  child: Text('Apply Filters', style: AppTypography.buttonText),
+                ),
+              ],
+            ),
           ),
         );
       },
@@ -518,14 +472,13 @@ class FeaturedExperienceCard extends StatelessWidget {
     return Card(
       elevation: 4,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: AppRadius.md,
       ),
       child: Stack(
         children: [
-          // Background image
           if (experience.coverImage != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppRadius.md,
               child: Image.network(
                 experience.coverImage!,
                 width: double.infinity,
@@ -534,10 +487,9 @@ class FeaturedExperienceCard extends StatelessWidget {
               ),
             ),
 
-          // Gradient overlay
           Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: AppRadius.md,
               gradient: LinearGradient(
                 begin: Alignment.bottomCenter,
                 end: Alignment.topCenter,
@@ -550,18 +502,16 @@ class FeaturedExperienceCard extends StatelessWidget {
             ),
           ),
 
-          // Content
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(12),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                // Featured badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: Theme.of(context).primaryColor,
+                    color: AppColors.primary,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: const Text(
@@ -573,14 +523,11 @@ class FeaturedExperienceCard extends StatelessWidget {
                     ),
                   ),
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
 
                 Text(
                   experience.title,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: AppTypography.displayMedium.copyWith(color: Colors.white, fontSize: 16),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -588,54 +535,14 @@ class FeaturedExperienceCard extends StatelessWidget {
 
                 Row(
                   children: [
-                    const Icon(
-                      Icons.location_on,
-                      size: 14,
-                      color: Colors.white70,
-                    ),
+                    const Icon(Icons.location_on, size: 12, color: Colors.white70),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
                         experience.venueName,
-                        style: const TextStyle(
-                          color: Colors.white70,
-                          fontSize: 12,
-                        ),
+                        style: AppTypography.caption.copyWith(color: Colors.white70),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-                Row(
-                  children: [
-                    const Icon(
-                      Icons.calendar_today,
-                      size: 14,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      experience.formattedDate,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      Icons.access_time,
-                      size: 14,
-                      color: Colors.white70,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      experience.formattedTime,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
                       ),
                     ),
                   ],

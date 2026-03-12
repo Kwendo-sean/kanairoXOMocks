@@ -1,0 +1,134 @@
+import 'dart:ui';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import '../core/theme/app_colors.dart';
+import '../core/theme/app_radius.dart';
+
+enum LiquidButtonSize { sm, md, lg, xl, icon }
+enum LiquidButtonVariant { primary, ghost, outline }
+
+class LiquidGlassButton extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onPressed;
+  final LiquidButtonSize size;
+  final LiquidButtonVariant variant;
+  final Color? color;
+  final double? width;
+
+  const LiquidGlassButton({
+    super.key,
+    required this.child,
+    this.onPressed,
+    this.size = LiquidButtonSize.lg,
+    this.variant = LiquidButtonVariant.primary,
+    this.color,
+    this.width,
+  });
+
+  @override
+  State<LiquidGlassButton> createState() => _LiquidGlassButtonState();
+}
+
+class _LiquidGlassButtonState extends State<LiquidGlassButton> {
+  bool _isPressed = false;
+
+  EdgeInsets get _padding {
+    switch (widget.size) {
+      case LiquidButtonSize.sm:
+        return const EdgeInsets.symmetric(horizontal: 12, vertical: 6);
+      case LiquidButtonSize.md:
+        return const EdgeInsets.symmetric(horizontal: 16, vertical: 10);
+      case LiquidButtonSize.lg:
+        return const EdgeInsets.symmetric(horizontal: 20, vertical: 12);
+      case LiquidButtonSize.xl:
+        return const EdgeInsets.symmetric(horizontal: 28, vertical: 14);
+      case LiquidButtonSize.icon:
+        return const EdgeInsets.all(10);
+    }
+  }
+
+  double get _minHeight {
+    switch (widget.size) {
+      case LiquidButtonSize.sm: return 32;
+      case LiquidButtonSize.md: return 40;
+      case LiquidButtonSize.lg: return 44;
+      case LiquidButtonSize.xl: return 50;
+      case LiquidButtonSize.icon: return 40;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseColor = widget.color ?? AppColors.primary;
+    
+    final backgroundColor = switch (widget.variant) {
+      LiquidButtonVariant.primary => baseColor.withOpacity(0.9),
+      LiquidButtonVariant.ghost => Colors.transparent,
+      LiquidButtonVariant.outline => Colors.white.withOpacity(0.15),
+    };
+
+    final borderColor = switch (widget.variant) {
+      LiquidButtonVariant.primary => Colors.white.withOpacity(0.25),
+      LiquidButtonVariant.ghost => Colors.transparent,
+      LiquidButtonVariant.outline => Colors.white.withOpacity(0.4),
+    };
+
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onPressed?.call();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 100),
+        child: SizedBox(
+          width: widget.width,
+          child: ClipRRect(
+            borderRadius: AppRadius.full,
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                constraints: BoxConstraints(minHeight: _minHeight),
+                padding: _padding,
+                decoration: BoxDecoration(
+                  color: backgroundColor,
+                  borderRadius: AppRadius.full,
+                  border: Border.all(
+                    color: borderColor,
+                    width: 1.0,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: baseColor.withOpacity(_isPressed ? 0.1 : 0.25),
+                      blurRadius: _isPressed ? 8 : 20,
+                      offset: Offset(0, _isPressed ? 2 : 6),
+                    ),
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.15),
+                      blurRadius: 1,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                  gradient: widget.variant == LiquidButtonVariant.primary
+                    ? LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          baseColor.withOpacity(0.95),
+                          baseColor.withOpacity(0.80),
+                        ],
+                      )
+                    : null,
+                ),
+                child: Center(child: widget.child),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

@@ -1,116 +1,38 @@
-// lib/services/notification_service.dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../models/notification_model.dart';
-import 'api_client.dart';
+
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class NotificationService {
-  final ApiClient _apiClient = ApiClient();
+  final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
 
-  Future<List<Notification>> getNotifications({
-    String? type,
-    bool unreadOnly = false,
-    int page = 1,
-    int limit = 20,
-  }) async {
-    try {
-      final queryParams = {
-        'page': page.toString(),
-        'limit': limit.toString(),
-      };
+  Future<void> init() async {
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
 
-      if (type != null && type.isNotEmpty) {
-        queryParams['type'] = type;
-      }
+    const InitializationSettings initializationSettings =
+        InitializationSettings(android: initializationSettingsAndroid);
 
-      if (unreadOnly) {
-        queryParams['unread_only'] = 'true';
-      }
-
-      final response = await _apiClient.get(
-        'api/v1/notifications/',
-        queryParameters: queryParams,
-      );
-
-      if (response is Map && response.containsKey('results')) {
-        // Paginated response
-        final results = response['results'] as List;
-        return results.map((json) => Notification.fromJson(json)).toList();
-      } else if (response is List) {
-        // Direct list response
-        return response.map((json) => Notification.fromJson(json)).toList();
-      }
-
-      return [];
-    } catch (e) {
-      print('Error fetching notifications: $e');
-      rethrow;
-    }
+    await flutterLocalNotificationsPlugin.initialize(initializationSettings);
   }
 
-  // Get connection requests specifically
-  Future<List<Notification>> getConnectionRequests() async {
-    try {
-      final response = await _apiClient.get('api/v1/notifications/connection-requests/');
-
-      if (response is List) {
-        return response.map((json) => Notification.fromJson(json)).toList();
-      }
-
-      return [];
-    } catch (e) {
-      print('Error fetching connection requests: $e');
-      return [];
-    }
-  }
-
-  Future<Map<String, dynamic>> getNotificationStats() async {
-    try {
-      final response = await _apiClient.get('api/v1/notifications/stats/');
-      return response is Map ? Map<String, dynamic>.from(response) : {};
-    } catch (e) {
-      print('Error fetching notification stats: $e');
-      return {};
-    }
-  }
-
-  Future<void> markAsRead(String notificationId) async {
-    try {
-      await _apiClient.post(
-        'api/v1/notifications/$notificationId/read/',
-        {},
-      );
-    } catch (e) {
-      print('Error marking notification as read: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> markAllAsRead() async {
-    try {
-      await _apiClient.post('api/v1/notifications/read-all/', {});
-    } catch (e) {
-      print('Error marking all notifications as read: $e');
-      rethrow;
-    }
-  }
-
-  Future<void> deleteNotification(String notificationId) async {
-    try {
-      await _apiClient.delete('api/v1/notifications/$notificationId/delete/');
-    } catch (e) {
-      print('Error deleting notification: $e');
-      rethrow;
-    }
-  }
-
-  Future<Notification?> getNotification(String notificationId) async {
-    try {
-      final response = await _apiClient.get('api/v1/notifications/$notificationId/');
-      return Notification.fromJson(response);
-    } catch (e) {
-      print('Error fetching single notification: $e');
-      return null;
-    }
+  Future<void> showNotification(String title, String body) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'your_channel_id',
+      'your_channel_name',
+      channelDescription: 'your_channel_description',
+      importance: Importance.max,
+      priority: Priority.high,
+      showWhen: false,
+    );
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+    await flutterLocalNotificationsPlugin.show(
+      0,
+      title,
+      body,
+      platformChannelSpecifics,
+      payload: 'item x',
+    );
   }
 }
