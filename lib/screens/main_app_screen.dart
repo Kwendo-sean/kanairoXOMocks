@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/screens/discovery_screen.dart';
 import 'package:kanairoxo/screens/events/events_screen.dart';
-import 'package:kanairoxo/screens/moments_screen.dart'; // Changed from mood_screen.dart
+import 'package:kanairoxo/screens/moments_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_screen.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/bottom_nav_bar.dart';
@@ -35,7 +36,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
   final List<Widget> _screens = [
     const DiscoveryScreen(),
     const EventsScreenWrapper(),
-    const MomentsScreen(), // Changed from MoodScreen
+    const MomentsScreen(),
     const ProfileScreen(),
   ];
 

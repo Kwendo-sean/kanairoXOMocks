@@ -10,6 +10,10 @@ dependencies:
   flutter:
     sdk: flutter
   
+  # Firebase
+  firebase_core: ^2.24.2
+  firebase_messaging: ^14.7.10
+  
   # For location
   location: ^5.0.0
   
@@ -38,6 +42,7 @@ dependencies:
   dio: ^5.4.0
   url_launcher: ^6.2.1
   flutter_local_notifications: ^17.0.0
+  uuid: ^4.2.2
 
   # UI Upgrades
   flutter_animate: ^4.5.0

@@ -1,6 +1,7 @@
 // lib/models/discovery_models.dart
 import 'dart:convert';
 import '../services/api_client.dart';
+import '../core/utils/url_helper.dart';
 
 // Discovery Session Model
 class DiscoverySession {
@@ -239,13 +240,23 @@ class BatchInfo {
 // Profile Model from Profile Details
 class DiscoveryProfile {
   final String userId;
-  final String displayName;
+  final String fullName;
+  final String? profilePhotoUrl;
+  final String neighborhood;
+  final String lifeStage;
+  final String headline;
+  final int matchScore;
+  final double interestScore;
+  final double neighborhoodScore;
+  final double vibeScore;
+  final List<String> sharedInterests;
+  final String? firstName;
+  final String? lastName;
   final String? bio;
   final int? age;
   final String? gender;
   final List<String> interests;
   final String? location;
-  final String imageUrl;
   final double? trustScore;
   final List<String>? currentMoods;
   final String? primaryIntent;
@@ -254,13 +265,23 @@ class DiscoveryProfile {
 
   DiscoveryProfile({
     required this.userId,
-    required this.displayName,
+    required this.fullName,
+    this.profilePhotoUrl,
+    required this.neighborhood,
+    required this.lifeStage,
+    required this.headline,
+    required this.matchScore,
+    required this.interestScore,
+    required this.neighborhoodScore,
+    required this.vibeScore,
+    required this.sharedInterests,
+    this.firstName,
+    this.lastName,
     this.bio,
     this.age,
     this.gender,
     required this.interests,
     this.location,
-    required this.imageUrl,
     this.trustScore,
     this.currentMoods,
     this.primaryIntent,
@@ -271,28 +292,7 @@ class DiscoveryProfile {
   factory DiscoveryProfile.fromJson(Map<String, dynamic> json) {
     try {
       // Handle different possible ID fields
-      String userId = '';
-      if (json['id'] != null) {
-        userId = json['id'].toString();
-      } else if (json['user_id'] != null) {
-        userId = json['user_id'].toString();
-      } else if (json['public_id'] != null) {
-        userId = json['public_id'].toString();
-      } else {
-        userId = '0';
-      }
-
-      // Handle display name
-      String displayName = '';
-      if (json['full_name'] != null && json['full_name'].toString().isNotEmpty) {
-        displayName = json['full_name'].toString();
-      } else if (json['display_name'] != null && json['display_name'].toString().isNotEmpty) {
-        displayName = json['display_name'].toString();
-      } else if (json['first_name'] != null || json['last_name'] != null) {
-        displayName = '${json['first_name'] ?? ''} ${json['last_name'] ?? ''}'.trim();
-      } else {
-        displayName = 'Unknown User';
-      }
+      String userId = json['id']?.toString() ?? json['user_id']?.toString() ?? json['public_id']?.toString() ?? '0';
 
       // Parse interests - handle different formats
       List<String> interests = [];
@@ -304,61 +304,45 @@ class DiscoveryProfile {
 
       return DiscoveryProfile(
         userId: userId,
-        displayName: displayName,
+        fullName: json['full_name'] ?? json['display_name'] ?? 'User',
+        profilePhotoUrl: UrlHelper.fixMediaUrl(json['profile_photo_url'] ?? json['photo'] ?? json['profile_image'] ?? json['image_url']),
+        neighborhood: json['neighborhood'] ?? json['primary_neighborhood'] ?? '',
+        lifeStage: json['life_stage'] ?? '',
+        headline: json['headline'] ?? '',
+        matchScore: json['match_score'] ?? 0,
+        interestScore: (json['interest_score'] ?? 0).toDouble(),
+        neighborhoodScore: (json['neighborhood_score'] ?? 0).toDouble(),
+        vibeScore: (json['vibe_score'] ?? 0).toDouble(),
+        sharedInterests: List<String>.from(json['shared_interests'] ?? []),
+        firstName: json['first_name']?.toString(),
+        lastName: json['last_name']?.toString(),
         bio: json['bio']?.toString(),
         age: (json['age'] as num?)?.toInt(),
         gender: json['gender']?.toString(),
         interests: interests,
         location: json['location']?.toString(),
-        imageUrl: _getProfileImageUrl(json) ?? 'assets/default_profile.png', // Helper method
         trustScore: (json['trust_score'] as num?)?.toDouble(),
-        currentMoods: json['current_moods'] is List
-            ? List<String>.from(json['current_moods'])
-            : [],
+        currentMoods: json['current_moods'] is List ? List<String>.from(json['current_moods']) : [],
         primaryIntent: json['primary_intent']?.toString(),
         secondaryIntent: json['secondary_intent']?.toString(),
         isOnline: json['is_online'] ?? false,
       );
     } catch (e) {
       print('Error parsing DiscoveryProfile: $e');
-      print('JSON was: $json');
-      // Return a minimal profile with the data we have
       return DiscoveryProfile(
         userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '0',
-        displayName: 'Unknown User',
+        fullName: 'Unknown User',
+        neighborhood: '',
+        lifeStage: '',
+        headline: '',
+        matchScore: 0,
+        interestScore: 0,
+        neighborhoodScore: 0,
+        vibeScore: 0,
+        sharedInterests: [],
         interests: [],
-        imageUrl: 'assets/default_profile.png',
       );
     }
-  }
-
-// Helper method to get profile image URL
-  static String? _getProfileImageUrl(Map<String, dynamic> json) {
-    String? path;
-    // Try different possible image fields
-    if (json['profile_image'] != null &&
-        json['profile_image'].toString().isNotEmpty) {
-      path = json['profile_image'].toString();
-    } else if (json['profile_photos'] is List &&
-        (json['profile_photos'] as List).isNotEmpty) {
-      final photos = json['profile_photos'] as List;
-      if (photos[0] is Map && photos[0]['url'] != null) {
-        path = photos[0]['url'].toString();
-      } else if (photos[0] is String) {
-        path = photos[0];
-      }
-    } else if (json['image_url'] != null) {
-      path = json['image_url'].toString();
-    }
-
-    if (path == null || path.isEmpty || path.startsWith('http')) {
-      return path;
-    }
-
-    // Construct full URL
-    final uri = Uri.parse(ApiClient.baseUrl);
-    final baseUrl = '${uri.scheme}://${uri.host}:${uri.port}';
-    return '$baseUrl$path';
   }
 }
 

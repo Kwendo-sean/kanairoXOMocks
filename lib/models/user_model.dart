@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import '../core/utils/url_helper.dart';
 
 // ---------------------------------------------------------------------------
 // Main User Model
@@ -162,24 +163,17 @@ class UserProfile {
     final profileData = json['profile'] ?? json;
     if (profileData is! Map<String, dynamic>) return UserProfile();
 
-    String? _processUrl(String? path) {
-      if (path == null || path.isEmpty) return null;
-      if (path.startsWith('http')) return path;
-      final baseUrl = Uri.parse(ApiConstants.baseUrl);
-      return baseUrl.resolve(path).toString();
-    }
-
     List<Map<String, dynamic>> photos = (profileData['profile_photos'] ?? [])
         .whereType<Map>()
         .map<Map<String, dynamic>>((photoMap) {
           final typedPhoto = Map<String, dynamic>.from(photoMap);
           return {
             ...typedPhoto,
-            'url': _processUrl(typedPhoto['url'] as String?),
+            'url': UrlHelper.fixMediaUrl(typedPhoto['url'] as String?),
           };
         }).toList();
 
-    String? mainPhotoUrl = _processUrl(profileData['main_profile_photo'] as String?);
+    String? mainPhotoUrl = UrlHelper.fixMediaUrl(profileData['main_profile_photo'] as String?);
     if (mainPhotoUrl == null || mainPhotoUrl.isEmpty) {
       try {
         mainPhotoUrl = photos.firstWhere((p) => p['is_main'] == true)['url'];
@@ -205,7 +199,7 @@ class UserProfile {
       profileCompletionPercentage: int.tryParse(profileData['profile_completion_percentage']?.toString() ?? '0') ?? 0,
       profileViewsCount: int.tryParse(profileData['profile_views_count']?.toString() ?? '0') ?? 0,
       profileSavesCount: int.tryParse(profileData['profile_saves_count']?.toString() ?? '0') ?? 0,
-      voiceIntro: _processUrl(profileData['voice_intro'] as String?),
+      voiceIntro: UrlHelper.fixMediaUrl(profileData['voice_intro'] as String?),
       voiceIntroStatus: profileData['voice_intro_status']?.toString(),
       // Conditionally parse couple-specific fields
       journalEntry: accountType == 'couple' ? profileData['journal_entry']?.toString() : null,

@@ -9,6 +9,7 @@ import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/auth/signup_screen.dart';
 import 'package:kanairoxo/screens/couples/couple_home_screen.dart';
 import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
+import 'package:kanairoxo/screens/events/host_event_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
@@ -72,6 +73,7 @@ class KanairoXOApp extends StatelessWidget {
             '/main_single': (context) => const MainAppScreen(),
             '/main_couple': (context) => CoupleHomeScreen(),
             '/notifications': (context) => const NotificationScreen(),
+            '/events/host': (context) => const HostEventScreen(),
           },
         );
       },

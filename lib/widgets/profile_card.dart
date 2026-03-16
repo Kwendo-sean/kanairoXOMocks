@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
@@ -9,6 +8,7 @@ import '../models/discovery_models.dart';
 import '../providers/connection_provider.dart';
 import '../providers/notification_provider.dart';
 import 'liquid_glass_button.dart';
+import 'safe_network_image.dart';
 
 class ProfileCard extends StatefulWidget {
   final DiscoveryProfile profile;
@@ -158,14 +158,9 @@ class _ProfileCardState extends State<ProfileCard> {
               fit: StackFit.expand,
               children: [
                 // Background photo
-                CachedNetworkImage(
-                  imageUrl: widget.profile.imageUrl,
+                SafeNetworkImage(
+                  url: widget.profile.profilePhotoUrl,
                   fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.grey[200]),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[300],
-                    child: const Icon(Icons.person, size: 80, color: Colors.white),
-                  ),
                 ),
 
                 // Bottom gradient
@@ -217,7 +212,7 @@ class _ProfileCardState extends State<ProfileCard> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Text(
-                                    widget.profile.displayName,
+                                    widget.profile.fullName,
                                     style: AppTypography.displayMedium.copyWith(
                                       color: Colors.white,
                                       fontSize: 18,
@@ -225,9 +220,9 @@ class _ProfileCardState extends State<ProfileCard> {
                                     ),
                                     overflow: TextOverflow.ellipsis,
                                   ),
-                                  if (widget.profile.location != null)
+                                  if (widget.profile.neighborhood.isNotEmpty)
                                     Text(
-                                      widget.profile.location!,
+                                      widget.profile.neighborhood,
                                       style: AppTypography.caption.copyWith(color: Colors.white70),
                                     ),
                                 ],
@@ -252,11 +247,11 @@ class _ProfileCardState extends State<ProfileCard> {
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       Text(
-                                        '${widget.compatibilityScore.toInt()}%',
+                                        '${widget.profile.matchScore}%',
                                         style: AppTypography.buttonText.copyWith(fontSize: 13),
                                       ),
                                       Text(
-                                        'Good Match',
+                                        'Match',
                                         style: AppTypography.caption.copyWith(
                                           color: Colors.white70,
                                           fontSize: 10,

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
+import 'package:kanairoxo/models/connection_context_model.dart';
 import 'api_client.dart';
 
 class DiscoveryService {
@@ -42,6 +44,17 @@ class DiscoveryService {
     );
     final response = await _apiClient.post('api/v1/discovery/items/$itemId/action/', request.toJson());
     return DiscoveryItem.fromJson(response);
+  }
+
+  Future<ConnectionContextModel?> getConnectionContext(String targetUserId) async {
+    try {
+      // Fixed typo: changed 'discover' to 'discovery' to match backend URL configuration
+      final response = await _apiClient.get('api/v1/discovery/context/$targetUserId/');
+      return ConnectionContextModel.fromJson(response as Map<String, dynamic>);
+    } catch (e) {
+      debugPrint('Context fetch error: $e');
+      return null;
+    }
   }
 
   // Get user's discovery sessions

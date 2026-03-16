@@ -1,3 +1,5 @@
+import '../core/utils/url_helper.dart';
+
 class Memory {
   final String id;
   final String title;
@@ -31,7 +33,7 @@ class Memory {
       title: json['title'] ?? '',
       memoryDate: DateTime.tryParse(json['memory_date'] ?? '') ?? DateTime.now(),
       description: json['description'],
-      photo: json['photo'],
+      photo: UrlHelper.fixMediaUrl(json['photo'] ?? json['image_url'] ?? json['image']),
       locationName: json['location_name'],
       memoryType: json['memory_type'] ?? 'vibe',
       isFavorite: json['is_favorite'] ?? false,

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../models/data_models.dart';
 import '../../providers/events_provider.dart';
-import '../../services/events_api_service.dart';
 import '../../widgets/loading_indicator.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -16,7 +14,6 @@ class EventDetailScreen extends StatefulWidget {
 }
 
 class _EventDetailScreenState extends State<EventDetailScreen> {
-  late EventsApiService _eventsApiService;
   Experience? _experience;
   bool _isLoading = true;
   bool _isJoining = false;
@@ -24,7 +21,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   @override
   void initState() {
     super.initState();
-    _eventsApiService = EventsApiService();
     _loadEventDetail();
   }
 
@@ -33,12 +29,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final experience = await Provider.of<EventsProvider>(context, listen: false)
           .fetchExperienceDetail(widget.eventId);
 
+      if (!mounted) return;
+
       setState(() {
         _experience = experience;
         _isLoading = false;
       });
     } catch (e) {
-      print('Error loading event detail: $e');
+      debugPrint('Error loading event detail: $e');
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -63,6 +62,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final result = await Provider.of<EventsProvider>(context, listen: false)
           .registerForExperience(experienceId: _experience!.id);
 
+      if (!mounted) return;
+
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -82,7 +83,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error joining event: $e');
+      debugPrint('Error joining event: $e');
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to register'),
@@ -90,9 +92,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ),
       );
     } finally {
-      setState(() {
-        _isJoining = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isJoining = false;
+        });
+      }
     }
   }
 
@@ -103,6 +107,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final result = await Provider.of<EventsProvider>(context, listen: false)
           .saveExperience(_experience!.id);
 
+      if (!mounted) return;
+
       if (result['success']) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -112,7 +118,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         );
       }
     } catch (e) {
-      print('Error saving event: $e');
+      debugPrint('Error saving event: $e');
     }
   }
 
@@ -137,7 +143,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _isLoading
-          ? Center(child: LoadingIndicator())
+          ? const Center(child: LoadingIndicator())
           : _experience == null
               ? const Center(child: Text('Event not found'))
               : CustomScrollView(
@@ -164,6 +170,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           onPressed: () {
                             // TODO: Implement share
                           },
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.bookmark_border),
+                          onPressed: _handleSaveEvent,
                         ),
                       ],
                     ),

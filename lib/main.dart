@@ -1,3 +1,4 @@
+import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/app.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
@@ -13,8 +14,22 @@ final NotificationService notificationService = NotificationService();
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await notificationService.init();
+  
+  // Run app immediately to prevent getting stuck on the native splash screen
   runApp(const MyApp());
+
+  // Initialize services in the background
+  _initializeServices();
+}
+
+Future<void> _initializeServices() async {
+  try {
+    // Initialize Firebase with a timeout to prevent hanging the app
+    await Firebase.initializeApp().timeout(const Duration(seconds: 5));
+    await notificationService.init();
+  } catch (e) {
+    debugPrint('Service initialization timed out or failed: $e');
+  }
 }
 
 class MyApp extends StatelessWidget {

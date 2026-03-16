@@ -1,23 +1,58 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
+import '../models/profile_model.dart';
 import 'api_client.dart';
 
 class ProfileApiService {
   final ApiClient _apiClient = ApiClient();
 
+  // --- NEW REPOSITORY METHODS ---
+
+  Future<ProfileModel> getProfile() async {
+    final response = await _apiClient.get('api/v1/profiles/edit/');
+    
+    final data = response;
+    final profileData = data is Map<String, dynamic>
+      ? (data.containsKey('profile') ? data['profile'] as Map<String, dynamic> : data)
+      : data as Map<String, dynamic>;
+      
+    return ProfileModel.fromJson(profileData);
+  }
+
+  Future<List<GalleryPhotoModel>> getGallery({String? userId}) async {
+    final endpoint = userId != null 
+        ? 'api/v1/profiles/$userId/gallery/' 
+        : 'api/v1/profiles/gallery/';
+    final response = await _apiClient.get(endpoint);
+    final list = response is List
+      ? response
+      : (response['results'] as List? ?? []);
+    return list.map((p) => GalleryPhotoModel.fromJson(p)).toList();
+  }
+  
+  Future<void> uploadGalleryPhoto(File photo) async {
+    final formData = FormData.fromMap({
+      'image': await MultipartFile.fromFile(
+        photo.path,
+        filename: photo.path.split('/').last),
+    });
+    // Use Dio directly via ApiClient if possible, or assume post handles dynamic data
+    await _apiClient.post('api/v1/profiles/gallery/upload/', formData as dynamic);
+  }
+  
+  Future<void> deleteGalleryPhoto(int id) async {
+    await _apiClient.delete('api/v1/profiles/gallery/$id/delete/');
+  }
+
+  // --- EXISTING METHODS (RESTORED TO FIX PROVIDER) ---
+
   Future<User> getMyProfile() async {
-    try {
-      // Corrected endpoint to fetch the full user profile
-      final response = await _apiClient.get('api/v1/auth/profile/');
-      return User.fromJson(response);
-    } catch (e) {
-      if (e.toString().contains('Error 500')) {
-        throw Exception('Server error: ${e.toString()}');
-      }
-      rethrow;
-    }
+    final response = await _apiClient.get('api/v1/auth/profile/');
+    return User.fromJson(response);
   }
 
   Future<User> getUserProfile(String id) async {
@@ -35,11 +70,6 @@ class ProfileApiService {
     return true;
   }
 
-  Future<bool> unsaveProfile(String id) async {
-    await _apiClient.delete('api/v1/profiles/$id/save/');
-    return true;
-  }
-
   Future<List<User>> getSavedProfiles() async {
     final response = await _apiClient.get('api/v1/profiles/saved/');
     if (response is List) {
@@ -52,28 +82,6 @@ class ProfileApiService {
     await _apiClient.post('api/v1/profiles/$id/view/', {});
   }
 
-  Future<List<User>> searchProfiles({
-    String? query,
-    String? neighborhood,
-    String? lifeStage,
-    int limit = 20,
-  }) async {
-    final queryParams = {
-      if (query != null && query.isNotEmpty) 'search': query,
-      if (neighborhood != null) 'neighborhood': neighborhood,
-      if (lifeStage != null) 'life_stage': lifeStage,
-      'limit': limit.toString(),
-    };
-
-    final response = await _apiClient.get('api/v1/profiles/search/', queryParameters: queryParams);
-    final results = response['results'] ?? response;
-
-    if (results is List) {
-      return results.map((data) => User.fromJson(data)).toList();
-    }
-    return [];
-  }
-
   Future<void> uploadProfilePhotos(List<XFile> images) async {
     await _apiClient.uploadMultipleFiles(
       'api/v1/profiles/upload-multiple-photos/',
@@ -83,24 +91,15 @@ class ProfileApiService {
   }
 
   Future<void> reorderProfilePhotos(List<Map<String, dynamic>> photos) async {
-    await _apiClient.post(
-      'api/v1/profiles/reorder-photos/',
-      {'photos': photos},
-    );
+    await _apiClient.post('api/v1/profiles/reorder-photos/', {'photos': photos});
   }
 
   Future<void> deleteProfilePhoto(String photoUrl) async {
-    await _apiClient.delete(
-      'api/v1/profiles/delete-photo/',
-      body: {'photo_url': photoUrl},
-    );
+    await _apiClient.delete('api/v1/profiles/delete-photo/', body: {'photo_url': photoUrl});
   }
 
   Future<void> setMainProfilePhoto(String photoUrl) async {
-    await _apiClient.post(
-      'api/v1/profiles/set-main-photo/',
-      {'photo_url': photoUrl},
-    );
+    await _apiClient.post('api/v1/profiles/set-main-photo/', {'photo_url': photoUrl});
   }
 
   Future<void> uploadVoiceIntro(XFile audioFile) async {
@@ -115,7 +114,6 @@ class ProfileApiService {
     await _apiClient.delete('api/v1/profiles/delete-voice-intro/');
   }
 
-  // Helper methods for dropdown options
   List<Map<String, String>> getNeighborhoods() {
     return [
       {'value': 'westlands', 'label': 'Westlands'},
@@ -124,19 +122,6 @@ class ProfileApiService {
       {'value': 'karen', 'label': 'Karen'},
       {'value': 'langata', 'label': 'Langata'},
       {'value': 'nairobi_cbd', 'label': 'Nairobi CBD'},
-      {'value': 'parklands', 'label': 'Parklands'},
-      {'value': 'runda', 'label': 'Runda'},
-      {'value': 'muthaiga', 'label': 'Muthaiga'},
-      {'value': 'kasarani', 'label': 'Kasarani'},
-      {'value': 'ruiru', 'label': 'Ruiru'},
-      {'value': 'kayole', 'label': 'Kayole'},
-      {'value': 'embakasi', 'label': 'Embakasi'},
-      {'value': 'dandora', 'label': 'Dandora'},
-      {'value': 'buruburu', 'label': 'Buruburu'},
-      {'value': 'south_b', 'label': 'South B/C'},
-      {'value': 'upperhill', 'label': 'Upper Hill'},
-      {'value': 'other_nairobi', 'label': 'Other Nairobi Area'},
-      {'value': 'outside_nairobi', 'label': 'Outside Nairobi'},
     ];
   }
 
@@ -151,15 +136,13 @@ class ProfileApiService {
     return [
       {'value': 'arts_culture', 'label': 'Arts & Culture'},
       {'value': 'tech_innovation', 'label': 'Tech & Innovation'},
-      {'value': 'business_finance', 'label': 'Business & Finance'},
     ];
   }
 
   List<Map<String, String>> getConnectionFrequencies() {
     return [
-      {'value': 'occasional', 'label': 'Occasional - 1-2 times/month'},
-      {'value': 'regular', 'label': 'Regular - 1-2 times/week'},
-      {'value': 'selective', 'label': 'Selective - a few times a year'},
+      {'value': 'occasional', 'label': 'Occasional'},
+      {'value': 'regular', 'label': 'Regular'},
     ];
   }
 

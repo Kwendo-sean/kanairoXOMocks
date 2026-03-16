@@ -142,7 +142,7 @@ class _EventsScreenState extends State<EventsScreen> {
           if (result['success']) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text("Added to waitlist at position \${result['position']}"),
+                content: Text("Added to waitlist at position ${result['position']}"),
                 backgroundColor: Colors.green,
               ),
             );
@@ -152,18 +152,18 @@ class _EventsScreenState extends State<EventsScreen> {
         final shouldRegister = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-            title: Text('Join \${experience.title}'),
+            title: Text('Join ${experience.title}'),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Price: \${experience.priceDisplay}'),
+                Text('Price: ${experience.priceDisplay}'),
                 const SizedBox(height: 8),
-                Text('Date: \${experience.formattedDate} at \${experience.formattedTime}'),
+                Text('Date: ${experience.formattedDate} at ${experience.formattedTime}'),
                 const SizedBox(height: 8),
-                Text('Venue: \${experience.venueName}'),
+                Text('Venue: ${experience.venueName}'),
                 const SizedBox(height: 8),
-                Text('Spots left: \${experience.ticketsAvailable}'),
+                Text('Spots left: ${experience.ticketsAvailable}'),
               ],
             ),
             actions: [
@@ -187,7 +187,7 @@ class _EventsScreenState extends State<EventsScreen> {
           if (result['success']) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Successfully registered for \${experience.title}'),
+                content: Text('Successfully registered for ${experience.title}'),
                 backgroundColor: Colors.green,
               ),
             );
@@ -200,7 +200,7 @@ class _EventsScreenState extends State<EventsScreen> {
       print('Error joining experience: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Failed to register: \${e.toString()}'),
+          content: Text('Failed to register: ${e.toString()}'),
           backgroundColor: Colors.red,
         ),
       );
@@ -226,23 +226,29 @@ class _EventsScreenState extends State<EventsScreen> {
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: [
-              IconButton(
-                icon: const Icon(Icons.add, color: Color(0xFF1A1A1A), size: 22),
+              LiquidGlassButton(
+                size: LiquidButtonSize.icon,
+                variant: LiquidButtonVariant.ghost,
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/host');
                 },
+                child: const Icon(Icons.add, color: AppColors.textPrimary),
               ),
-              IconButton(
-                icon: const Icon(Icons.search, color: Color(0xFF1A1A1A), size: 22),
+              LiquidGlassButton(
+                size: LiquidButtonSize.icon,
+                variant: LiquidButtonVariant.ghost,
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/search');
                 },
+                child: const Icon(Icons.search, color: AppColors.textPrimary),
               ),
-              IconButton(
-                icon: const Icon(Icons.tune_outlined, color: Color(0xFF1A1A1A), size: 22),
+              LiquidGlassButton(
+                size: LiquidButtonSize.icon,
+                variant: LiquidButtonVariant.ghost,
                 onPressed: () {
                   _showFilterDialog();
                 },
+                child: const Icon(Icons.filter_list, color: AppColors.textPrimary),
               ),
               const SizedBox(width: 8),
             ],
@@ -281,30 +287,32 @@ class _EventsScreenState extends State<EventsScreen> {
                     style: AppTypography.displayMedium,
                   ),
                   const SizedBox(height: 12),
-                  SizedBox(
-                    height: 180,
-                    child: ListView.builder(
-                      scrollDirection: Axis.horizontal,
-                      itemCount: featuredExperiences.length,
-                      itemBuilder: (context, index) {
-                        final experience = featuredExperiences[index];
-                        return GestureDetector(
-                          onTap: () {
-                            widget.onExperienceSelected(experience);
-                            Navigator.pushNamed(
-                              context,
-                              '/events/\${experience.id}',
-                            );
-                          },
-                          child: Container(
-                            width: 260,
-                            margin: const EdgeInsets.only(right: 12),
-                            child: FeaturedExperienceCard(
-                              experience: experience,
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: 180,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: featuredExperiences.length,
+                        itemBuilder: (context, index) {
+                          final experience = featuredExperiences[index];
+                          return GestureDetector(
+                            onTap: () {
+                              widget.onExperienceSelected(experience);
+                              Navigator.pushNamed(
+                                context,
+                                '/events/${experience.id}',
+                              );
+                            },
+                            child: Container(
+                              width: 260,
+                              margin: const EdgeInsets.only(right: 12),
+                              child: FeaturedExperienceCard(
+                                experience: experience,
+                              ),
                             ),
-                          ),
-                        );
-                      },
+                          );
+                        },
+                      ),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -364,7 +372,7 @@ class _EventsScreenState extends State<EventsScreen> {
                             widget.onExperienceSelected(experience);
                             Navigator.pushNamed(
                               context,
-                              '/events/\${experience.id}',
+                              '/events/${experience.id}',
                             );
                           },
                         ),

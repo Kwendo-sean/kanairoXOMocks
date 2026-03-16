@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../core/utils/url_helper.dart';
 
 class UserProfile {
   final String name;
@@ -119,7 +120,7 @@ class Experience {
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       shortDescription: json['short_description'] ?? '',
-      coverImage: json['cover_image'],
+      coverImage: UrlHelper.fixMediaUrl(json['cover_image']),
       venueName: json['venue_name'] ?? '',
       venueAddress: json['venue_address'] ?? '',
       neighborhood: json['neighborhood'] ?? 'other',
@@ -364,7 +365,7 @@ class ExperienceOrganizer {
       id: json['id'] ?? '',
       firstName: json['first_name'] ?? '',
       lastName: json['last_name'] ?? '',
-      profilePicture: json['profile_picture'],
+      profilePicture: UrlHelper.fixMediaUrl(json['profile_picture']),
       trustScore: json['trust_score'] ?? 0,
       bio: json['bio'],
     );
@@ -403,7 +404,7 @@ class ExperienceCollaborator {
       name: json['display_name'] ?? json['external_name'] ?? '',
       title: json['external_title'],
       bio: json['external_bio'],
-      photo: json['external_photo'],
+      photo: UrlHelper.fixMediaUrl(json['external_photo']),
       collaboratorType: json['collaborator_type'] ?? 'speaker',
     );
   }
@@ -593,7 +594,7 @@ class ExperienceWaitlist {
       eventId: json['event'] ?? '',
       userId: json['user'] ?? '',
       position: json['position'] ?? 0,
-      joinedAt: DateTime.parse(json['joined_at']),
+      joinedAt: DateTime.parse(json['joined_at'] ?? DateTime.now().toIso8601String()),
       notifiedAt: json['notified_at'] != null
           ? DateTime.parse(json['notified_at'])
           : null,
@@ -606,7 +607,7 @@ class ExperienceWaitlist {
 
 // Sample data for the prototype
 final sampleProfiles = [
-  const UserProfile(
+  UserProfile(
     name: 'Sofia',
     age: 28,
     location: 'Brooklyn, NY',
@@ -617,7 +618,7 @@ final sampleProfiles = [
     imageUrl:
         'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=500&fit=crop',
   ),
-  const UserProfile(
+  UserProfile(
     name: 'Marcus',
     age: 31,
     location: 'Manhattan, NY',
@@ -626,7 +627,7 @@ final sampleProfiles = [
     mood: 'Reflective',
     moodIcon: 'building',
     imageUrl:
-        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h-500&fit=crop',
+        'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400-500&fit=crop',
     interests: [
       'Architecture',
       'Jazz',

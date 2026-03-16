@@ -21,13 +21,15 @@ class _SomedayScreenState extends State<SomedayScreen> {
     {'title': 'Adopt a dog', 'isChecked': false},
   ];
 
-  void _addAspiration() async {
+  Future<void> _addAspiration() async {
     final result = await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const AddAspirationScreen(),
         fullscreenDialog: true,
       ),
     );
+
+    if (!mounted) return;
 
     if (result != null && result is Map<String, dynamic>) {
       setState(() {
@@ -60,8 +62,8 @@ class _SomedayScreenState extends State<SomedayScreen> {
       floatingActionButton: FloatingActionButton(
         onPressed: _addAspiration,
         backgroundColor: AppConstants.primaryRed,
-        child: const PhosphorIcon(PhosphorIcons.plus, color: Colors.white, size: 28),
         tooltip: 'Add Aspiration',
+        child: const PhosphorIcon(PhosphorIcons.plus, color: Colors.white, size: 28),
       ),
     );
   }

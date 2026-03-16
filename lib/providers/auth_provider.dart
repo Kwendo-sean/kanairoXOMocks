@@ -3,9 +3,11 @@ import 'package:flutter/foundation.dart';
 import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/models/couple_model.dart';
 import 'package:kanairoxo/services/auth_service.dart';
+import 'package:kanairoxo/services/notification_service.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
+  final NotificationService _notificationService = NotificationService();
 
   User? _user;
   CoupleStatus? _coupleStatus;
@@ -50,6 +52,9 @@ class AuthProvider with ChangeNotifier {
   void _setUser(User? user) {
     _user = user;
     _userController.add(user);
+    if (user != null) {
+      _notificationService.registerFCMToken();
+    }
     notifyListeners();
   }
 
