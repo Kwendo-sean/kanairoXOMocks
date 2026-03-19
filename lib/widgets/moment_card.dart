@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_colors.dart';
 
 class MomentCard extends StatelessWidget {
   final Moment moment;
@@ -10,6 +12,10 @@ class MomentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Get the image URL safely
+    final imageUrl = moment.photoUrl;
+    final hasValidImage = imageUrl.isNotEmpty && imageUrl.startsWith('http');
+
     return Card(
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppConstants.cardBorderRadius),
@@ -23,14 +29,39 @@ class MomentCard extends StatelessWidget {
           children: [
             // Background Image
             Positioned.fill(
-              child: Image.network(
-                moment.photoUrl,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: AppConstants.lightGray,
-                  child: const Center(child: Icon(Icons.photo, color: AppConstants.secondaryGray)),
-                ),
-              ),
+              child: hasValidImage
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      errorWidget: (context, url, error) {
+                        debugPrint('Moment image failed: $url | $error');
+                        return Container(
+                          color: Colors.grey.shade100,
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: AppColors.textMuted,
+                              size: 32,
+                            ),
+                          ),
+                        );
+                      },
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey.shade50,
+                        child: const Center(
+                          child: CircularProgressIndicator(
+                            strokeWidth: 1.5,
+                            color: AppColors.primary,
+                          ),
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: AppConstants.lightGray,
+                      child: const Center(
+                        child: Icon(Icons.photo, color: AppConstants.secondaryGray),
+                      ),
+                    ),
             ),
             // Top Gradient
             Positioned.fill(
@@ -64,13 +95,14 @@ class MomentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Event Name (Top)
-                    Text(
-                      moment.eventName,
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
-                    ),
+                    if (moment.eventName != null)
+                      Text(
+                        moment.eventName!,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
                     const Spacer(),
                     // Date and Badge (Bottom)
                     Row(
@@ -98,7 +130,7 @@ class MomentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: moment.type == MomentType.event ? AppConstants.primaryRed : AppConstants.warningOrange,
+        color: moment.type == MomentType.event ? AppConstants.primaryRed : Colors.orange,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Text(

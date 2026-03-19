@@ -22,7 +22,7 @@ class MemoryService {
     if (mood != null) queryParameters['mood'] = mood;
 
     final response = await _api.get(
-      'api/memories/memories/',
+      'api/v1/memories/memories/',
       queryParameters: queryParameters,
     );
 
@@ -31,7 +31,7 @@ class MemoryService {
 
   /// Get memory timeline (grouped by month)
   Future<Map<String, TimelineMonth>> getTimeline() async {
-    final response = await _api.get('api/memories/memories/timeline/');
+    final response = await _api.get('api/v1/memories/memories/timeline/');
 
     final timeline = <String, TimelineMonth>{};
     (response as Map<String, dynamic>).forEach((key, value) {
@@ -43,7 +43,7 @@ class MemoryService {
 
   /// Get memory statistics
   Future<MemoryStats> getStats() async {
-    final response = await _api.get('api/memories/memories/stats/');
+    final response = await _api.get('api/v1/memories/memories/stats/');
     return MemoryStats.fromJson(response);
   }
 
@@ -65,7 +65,7 @@ class MemoryService {
   }) async {
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('${ApiClient.baseUrl}/api/memories/memories/'),
+      Uri.parse('${ApiClient.baseUrl}/api/v1/memories/memories/'),
     );
 
     // Add headers
@@ -114,20 +114,20 @@ class MemoryService {
   /// React to memory
   Future<void> reactToMemory(String memoryId, String reactionType) async {
     await _api.post(
-      'api/memories/memories/$memoryId/react/',
+      'api/v1/memories/memories/$memoryId/react/',
       {'reaction_type': reactionType},
     );
   }
 
   /// Remove reaction
   Future<void> unreact(String memoryId) async {
-    await _api.delete('api/memories/memories/$memoryId/unreact/');
+    await _api.delete('api/v1/memories/memories/$memoryId/unreact/');
   }
 
   /// Toggle favorite
   Future<bool> toggleFavorite(String memoryId) async {
     final response = await _api.post(
-      'api/memories/memories/$memoryId/toggle_favorite/',
+      'api/v1/memories/memories/$memoryId/toggle_favorite/',
       {},
     );
     return response['is_favorite'];
@@ -140,7 +140,7 @@ class MemoryService {
         String? parentCommentId,
       }) async {
     final response = await _api.post(
-      'api/memories/comments/',
+      'api/v1/memories/comments/',
       {
         'memory': memoryId,
         'comment': comment,
@@ -152,7 +152,7 @@ class MemoryService {
 
   /// Delete memory
   Future<void> deleteMemory(String memoryId) async {
-    await _api.delete('api/memories/memories/$memoryId/');
+    await _api.delete('api/v1/memories/memories/$memoryId/');
   }
 }
 

@@ -1,7 +1,7 @@
 // lib/models/discovery_models.dart
 import 'dart:convert';
-import '../services/api_client.dart';
-import '../core/utils/url_helper.dart';
+import 'package:flutter/foundation.dart';
+import '../utils/constants.dart';
 
 // Discovery Session Model
 class DiscoverySession {
@@ -65,7 +65,7 @@ class DiscoverySession {
         timeElapsed: json['time_elapsed']?.toString(),
       );
     } catch (e) {
-      print('Error parsing DiscoverySession: $e');
+      debugPrint('Error parsing DiscoverySession: $e');
       // Return a default session
       return DiscoverySession(
         id: '0',
@@ -150,7 +150,7 @@ class DiscoveryItem {
             : <String, dynamic>{},
       );
     } catch (e) {
-      print('Error parsing DiscoveryItem: $e');
+      debugPrint('Error parsing DiscoveryItem: $e');
       return DiscoveryItem(
         id: '0',
         sessionId: '0',
@@ -206,7 +206,7 @@ class DiscoveryBatch {
         batchInfo: BatchInfo.fromJson(json['batch_info'] ?? {'size': 0, 'remaining_today': 0}),
       );
     } catch (e) {
-      print('Error parsing DiscoveryBatch: $e');
+      debugPrint('Error parsing DiscoveryBatch: $e');
       return DiscoveryBatch(
         session: DiscoverySession.fromJson({}),
         discoveries: [],
@@ -302,10 +302,21 @@ class DiscoveryProfile {
         interests = json['interests'].split(',').map((i) => i.trim()).toList();
       }
 
+      // Try all possible field names for photo — Updated based on nested structure
+      final rawPhoto =
+        json['main_profile_photo_url']
+        ?? json['profile_photo_url']
+        ?? json['photo']
+        ?? json['avatar']
+        ?? json['profile_photo']
+        ?? json['image_url']
+        ?? json['image']
+        ?? json['file'];
+
       return DiscoveryProfile(
         userId: userId,
         fullName: json['full_name'] ?? json['display_name'] ?? 'User',
-        profilePhotoUrl: UrlHelper.fixMediaUrl(json['profile_photo_url'] ?? json['photo'] ?? json['profile_image'] ?? json['image_url']),
+        profilePhotoUrl: rawPhoto != null ? ApiConstants.fixMediaUrl(rawPhoto.toString()) : null,
         neighborhood: json['neighborhood'] ?? json['primary_neighborhood'] ?? '',
         lifeStage: json['life_stage'] ?? '',
         headline: json['headline'] ?? '',
@@ -328,7 +339,7 @@ class DiscoveryProfile {
         isOnline: json['is_online'] ?? false,
       );
     } catch (e) {
-      print('Error parsing DiscoveryProfile: $e');
+      debugPrint('Error parsing DiscoveryProfile: $e');
       return DiscoveryProfile(
         userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '0',
         fullName: 'Unknown User',

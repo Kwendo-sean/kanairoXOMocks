@@ -25,6 +25,19 @@ class DiscoveryService {
     final response = await _apiClient.get('api/v1/discovery/sessions/$sessionId/batch/', queryParameters: {
       'batch_size': batchSize.toString(),
     });
+    
+    // Debug output for items
+    final discoveries = response['discoveries'] as List?;
+    if (discoveries != null) {
+      for (var item in discoveries) {
+        if (item['item_type'] == 'profile' && item['profile_details'] != null) {
+          debugPrint('=== DISCOVER PROFILE ===');
+          debugPrint('name: ${item['profile_details']['full_name']}');
+          debugPrint('photo: ${item['profile_details']['profile_photo_url']}');
+        }
+      }
+    }
+    
     return DiscoveryBatch.fromJson(response);
   }
 
@@ -48,7 +61,6 @@ class DiscoveryService {
 
   Future<ConnectionContextModel?> getConnectionContext(String targetUserId) async {
     try {
-      // Fixed typo: changed 'discover' to 'discovery' to match backend URL configuration
       final response = await _apiClient.get('api/v1/discovery/context/$targetUserId/');
       return ConnectionContextModel.fromJson(response as Map<String, dynamic>);
     } catch (e) {

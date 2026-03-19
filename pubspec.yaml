@@ -17,9 +17,6 @@ dependencies:
   # For location
   location: ^5.0.0
   
-  # For Google Maps
-  google_maps_flutter: ^2.5.0
-  
   # For QR Code generation
   qr_flutter: ^4.0.0
   barcode_widget: ^2.0.1
@@ -46,7 +43,6 @@ dependencies:
 
   # UI Upgrades
   flutter_animate: ^4.5.0
-  card_swiper: ^3.0.1
   glassmorphism: ^3.0.0
 
 dev_dependencies:

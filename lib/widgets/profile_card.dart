@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
 import '../core/theme/app_typography.dart';
@@ -8,7 +9,6 @@ import '../models/discovery_models.dart';
 import '../providers/connection_provider.dart';
 import '../providers/notification_provider.dart';
 import 'liquid_glass_button.dart';
-import 'safe_network_image.dart';
 
 class ProfileCard extends StatefulWidget {
   final DiscoveryProfile profile;
@@ -132,6 +132,53 @@ class _ProfileCardState extends State<ProfileCard> {
     }
   }
 
+  Widget _buildProfilePhoto(DiscoveryProfile profile) {
+    final url = profile.profilePhotoUrl;
+    final isValid = url != null && url.isNotEmpty && url.startsWith('http');
+    
+    if (!isValid) {
+      // Placeholder when no photo
+      return Container(
+        color: Colors.grey.shade200,
+        child: Center(
+          child: Icon(
+            Icons.person_outline,
+            size: 80,
+            color: Colors.grey.shade400,
+          ),
+        ),
+      );
+    }
+    
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      width: double.infinity,
+      height: double.infinity,
+      errorWidget: (context, url, error) {
+        return Container(
+          color: Colors.grey.shade200,
+          child: Center(
+            child: Icon(
+              Icons.person_outline,
+              size: 80,
+              color: Colors.grey.shade400,
+            ),
+          ),
+        );
+      },
+      placeholder: (context, url) => Container(
+        color: Colors.grey.shade100,
+        child: const Center(
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: AppColors.primary,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Column(
@@ -157,13 +204,10 @@ class _ProfileCardState extends State<ProfileCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Background photo
-                SafeNetworkImage(
-                  url: widget.profile.profilePhotoUrl,
-                  fit: BoxFit.cover,
-                ),
+                // Background photo - Fix 3
+                _buildProfilePhoto(widget.profile),
 
-                // Bottom gradient
+                // Bottom gradient overlay - Fix 3
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(

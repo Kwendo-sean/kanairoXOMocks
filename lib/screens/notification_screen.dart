@@ -7,6 +7,55 @@ import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 
+class NotificationModel {
+  final String id;
+  final String type;
+  final String title;
+  final String body;
+  final bool isRead;
+  final String timeAgo;
+  final NotificationSender? sender;
+
+  NotificationModel({
+    required this.id,
+    required this.type,
+    required this.title,
+    required this.body,
+    required this.isRead,
+    required this.timeAgo,
+    this.sender,
+  });
+
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    final senderMap = json['sender'] as Map?;
+    return NotificationModel(
+      id: json['id']?.toString() ?? '',
+      type: json['type'] ?? '',
+      title: json['title'] ?? '',
+      body: json['body'] ?? '',
+      isRead: json['is_read'] ?? false,
+      timeAgo: json['time_ago'] ?? '',
+      sender: senderMap != null ? NotificationSender.fromJson(senderMap as Map<String, dynamic>) : null,
+    );
+  }
+}
+
+class NotificationSender {
+  final String? id;
+  final String? name;
+  final String? photoUrl;
+
+  NotificationSender({this.id, this.name, this.photoUrl});
+
+  factory NotificationSender.fromJson(Map<String, dynamic> json) {
+    return NotificationSender(
+      id: json['id']?.toString(),
+      name: json['name'],
+      photoUrl: ApiConstants.fixMediaUrl(json['photo_url']),
+    );
+  }
+}
+
 class NotificationScreen extends StatefulWidget {
   final int initialTab;
   const NotificationScreen({super.key, this.initialTab = 0});
@@ -17,11 +66,26 @@ class NotificationScreen extends StatefulWidget {
 
 class _NotificationScreenState extends State<NotificationScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final ApiClient apiClient = ApiClient();
+
+  List<NotificationModel> _notifications = [];
+  List<ConnectionRequestModel> _requests = [];
+  bool _loadingNotifications = false;
+  bool _loadingRequests = false;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
+    _tabController = TabController(length: 3, vsync: this, initialIndex: widget.initialTab);
+    _loadNotifications();
+
+    _tabController.addListener(() {
+      if (_tabController.index == 0 && _notifications.isEmpty) {
+        _loadNotifications();
+      } else if (_tabController.index == 1 && _requests.isEmpty) {
+        _loadRequests();
+      }
+    });
   }
 
   @override
@@ -30,79 +94,35 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text('Notifications', style: AppTypography.displayMedium.copyWith(fontSize: 20)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textMuted,
-          labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'General'),
-            Tab(text: 'Connections'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          const _GeneralNotificationsTab(),
-          _ConnectionsTab(),
-        ],
-      ),
-    );
-  }
-}
-
-class _GeneralNotificationsTab extends StatelessWidget {
-  const _GeneralNotificationsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.notifications_none, size: 48, color: AppColors.textMuted),
-          const SizedBox(height: 12),
-          Text('No new notifications', style: AppTypography.bodyMedium),
-        ],
-      ),
-    );
-  }
-}
-
-class _ConnectionsTab extends StatefulWidget {
-  @override
-  State<_ConnectionsTab> createState() => _ConnectionsTabState();
-}
-
-class _ConnectionsTabState extends State<_ConnectionsTab> {
-  final ApiClient apiClient = ApiClient();
-  List<ConnectionRequestModel> _requests = [];
-  bool _loading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadRequests();
+  Future<void> _loadNotifications() async {
+    if (_loadingNotifications) return;
+    setState(() => _loadingNotifications = true);
+    try {
+      final response = await apiClient.get('/api/v1/notifications/');
+      final list = response is List ? response : (response['notifications'] as List? ?? []);
+      setState(() {
+        _notifications = list.map((n) => NotificationModel.fromJson(n)).toList();
+        _loadingNotifications = false;
+      });
+    } catch (e) {
+      setState(() => _loadingNotifications = false);
+      debugPrint('Notifications error: $e');
+    }
   }
 
   Future<void> _loadRequests() async {
+    if (_loadingRequests) return;
+    setState(() => _loadingRequests = true);
     try {
-      final response = await apiClient.get('api/v1/connections/requests/pending/');
+      final response = await apiClient.get('/api/v1/connections/requests/pending/');
       final list = response['requests'] as List? ?? [];
       setState(() {
         _requests = list.map((r) => ConnectionRequestModel.fromJson(r)).toList();
-        _loading = false;
+        _loadingRequests = false;
       });
     } catch (e) {
-      setState(() => _loading = false);
+      setState(() => _loadingRequests = false);
+      debugPrint('Requests error: $e');
     }
   }
 
@@ -158,28 +178,83 @@ class _ConnectionsTabState extends State<_ConnectionsTab> {
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    if (_loading) {
-      return Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
+  Widget _buildTabBar() {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+      ),
+      child: TabBar(
+        controller: _tabController,
+        labelColor: AppColors.primary,
+        unselectedLabelColor: AppColors.textMuted,
+        labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
+        unselectedLabelStyle: AppTypography.labelMedium,
+        indicatorColor: AppColors.primary,
+        indicatorWeight: 2,
+        indicatorSize: TabBarIndicatorSize.label,
+        tabs: const [
+          Tab(text: 'All'),
+          Tab(text: 'Connections'),
+          Tab(text: 'Tickets'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(IconData icon, String title, String subtitle) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 52, color: AppColors.textMuted),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            subtitle,
+            style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAllTab() {
+    if (_loadingNotifications) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
+    }
+
+    if (_notifications.isEmpty) {
+      return _buildEmptyState(
+        Icons.notifications_outlined,
+        'No notifications',
+        'Your notifications will appear here',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _notifications.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 8),
+      itemBuilder: (ctx, i) => _NotificationItem(notification: _notifications[i]),
+    );
+  }
+
+  Widget _buildConnectionsTab() {
+    if (_loadingRequests) {
+      return const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
     }
 
     if (_requests.isEmpty) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.people_outline, size: 48, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text('No connection requests', style: AppTypography.bodyMedium),
-            const SizedBox(height: 6),
-            Text(
-              'When someone wants to connect it will appear here',
-              style: AppTypography.caption.copyWith(color: AppColors.textMuted),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
+      return _buildEmptyState(
+        Icons.people_outline,
+        'No connection requests',
+        'When someone wants to connect with you,\nit will appear here',
       );
     }
 
@@ -192,6 +267,120 @@ class _ConnectionsTabState extends State<_ConnectionsTab> {
         onAccept: () => _respond(_requests[i], 'accept'),
         onDecline: () => _respond(_requests[i], 'decline'),
         onTap: () => _openPreview(_requests[i]),
+      ),
+    );
+  }
+
+  Widget _buildTicketsTab() {
+    return _buildEmptyState(
+      Icons.confirmation_number_outlined,
+      'No ticket notifications',
+      'Your event tickets will appear here',
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      appBar: AppBar(
+        backgroundColor: AppColors.background,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1A1A), size: 22),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text('Notifications', style: AppTypography.screenTitle),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          _buildTabBar(),
+          Expanded(
+            child: TabBarView(
+              controller: _tabController,
+              children: [
+                _buildAllTab(),
+                _buildConnectionsTab(),
+                _buildTicketsTab(),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _NotificationItem extends StatelessWidget {
+  final NotificationModel notification;
+
+  const _NotificationItem({required this.notification});
+
+  IconData _getNotificationIcon(String type) {
+    return switch (type) {
+      'connection_request' => Icons.person_add_outlined,
+      'connection_accepted' => Icons.people_outline,
+      'moment_like' => Icons.favorite_border,
+      'moment_comment' => Icons.chat_bubble_outline,
+      'event_reminder' => Icons.event_outlined,
+      _ => Icons.notifications_outlined,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: notification.isRead ? Colors.white : AppColors.primaryGlass,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: notification.isRead ? Colors.grey.shade100 : AppColors.primary.withOpacity(0.15),
+        ),
+      ),
+      child: Row(
+        children: [
+          notification.sender != null && notification.sender!.photoUrl != null
+              ? ClipOval(
+                  child: SafeNetworkImage(
+                    url: notification.sender!.photoUrl,
+                    width: 42,
+                    height: 42,
+                    fit: BoxFit.cover,
+                  ),
+                )
+              : Container(
+                  width: 42,
+                  height: 42,
+                  decoration: const BoxDecoration(color: AppColors.primaryGlass, shape: BoxShape.circle),
+                  child: Icon(_getNotificationIcon(notification.type), color: AppColors.primary, size: 20),
+                ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  notification.title,
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  notification.body,
+                  style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            notification.timeAgo,
+            style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontSize: 10),
+          ),
+        ],
       ),
     );
   }
@@ -251,7 +440,7 @@ class _ConnectionRequestCard extends StatelessWidget {
                   if (request.initiatorNeighborhood.isNotEmpty)
                     Row(
                       children: [
-                        Icon(Icons.location_on_outlined, size: 11, color: AppColors.textMuted),
+                        const Icon(Icons.location_on_outlined, size: 11, color: AppColors.textMuted),
                         const SizedBox(width: 3),
                         Text(request.initiatorNeighborhood, style: AppTypography.caption),
                       ],
@@ -271,7 +460,7 @@ class _ConnectionRequestCard extends StatelessWidget {
                   child: Container(
                     width: 36,
                     height: 36,
-                    decoration: BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
                     child: const Icon(Icons.check, color: Colors.white, size: 18),
                   ),
                 ),
@@ -286,7 +475,7 @@ class _ConnectionRequestCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: Colors.grey.shade200),
                     ),
-                    child: Icon(Icons.close, color: AppColors.textMuted, size: 18),
+                    child: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
                   ),
                 ),
               ],

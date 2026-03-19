@@ -1,6 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import '../core/utils/url_helper.dart';
+import 'package:kanairoxo/utils/constants.dart';
 import '../core/theme/app_colors.dart';
 
 class SafeNetworkImage extends StatelessWidget {
@@ -23,9 +23,12 @@ class SafeNetworkImage extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final fixedUrl = UrlHelper.fixMediaUrl(url);
+    final fixedUrl = ApiConstants.fixMediaUrl(url);
     
-    if (!UrlHelper.isValidUrl(fixedUrl)) {
+    // Show placeholder if URL is empty or invalid
+    if (fixedUrl.isEmpty || 
+      (!fixedUrl.startsWith('http://') && 
+       !fixedUrl.startsWith('https://'))) {
       return _buildPlaceholder();
     }
     
@@ -34,11 +37,7 @@ class SafeNetworkImage extends StatelessWidget {
       fit: fit,
       width: width,
       height: height,
-      httpHeaders: const {
-        'Accept': 'image/*',
-      },
       errorWidget: (context, url, error) {
-        debugPrint('Image failed: $url\nError: $error');
         return _buildErrorWidget();
       },
       placeholder: (context, url) =>

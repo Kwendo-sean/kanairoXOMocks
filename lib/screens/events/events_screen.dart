@@ -65,7 +65,7 @@ class _EventsScreenState extends State<EventsScreen> {
         _hasMore = true;
       });
     } catch (e) {
-      print('Error loading experiences: $e');
+      debugPrint('Error loading experiences: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load experiences'),
@@ -95,7 +95,7 @@ class _EventsScreenState extends State<EventsScreen> {
         _currentPage++;
       });
     } catch (e) {
-      print('Error loading more experiences: $e');
+      debugPrint('Error loading more experiences: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load more experiences'),
@@ -197,7 +197,7 @@ class _EventsScreenState extends State<EventsScreen> {
         }
       }
     } catch (e) {
-      print('Error joining experience: $e');
+      debugPrint('Error joining experience: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Failed to register: ${e.toString()}'),
@@ -226,29 +226,23 @@ class _EventsScreenState extends State<EventsScreen> {
             elevation: 0,
             automaticallyImplyLeading: false,
             actions: [
-              LiquidGlassButton(
-                size: LiquidButtonSize.icon,
-                variant: LiquidButtonVariant.ghost,
+              IconButton(
+                icon: const Icon(Icons.add, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/host');
                 },
-                child: const Icon(Icons.add, color: AppColors.textPrimary),
               ),
-              LiquidGlassButton(
-                size: LiquidButtonSize.icon,
-                variant: LiquidButtonVariant.ghost,
+              IconButton(
+                icon: const Icon(Icons.search, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/search');
                 },
-                child: const Icon(Icons.search, color: AppColors.textPrimary),
               ),
-              LiquidGlassButton(
-                size: LiquidButtonSize.icon,
-                variant: LiquidButtonVariant.ghost,
+              IconButton(
+                icon: const Icon(Icons.tune_outlined, color: Color(0xFF1A1A1A), size: 22),
                 onPressed: () {
                   _showFilterDialog();
                 },
-                child: const Icon(Icons.filter_list, color: AppColors.textPrimary),
               ),
               const SizedBox(width: 8),
             ],
@@ -263,7 +257,6 @@ class _EventsScreenState extends State<EventsScreen> {
               children: [
                 // Host Event Section
                 LiquidGlassButton(
-                  variant: LiquidButtonVariant.primary,
                   size: LiquidButtonSize.lg,
                   width: double.infinity,
                   onPressed: () {
@@ -451,7 +444,6 @@ class _EventsScreenState extends State<EventsScreen> {
                   ),
                 ),
                 LiquidGlassButton(
-                  size: LiquidButtonSize.lg,
                   onPressed: () {
                     Navigator.pop(context);
                     _loadExperiences();

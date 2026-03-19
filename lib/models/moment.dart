@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../core/utils/url_helper.dart';
+import '../utils/constants.dart';
 
 enum MomentType { event, meetup, vibe, date }
 
@@ -21,7 +21,7 @@ class Moment {
   final String? eventName;
   final DateTime date;
   final MomentType type;
-  final String photoUrl;
+  final String photoUrl; // Keeping as non-nullable for now but will ensure it's not empty string if null in JSON
   final String caption;
   final String? location;
   final int likeCount;
@@ -57,11 +57,21 @@ class Moment {
     // Handle nested user object or potential root fields
     final userJson = json['user'] is Map ? json['user'] as Map<String, dynamic> : null;
     
-    // Image URL — handle variations
-    final rawImageUrl = json['image_url'] ?? json['image'] ?? json['photo'] ?? json['photo_url'] ?? '';
+    // Image URL — handle variations as requested in Fix 3
+    final rawImageUrl = 
+        json['image_url'] 
+        ?? json['image']
+        ?? json['photo']
+        ?? json['photo_url']
+        ?? json['media_url']
+        ?? json['file'];
     
     // User photo — handle variations
-    final rawUserPhoto = userJson?['profile_photo_url'] ?? userJson?['photo'] ?? userJson?['avatar'] ?? userJson?['profile_photo'] ?? '';
+    final rawUserPhoto = 
+        userJson?['profile_photo_url'] 
+        ?? userJson?['photo'] 
+        ?? userJson?['avatar'] 
+        ?? userJson?['profile_photo'];
     
     // Username — handle variations
     final userName = userJson?['full_name'] ?? userJson?['display_name'] ?? userJson?['username'] ?? json['author_name'] ?? 'User';
@@ -70,10 +80,10 @@ class Moment {
       id: json['id']?.toString() ?? '',
       caption: json['caption'] ?? json['description'] ?? '',
       type: MomentTypeExtension.fromString(json['tag'] ?? json['category'] ?? json['type'] ?? 'vibe'),
-      photoUrl: UrlHelper.fixMediaUrl(rawImageUrl.toString()),
+      photoUrl: ApiConstants.fixMediaUrl(rawImageUrl?.toString()),
       date: DateTime.tryParse(json['created_at'] ?? json['timestamp'] ?? '') ?? DateTime.now(),
       userName: userName.toString(),
-      userAvatarUrl: UrlHelper.fixMediaUrl(rawUserPhoto.toString()),
+      userAvatarUrl: rawUserPhoto != null ? ApiConstants.fixMediaUrl(rawUserPhoto.toString()) : null,
       likeCount: json['likes_count'] ?? json['like_count'] ?? json['likes'] ?? 0,
       commentCount: json['comments_count'] ?? json['comment_count'] ?? json['comments'] ?? 0,
       isLiked: json['is_liked'] ?? false,

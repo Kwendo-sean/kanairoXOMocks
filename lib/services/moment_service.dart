@@ -9,7 +9,7 @@ class MomentService {
 
   Future<List<Moment>> getMoments({String? type}) async {
     final queryParams = type != null ? {'type': type} : <String, String>{};
-    final response = await _api.get('api/moments/', queryParameters: queryParams);
+    final response = await _api.get('api/v1/moments/', queryParameters: queryParams);
     
     final List data = response is List 
         ? response 
@@ -19,22 +19,22 @@ class MomentService {
   }
 
   Future<Moment> getMomentDetail(String id) async {
-    final response = await _api.get('api/moments/$id/');
+    final response = await _api.get('api/v1/moments/$id/');
     return Moment.fromJson(response);
   }
 
   Future<Map<String, dynamic>> toggleLike(String id) async {
-    final response = await _api.post('api/moments/$id/like/', {});
+    final response = await _api.post('api/v1/moments/$id/like/', {});
     return response; // Expected: { 'liked': bool, 'like_count': int }
   }
 
   Future<List<dynamic>> getComments(String id) async {
-    final response = await _api.get('api/moments/$id/comments/');
+    final response = await _api.get('api/v1/moments/$id/comments/');
     return response is List ? response : (response['results'] ?? []);
   }
 
   Future<dynamic> addComment(String id, String text) async {
-    return await _api.post('api/moments/$id/comments/', {'text': text});
+    return await _api.post('api/v1/moments/$id/comments/', {'text': text});
   }
 
   Future<Moment> createMoment({
@@ -46,7 +46,7 @@ class MomentService {
     final token = await _api.getAccessToken();
     final request = http.MultipartRequest(
       'POST',
-      Uri.parse('${ApiClient.baseUrl}/api/moments/'),
+      Uri.parse('${ApiClient.baseUrl}/api/v1/moments/'),
     );
 
     request.headers['Authorization'] = 'Bearer $token';
