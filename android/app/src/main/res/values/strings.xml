@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="moments_widget_description">See the latest moments from Nairobi.</string>
+    <string name="drop_widget_description">Countdown to the next weekly drop.</string>
+    <string name="activity_widget_description">Your KanairoXO activity summary.</string>
+</resources>

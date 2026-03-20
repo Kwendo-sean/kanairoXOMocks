@@ -209,37 +209,49 @@ class _EventsScreenState extends State<EventsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+
     return Consumer<EventsProvider>(
       builder: (context, eventsProvider, child) {
         final experiences = eventsProvider.experiences;
         final featuredExperiences = eventsProvider.featuredExperiences;
 
         return Scaffold(
-          backgroundColor: AppColors.background,
+          backgroundColor: bgColor,
           appBar: AppBar(
-            backgroundColor: AppColors.background,
+            backgroundColor: bgColor,
+            elevation: 0,
             title: Text(
               'Experiences',
-              style: AppTypography.screenTitle,
+              style: TextStyle(
+                color: textColor,
+                fontWeight: FontWeight.w600,
+                fontFamily: 'DM Sans',
+              ),
             ),
             centerTitle: true,
-            elevation: 0,
             automaticallyImplyLeading: false,
             actions: [
               IconButton(
-                icon: const Icon(Icons.add, color: Color(0xFF1A1A1A), size: 22),
+                icon: Icon(Icons.add, color: textColor, size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/host');
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.search, color: Color(0xFF1A1A1A), size: 22),
+                icon: Icon(Icons.search_outlined, color: textColor, size: 22),
                 onPressed: () {
                   Navigator.pushNamed(context, '/events/search');
                 },
               ),
               IconButton(
-                icon: const Icon(Icons.tune_outlined, color: Color(0xFF1A1A1A), size: 22),
+                icon: Icon(Icons.tune_outlined, color: textColor, size: 22),
                 onPressed: () {
                   _showFilterDialog();
                 },
@@ -248,7 +260,7 @@ class _EventsScreenState extends State<EventsScreen> {
             ],
           ),
           body: _isLoading
-              ? const Center(child: CircularProgressIndicator())
+              ? Center(child: CircularProgressIndicator(color: primaryColor))
               : RefreshIndicator(
             onRefresh: _refreshExperiences,
             child: ListView(
@@ -267,7 +279,14 @@ class _EventsScreenState extends State<EventsScreen> {
                     children: [
                       const Icon(Icons.add_circle_outline, color: Colors.white, size: 18),
                       const SizedBox(width: 8),
-                      Text('Host an Event', style: AppTypography.buttonText),
+                      const Text(
+                        'Host an Event',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'DM Sans',
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -277,35 +296,38 @@ class _EventsScreenState extends State<EventsScreen> {
                 if (featuredExperiences.isNotEmpty) ...[
                   Text(
                     'Featured Experiences',
-                    style: AppTypography.displayMedium,
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'DM Sans',
+                      fontSize: 18,
+                    ),
                   ),
                   const SizedBox(height: 12),
-                  SliverToBoxAdapter(
-                    child: SizedBox(
-                      height: 180,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        itemCount: featuredExperiences.length,
-                        itemBuilder: (context, index) {
-                          final experience = featuredExperiences[index];
-                          return GestureDetector(
-                            onTap: () {
-                              widget.onExperienceSelected(experience);
-                              Navigator.pushNamed(
-                                context,
-                                '/events/${experience.id}',
-                              );
-                            },
-                            child: Container(
-                              width: 260,
-                              margin: const EdgeInsets.only(right: 12),
-                              child: FeaturedExperienceCard(
-                                experience: experience,
-                              ),
+                  SizedBox(
+                    height: 180,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: featuredExperiences.length,
+                      itemBuilder: (context, index) {
+                        final experience = featuredExperiences[index];
+                        return GestureDetector(
+                          onTap: () {
+                            widget.onExperienceSelected(experience);
+                            Navigator.pushNamed(
+                              context,
+                              '/events/${experience.id}',
+                            );
+                          },
+                          child: Container(
+                            width: 260,
+                            margin: const EdgeInsets.only(right: 12),
+                            child: FeaturedExperienceCard(
+                              experience: experience,
                             ),
-                          );
-                        },
-                      ),
+                          ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -314,13 +336,20 @@ class _EventsScreenState extends State<EventsScreen> {
                 // All experiences
                 Text(
                   'All Experiences',
-                  style: AppTypography.displayMedium,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w700,
+                    fontFamily: 'DM Sans',
+                    fontSize: 18,
+                  ),
                 ),
                 const SizedBox(height: 6),
                 Text(
                   'Curated gatherings for meaningful connections',
-                  style: AppTypography.bodyLarge.copyWith(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: mutedColor,
+                    fontFamily: 'DM Sans',
+                    fontSize: 13,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -330,20 +359,27 @@ class _EventsScreenState extends State<EventsScreen> {
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.event_available,
                           size: 48,
-                          color: AppColors.textMuted,
+                          color: mutedColor,
                         ),
                         const SizedBox(height: 12),
                         Text(
                           'No experiences available',
-                          style: AppTypography.bodyLarge,
+                          style: TextStyle(
+                            color: textColor,
+                            fontWeight: FontWeight.w600,
+                            fontFamily: 'DM Sans',
+                          ),
                         ),
                         const SizedBox(height: 6),
                         Text(
                           'Check back soon for new gatherings',
-                          style: AppTypography.bodyMedium,
+                          style: TextStyle(
+                            color: mutedColor,
+                            fontFamily: 'DM Sans',
+                          ),
                         ),
                       ],
                     ),
@@ -352,9 +388,12 @@ class _EventsScreenState extends State<EventsScreen> {
                   ...experiences.map((experience) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
-                      child: GlassCard(
-                        blurSigma: 12,
-                        padding: EdgeInsets.zero,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: surfaceColor,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: borderColor),
+                        ),
                         child: ExperienceCard(
                           experience: experience,
                           onJoin: () {
@@ -374,10 +413,10 @@ class _EventsScreenState extends State<EventsScreen> {
                   }).toList(),
 
                   if (_isLoadingMore)
-                    const Padding(
-                      padding: EdgeInsets.all(12.0),
+                    Padding(
+                      padding: const EdgeInsets.all(12.0),
                       child: Center(
-                        child: CircularProgressIndicator(),
+                        child: CircularProgressIndicator(color: primaryColor),
                       ),
                     ),
 
@@ -387,26 +426,40 @@ class _EventsScreenState extends State<EventsScreen> {
                       child: Center(
                         child: Text(
                           'No more experiences to load',
-                          style: AppTypography.bodyMedium,
+                          style: TextStyle(color: mutedColor, fontFamily: 'DM Sans'),
                         ),
                       ),
                     ),
                 ],
 
                 const SizedBox(height: 32),
-                GlassCard(
-                  backgroundColor: AppColors.primaryGlass,
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: isDark ? const Color(0xFF1C1612) : const Color(0xFFFFF5F5),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: isDark ? const Color(0xFF3D342A) : const Color(0xFF8B1A1A).withOpacity(0.1),
+                    ),
+                  ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Upcoming Experiences',
-                        style: AppTypography.displayMedium.copyWith(fontSize: 16),
+                        style: TextStyle(
+                          color: textColor,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: 'DM Sans',
+                        ),
                       ),
                       const SizedBox(height: 6),
                       Text(
                         'New experiences are added weekly. Check back often to find gatherings that match your current mood.',
-                        style: AppTypography.bodyMedium,
+                        style: TextStyle(
+                          color: mutedColor,
+                          fontFamily: 'DM Sans',
+                        ),
                       ),
                     ],
                   ),
@@ -420,6 +473,9 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   void _showFilterDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -427,6 +483,7 @@ class _EventsScreenState extends State<EventsScreen> {
       builder: (context) {
         return GlassCard(
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+          backgroundColor: bgColor.withOpacity(0.9),
           child: Container(
             height: MediaQuery.of(context).size.height * 0.7,
             padding: const EdgeInsets.all(12),
@@ -434,7 +491,9 @@ class _EventsScreenState extends State<EventsScreen> {
               children: [
                 Text(
                   'Filter Experiences',
-                  style: AppTypography.displayMedium,
+                  style: AppTypography.displayMedium.copyWith(
+                    color: isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A),
+                  ),
                 ),
                 Expanded(
                   child: ListView(

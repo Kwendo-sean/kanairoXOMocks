@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../../models/data_models.dart';
 import '../../providers/events_provider.dart';
 import '../../widgets/loading_indicator.dart';
+import 'ticket_purchase_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -16,7 +17,6 @@ class EventDetailScreen extends StatefulWidget {
 class _EventDetailScreenState extends State<EventDetailScreen> {
   Experience? _experience;
   bool _isLoading = true;
-  bool _isJoining = false;
 
   @override
   void initState() {
@@ -51,53 +51,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
-  Future<void> _handleJoinEvent() async {
-    if (_experience == null || _isJoining) return;
-
-    setState(() {
-      _isJoining = true;
-    });
-
-    try {
-      final result = await Provider.of<EventsProvider>(context, listen: false)
-          .registerForExperience(experienceId: _experience!.id);
-
-      if (!mounted) return;
-
-      if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Successfully registered for ${_experience!.title}'),
-            backgroundColor: Colors.green,
-          ),
-        );
-
-        // Update the experience
-        await _loadEventDetail();
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Failed to register: ${result['error']}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    } catch (e) {
-      debugPrint('Error joining event: $e');
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to register'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isJoining = false;
-        });
-      }
-    }
+  void _navigateToPurchase() {
+    if (_experience == null) return;
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TicketPurchaseScreen(event: _experience!),
+      ),
+    );
   }
 
   Future<void> _handleSaveEvent() async {
@@ -385,7 +346,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
                   // Join button
                   ElevatedButton(
-                    onPressed: _experience!.isFull || _isJoining ? null : _handleJoinEvent,
+                    onPressed: _experience!.isFull ? null : _navigateToPurchase,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).primaryColor,
                       foregroundColor: Colors.white,
@@ -394,22 +355,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         vertical: 16,
                       ),
                     ),
-                    child: _isJoining
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            ),
-                          )
-                        : Text(
-                            _experience!.isFull ? 'FULL' : 'JOIN NOW',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
+                    child: Text(
+                      _experience!.isFull ? 'FULL' : 'JOIN NOW',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                   ),
                 ],
               ),

@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/screens/discovery_screen.dart';
 import 'package:kanairoxo/screens/events/events_screen.dart';
 import 'package:kanairoxo/screens/moments_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_screen.dart';
-import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/bottom_nav_bar.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
-import 'package:kanairoxo/models/data_models.dart';
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -47,7 +45,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
+      backgroundColor: context.bgColor,
       body: PageView(
         controller: _pageController,
         physics: const NeverScrollableScrollPhysics(),

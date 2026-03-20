@@ -18,6 +18,22 @@ class BottomNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bool isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    // Theme-aware colors
+    final Color activeColor = isDark 
+        ? const Color(0xFFC0394B) 
+        : AppColors.primary;
+    final Color inactiveColor = isDark 
+        ? const Color(0xFF7A6E66) 
+        : AppColors.textMuted;
+    final Color bgColor = isDark 
+        ? const Color(0xFF1C1612) 
+        : AppColors.surfaceGlass;
+    final Color borderColor = isDark 
+        ? const Color(0xFF2E2820) 
+        : Colors.white.withOpacity(0.5);
+
     return SafeArea(
       bottom: true,
       child: Container(
@@ -29,10 +45,10 @@ class BottomNavBar extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.surfaceGlass,
+                color: bgColor,
                 borderRadius: const BorderRadius.all(Radius.circular(32)),
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.5),
+                  color: borderColor,
                   width: 1,
                 ),
                 boxShadow: [
@@ -46,10 +62,10 @@ class BottomNavBar extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(context, 0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover'),
-                  _buildNavItem(context, 1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events'),
-                  _buildNavItem(context, 2, PhosphorIcons.sparkle(PhosphorIconsStyle.regular), 'Moments'),
-                  _buildNavItem(context, 3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile'),
+                  _buildNavItem(context, 0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover', activeColor, inactiveColor),
+                  _buildNavItem(context, 1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events', activeColor, inactiveColor),
+                  _buildNavItem(context, 2, PhosphorIcons.sparkle(PhosphorIconsStyle.regular), 'Moments', activeColor, inactiveColor),
+                  _buildNavItem(context, 3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile', activeColor, inactiveColor),
                 ],
               ),
             ),
@@ -59,7 +75,7 @@ class BottomNavBar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(BuildContext context, int index, IconData icon, String label) {
+  Widget _buildNavItem(BuildContext context, int index, IconData icon, String label, Color activeColor, Color inactiveColor) {
     final isActive = index == currentIndex;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
@@ -74,13 +90,13 @@ class BottomNavBar extends StatelessWidget {
             PhosphorIcon(
               icon,
               size: 24,
-              color: isActive ? AppColors.primary : AppColors.textMuted,
+              color: isActive ? activeColor : inactiveColor,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: AppTypography.caption.copyWith(
-                color: isActive ? AppColors.primary : AppColors.textMuted,
+                color: isActive ? activeColor : inactiveColor,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
               ),
             ),

@@ -1,20 +1,23 @@
 import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/profile_model.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/profile_api_service.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/singles/moment_viewer_screen.dart';
-import 'package:provider/provider.dart';
-import 'package:kanairoxo/providers/auth_provider.dart';
+import 'package:kanairoxo/screens/settings/settings_screen.dart';
+import 'package:kanairoxo/utils/auth_storage.dart';
+import 'package:kanairoxo/screens/auth/login_screen.dart';
+import 'package:kanairoxo/screens/main_app_screen.dart';
+import 'package:kanairoxo/services/api_client.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? publicId;
@@ -27,6 +30,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveClientMixin {
   final ProfileApiService profileApiService = ProfileApiService();
+  final ApiClient _apiClient = ApiClient();
   
   ProfileModel? _profile;
   bool _isLoading = true;
@@ -55,20 +59,34 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       _isLoading = true;
       _error = null;
     });
+    
     try {
-      final profile = await profileApiService.getProfile();
+      final response = await _apiClient.get(
+        'api/v1/profiles/edit/',
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
+        });
+      
       if (!mounted) return;
+      
+      final profileData = response is Map<String, dynamic>
+        ? (response.containsKey('profile') ? response['profile'] as Map<String, dynamic> : response)
+        : response as Map<String, dynamic>;
+
+      final profile = ProfileModel.fromJson(profileData);
+      
       setState(() {
         _profile = profile;
         _isLoading = false;
       });
+      
     } catch (e) {
       if (!mounted) return;
       setState(() {
         _error = e.toString();
         _isLoading = false;
       });
-      debugPrint('Profile load error: $e');
     }
   }
 
@@ -85,7 +103,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     } catch (e) {
       if (!mounted) return;
       setState(() => _galleryLoading = false);
-      debugPrint('Gallery load error: $e');
     }
   }
 
@@ -98,7 +115,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         ),
       ),
     );
-    // Refresh if changes were saved
+    
     if (result == true) {
       _loadProfile();
       _loadGallery();
@@ -108,26 +125,104 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   void _confirmLogout() {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Logout', style: AppTypography.displayMedium.copyWith(fontSize: 18)),
-        content: const Text('Are you sure you want to log out?', style: TextStyle(fontSize: 14)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: AppTypography.labelMedium.copyWith(color: AppColors.textMuted)),
-          ),
-          LiquidGlassButton(
-            size: LiquidButtonSize.sm,
-            onPressed: () async {
-              Navigator.pop(ctx);
-              await context.read<AuthProvider>().logout();
+      barrierColor: Colors.black.withOpacity(0.5),
+      builder: (ctx) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24)),
+        backgroundColor: context.surfaceColor,
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56, height: 56,
+                decoration: BoxDecoration(
+                  color: context.primaryColor.withOpacity(0.1),
+                  shape: BoxShape.circle),
+                child: Icon(
+                  Icons.logout_outlined,
+                  color: context.primaryColor,
+                  size: 26)),
+              
+              const SizedBox(height: 16),
+              
+              Text('Log out?',
+                style: AppTypography.displayMedium
+                  .copyWith(fontSize: 20, color: context.textColor)),
+              
+              const SizedBox(height: 8),
+              
+              Text(
+                'You can log back in anytime',
+                style: AppTypography.bodyMedium
+                  .copyWith(
+                    color: context.mutedColor),
+                textAlign: TextAlign.center),
+              
+              const SizedBox(height: 24),
+              
+              SizedBox(
+                width: double.infinity,
+                child: LiquidGlassButton(
+                  size: LiquidButtonSize.lg,
+                  onPressed: () {
+                    Navigator.pop(ctx);
+                    _performLogout();
+                  },
+                  child: Text('Log Out',
+                    style: AppTypography
+                      .buttonText))),
+              
+              const SizedBox(height: 10),
+              
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => 
+                    Navigator.pop(ctx),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 14)),
+                  child: Text('Cancel',
+                    style: AppTypography
+                      .labelMedium.copyWith(
+                        color: context.mutedColor,
+                        fontWeight: 
+                          FontWeight.w500)))),
+            ]))));
+  }
+  
+  Future<void> _performLogout() async {
+    try {
+      await AuthStorage.clearAll();
+      
+      if (!mounted) return;
+      
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => LoginScreen(
+            onLoginSuccess: () {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const MainAppScreen()),
+                (route) => false);
             },
-            child: Text('Logout', style: AppTypography.buttonText),
-          ),
-        ],
-      ),
-    );
+            onSignupTap: () {},
+          )),
+        (route) => false);
+      
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Logout failed',
+            style: AppTypography.caption.copyWith(
+              color: Colors.white)),
+          backgroundColor: Colors.red.shade700));
+    }
   }
 
   Future<void> _uploadGalleryPhoto() async {
@@ -137,7 +232,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     
     try {
       await profileApiService.uploadGalleryPhoto(File(img.path));
-      _loadGallery(); // Refresh gallery
+      _loadGallery();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -169,13 +264,14 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
+        backgroundColor: context.surfaceColor,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Remove photo?', style: AppTypography.displayMedium.copyWith(fontSize: 18)),
-        content: Text('This photo will be permanently removed from your gallery.', style: AppTypography.bodyMedium),
+        title: Text('Remove photo?', style: AppTypography.displayMedium.copyWith(fontSize: 18, color: context.textColor)),
+        content: Text('This photo will be permanently removed from your gallery.', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx),
-            child: Text('Cancel', style: AppTypography.labelMedium.copyWith(color: AppColors.textMuted)),
+            child: Text('Cancel', style: AppTypography.labelMedium.copyWith(color: context.mutedColor)),
           ),
           LiquidGlassButton(
             size: LiquidButtonSize.sm,
@@ -191,7 +287,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   void _openGalleryViewer(int startIndex) {
-    // Pass gallery photos as moment-like objects
     final moments = _galleryPhotos.map((p) => Moment(
       id: p.id.toString(),
       userName: _profile?.fullName ?? 'User',
@@ -218,9 +313,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     super.build(context);
     
     if (_isLoading) {
-      return const Scaffold(
-        backgroundColor: AppColors.background,
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2)),
+      return Scaffold(
+        backgroundColor: context.bgColor,
+        body: Center(child: CircularProgressIndicator(color: context.primaryColor, strokeWidth: 2)),
       );
     }
     
@@ -229,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     }
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       body: RefreshIndicator(
         onRefresh: () async {
           await _loadProfile();
@@ -266,7 +361,6 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        // BACKGROUND: blurred profile photo or gradient fallback
         SizedBox(
           height: 220,
           width: double.infinity,
@@ -291,12 +385,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                       gradient: LinearGradient(
                         begin: Alignment.topCenter,
                         end: Alignment.bottomCenter,
-                        colors: [AppColors.primary, AppColors.primary.withOpacity(0.0)],
+                        colors: [context.primaryColor, context.primaryColor.withOpacity(0.0)],
                       ),
                     ),
                   ),
                 ),
-              // Dark overlay
               Positioned.fill(
                 child: Container(
                   decoration: BoxDecoration(
@@ -317,13 +410,18 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           ),
         ),
         
-        // Header action buttons
         Positioned(
           top: MediaQuery.of(context).padding.top + 8,
           right: 16,
           child: Row(
             children: [
               if (widget.publicId == null) ...[
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => SettingsScreen())),
+                ),
                 IconButton(
                   icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20),
                   onPressed: _openEditProfile,
@@ -337,14 +435,12 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           ),
         ),
         
-        // Profile content centered
         Positioned(
           bottom: 0,
           left: 0,
           right: 0,
           child: Column(
             children: [
-              // Profile photo (sharp, centered)
               Stack(
                 children: [
                   Container(
@@ -370,8 +466,8 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           : Container(
                               width: 88,
                               height: 88,
-                              color: Colors.grey.shade200,
-                              child: const Icon(Icons.person_outline, size: 40, color: AppColors.textMuted),
+                              color: context.isDark ? context.surfaceColor : Colors.grey.shade200,
+                              child: Icon(Icons.person_outline, size: 40, color: context.mutedColor),
                             ),
                     ),
                   ),
@@ -385,7 +481,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           width: 28,
                           height: 28,
                           decoration: BoxDecoration(
-                            color: AppColors.primary,
+                            color: context.primaryColor,
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
@@ -431,7 +527,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 2)),
@@ -450,14 +546,14 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     );
   }
 
-  Widget _buildStatDivider() => Container(height: 30, width: 1, color: Colors.grey.shade100);
+  Widget _buildStatDivider() => Container(height: 30, width: 1, color: context.borderColor);
 
   Widget _buildCompletionCard() {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: const Offset(0, 2)),
@@ -469,8 +565,8 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Complete Your Profile', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-              Text('${_profile!.completionPercentage}%', style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              Text('Complete Your Profile', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
+              Text('${_profile!.completionPercentage}%', style: AppTypography.labelMedium.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 10),
@@ -478,16 +574,16 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
             borderRadius: BorderRadius.circular(999),
             child: LinearProgressIndicator(
               value: _profile!.completionPercentage / 100,
-              backgroundColor: Colors.grey.shade100,
-              color: AppColors.primary,
+              backgroundColor: context.isDark ? context.borderColor : Colors.grey.shade100,
+              color: context.primaryColor,
               minHeight: 6,
             ),
           ),
           if (_profile!.nextSteps.isNotEmpty) ...[
             const SizedBox(height: 14),
-            Divider(color: Colors.grey.shade100),
+            Divider(color: context.borderColor),
             const SizedBox(height: 8),
-            Text('Next Steps:', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text('Next Steps:', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
             const SizedBox(height: 8),
             ..._profile!.nextSteps.map((step) => Padding(
               padding: const EdgeInsets.only(bottom: 6),
@@ -495,9 +591,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 onTap: _openEditProfile,
                 child: Row(
                   children: [
-                    const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
+                    Icon(Icons.add_circle_outline, size: 16, color: context.primaryColor),
                     const SizedBox(width: 8),
-                    Text(step.label, style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary)),
+                    Text(step.label, style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
                   ],
                 ),
               ),
@@ -514,20 +610,20 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('About Me', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+          Text('About Me', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: context.textColor)),
           const SizedBox(height: 8),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: context.surfaceColor,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.grey.shade100),
+              border: Border.all(color: context.borderColor),
             ),
             child: Text(
               _profile!.bio.isNotEmpty ? _profile!.bio : 'No bio yet. Tap edit to add one.',
               style: AppTypography.bodyMedium.copyWith(
-                color: _profile!.bio.isNotEmpty ? AppColors.textPrimary : AppColors.textMuted,
+                color: _profile!.bio.isNotEmpty ? context.textColor : context.mutedColor,
               ),
             ),
           ),
@@ -542,7 +638,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('My Interests', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+          Text('My Interests', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: context.textColor)),
           const SizedBox(height: 8),
           if (_profile!.interests.isEmpty)
             GestureDetector(
@@ -551,15 +647,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade100),
+                  border: Border.all(color: context.borderColor),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.add_circle_outline, size: 18, color: AppColors.primary),
+                    Icon(Icons.add_circle_outline, size: 18, color: context.primaryColor),
                     const SizedBox(width: 8),
-                    Text('Add your interests', style: AppTypography.bodyMedium.copyWith(color: AppColors.primary)),
+                    Text('Add your interests', style: AppTypography.bodyMedium.copyWith(color: context.primaryColor)),
                   ],
                 ),
               ),
@@ -571,13 +667,13 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
               children: _profile!.interests.map((interest) => Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGlass,
+                  color: AppColors.themePrimaryGlass(context),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                  border: Border.all(color: context.primaryColor.withOpacity(0.2)),
                 ),
                 child: Text(
                   interest.name,
-                  style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w500, fontSize: 12),
+                  style: AppTypography.labelMedium.copyWith(color: context.primaryColor, fontWeight: FontWeight.w500, fontSize: 12),
                 ),
               )).toList(),
             ),
@@ -595,15 +691,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Gallery', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+              Text('Gallery', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: context.textColor)),
               if (widget.publicId == null)
                 GestureDetector(
                   onTap: _uploadGalleryPhoto,
                   child: Row(
                     children: [
-                      const Icon(Icons.add_photo_alternate_outlined, size: 16, color: AppColors.primary),
+                      Icon(Icons.add_photo_alternate_outlined, size: 16, color: context.primaryColor),
                       const SizedBox(width: 4),
-                      Text('Upload', style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                      Text('Upload', style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -611,7 +707,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           ),
           const SizedBox(height: 10),
           if (_galleryLoading)
-            const Center(child: Padding(padding: EdgeInsets.all(24), child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+            Center(child: Padding(padding: const EdgeInsets.all(24), child: CircularProgressIndicator(strokeWidth: 2, color: context.primaryColor)))
           else if (_galleryPhotos.isEmpty)
             GestureDetector(
               onTap: widget.publicId == null ? _uploadGalleryPhoto : null,
@@ -619,19 +715,19 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 width: double.infinity,
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: context.surfaceColor,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.grey.shade100),
+                  border: Border.all(color: context.borderColor),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.photo_library_outlined, size: 36, color: AppColors.textMuted),
+                    Icon(Icons.photo_library_outlined, size: 36, color: context.mutedColor),
                     const SizedBox(height: 8),
-                    Text('Your gallery is empty', style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted)),
+                    Text('Your gallery is empty', style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
                     if (widget.publicId == null)
                       const SizedBox(height: 4),
                     if (widget.publicId == null)
-                      Text('Tap to upload photos', style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                      Text('Tap to upload photos', style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   ],
                 ),
               ),
@@ -653,16 +749,16 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     onTap: _uploadGalleryPhoto,
                     child: Container(
                       decoration: BoxDecoration(
-                        color: AppColors.primaryGlass,
+                        color: AppColors.themePrimaryGlass(context),
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+                        border: Border.all(color: context.primaryColor.withOpacity(0.2)),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.add, color: AppColors.primary, size: 24),
+                          Icon(Icons.add, color: context.primaryColor, size: 24),
                           const SizedBox(height: 4),
-                          Text('Add', style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                          Text('Add', style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600)),
                         ],
                       ),
                     ),
@@ -687,14 +783,22 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
 
   Widget _buildErrorState() {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.primary),
+            Icon(Icons.error_outline, size: 48, color: context.primaryColor),
             const SizedBox(height: 12),
-            const Text('Could not load profile', style: TextStyle(fontSize: 14)),
+            Text('Could not load profile', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
+            const SizedBox(height: 8),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(_error ?? 'Unknown error',
+                style: AppTypography.caption.copyWith(
+                  color: context.mutedColor),
+                textAlign: TextAlign.center),
+            ),
             const SizedBox(height: 16),
             LiquidGlassButton(
               size: LiquidButtonSize.md,
@@ -719,10 +823,10 @@ class _StatItem extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Icon(icon, size: 16, color: AppColors.primary),
+        Icon(icon, size: 16, color: context.primaryColor),
         const SizedBox(height: 4),
-        Text(value, style: AppTypography.displayMedium.copyWith(fontSize: 16)),
-        Text(label, style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+        Text(value, style: AppTypography.displayMedium.copyWith(fontSize: 16, color: context.textColor)),
+        Text(label, style: AppTypography.caption.copyWith(color: context.mutedColor)),
       ],
     );
   }

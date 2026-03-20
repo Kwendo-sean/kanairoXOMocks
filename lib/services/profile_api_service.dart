@@ -40,7 +40,6 @@ class ProfileApiService {
         photo.path,
         filename: photo.path.split('/').last),
     });
-    // Use Dio directly via ApiClient if possible, or assume post handles dynamic data
     await _apiClient.post('api/v1/profiles/gallery/upload/', formData as dynamic);
   }
   
@@ -48,7 +47,7 @@ class ProfileApiService {
     await _apiClient.delete('api/v1/profiles/gallery/$id/delete/');
   }
 
-  // --- EXISTING METHODS (RESTORED TO FIX PROVIDER) ---
+  // --- EXISTING METHODS ---
 
   Future<User> getMyProfile() async {
     final response = await _apiClient.get('api/v1/auth/profile/');
@@ -61,7 +60,8 @@ class ProfileApiService {
   }
 
   Future<User> updateProfile(UserProfileUpdate update) async {
-    final response = await _apiClient.patch('api/v1/profiles/me/', update.toJson());
+    // Consistent with profile/edit/ endpoint
+    final response = await _apiClient.patch('api/v1/profiles/edit/', update.toJson());
     return User.fromJson(response);
   }
 

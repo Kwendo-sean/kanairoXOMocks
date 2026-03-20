@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/connection_models.dart';
 import 'package:kanairoxo/screens/singles/profile_preview_screen.dart';
 import 'package:kanairoxo/services/api_client.dart';
@@ -142,7 +143,7 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
             action == 'accept' ? 'Connected with ${request.initiatorName}' : 'Request declined',
             style: AppTypography.caption.copyWith(color: Colors.white),
           ),
-          backgroundColor: action == 'accept' ? Colors.green.shade600 : AppColors.textMuted,
+          backgroundColor: action == 'accept' ? Colors.green.shade600 : Colors.grey,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
@@ -178,19 +179,19 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
   }
 
-  Widget _buildTabBar() {
+  Widget _buildTabBar(Color bgColor, Color borderColor, Color primaryColor, Color mutedColor) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.background,
-        border: Border(bottom: BorderSide(color: Colors.grey.shade200, width: 1)),
+        color: bgColor,
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       child: TabBar(
         controller: _tabController,
-        labelColor: AppColors.primary,
-        unselectedLabelColor: AppColors.textMuted,
+        labelColor: primaryColor,
+        unselectedLabelColor: mutedColor,
         labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
         unselectedLabelStyle: AppTypography.labelMedium,
-        indicatorColor: AppColors.primary,
+        indicatorColor: primaryColor,
         indicatorWeight: 2,
         indicatorSize: TabBarIndicatorSize.label,
         tabs: const [
@@ -202,21 +203,21 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
   }
 
-  Widget _buildEmptyState(IconData icon, String title, String subtitle) {
+  Widget _buildEmptyState(IconData icon, String title, String subtitle, Color textColor, Color mutedColor) {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 52, color: AppColors.textMuted),
+          Icon(icon, size: 52, color: mutedColor),
           const SizedBox(height: 16),
           Text(
             title,
-            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+            style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor),
           ),
           const SizedBox(height: 6),
           Text(
             subtitle,
-            style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+            style: AppTypography.caption.copyWith(color: mutedColor),
             textAlign: TextAlign.center,
           ),
         ],
@@ -224,9 +225,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
   }
 
-  Widget _buildAllTab() {
+  Widget _buildAllTab(Color textColor, Color mutedColor, Color primaryColor) {
     if (_loadingNotifications) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
+      return Center(child: CircularProgressIndicator(color: primaryColor, strokeWidth: 2));
     }
 
     if (_notifications.isEmpty) {
@@ -234,6 +235,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         Icons.notifications_outlined,
         'No notifications',
         'Your notifications will appear here',
+        textColor,
+        mutedColor,
       );
     }
 
@@ -245,9 +248,9 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
   }
 
-  Widget _buildConnectionsTab() {
+  Widget _buildConnectionsTab(Color textColor, Color mutedColor, Color primaryColor) {
     if (_loadingRequests) {
-      return const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
+      return Center(child: CircularProgressIndicator(color: primaryColor, strokeWidth: 2));
     }
 
     if (_requests.isEmpty) {
@@ -255,6 +258,8 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
         Icons.people_outline,
         'No connection requests',
         'When someone wants to connect with you,\nit will appear here',
+        textColor,
+        mutedColor,
       );
     }
 
@@ -271,38 +276,50 @@ class _NotificationScreenState extends State<NotificationScreen> with SingleTick
     );
   }
 
-  Widget _buildTicketsTab() {
+  Widget _buildTicketsTab(Color textColor, Color mutedColor) {
     return _buildEmptyState(
       Icons.confirmation_number_outlined,
       'No ticket notifications',
       'Your event tickets will appear here',
+      textColor,
+      mutedColor,
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final surface2Color = isDark ? const Color(0xFF252018) : const Color(0xFFF5F5F5);
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+    final primaryGlass = isDark ? const Color(0x26C0394B) : const Color(0x148B1A1A);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: bgColor,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1A1A), size: 22),
+          icon: Icon(Icons.arrow_back, color: textColor, size: 22),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Notifications', style: AppTypography.screenTitle),
+        title: Text('Notifications', style: AppTypography.screenTitle.copyWith(color: textColor)),
         centerTitle: true,
       ),
       body: Column(
         children: [
-          _buildTabBar(),
+          _buildTabBar(bgColor, borderColor, primaryColor, mutedColor),
           Expanded(
             child: TabBarView(
               controller: _tabController,
               children: [
-                _buildAllTab(),
-                _buildConnectionsTab(),
-                _buildTicketsTab(),
+                _buildAllTab(textColor, mutedColor, primaryColor),
+                _buildConnectionsTab(textColor, mutedColor, primaryColor),
+                _buildTicketsTab(textColor, mutedColor),
               ],
             ),
           ),
@@ -330,13 +347,21 @@ class _NotificationItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+    final primaryGlass = isDark ? const Color(0x26C0394B) : const Color(0x148B1A1A);
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: notification.isRead ? Colors.white : AppColors.primaryGlass,
+        color: notification.isRead ? surfaceColor : primaryGlass,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: notification.isRead ? Colors.grey.shade100 : AppColors.primary.withOpacity(0.15),
+          color: notification.isRead ? borderColor : primaryColor.withOpacity(0.15),
         ),
       ),
       child: Row(
@@ -353,8 +378,8 @@ class _NotificationItem extends StatelessWidget {
               : Container(
                   width: 42,
                   height: 42,
-                  decoration: const BoxDecoration(color: AppColors.primaryGlass, shape: BoxShape.circle),
-                  child: Icon(_getNotificationIcon(notification.type), color: AppColors.primary, size: 20),
+                  decoration: BoxDecoration(color: primaryGlass, shape: BoxShape.circle),
+                  child: Icon(_getNotificationIcon(notification.type), color: primaryColor, size: 20),
                 ),
           const SizedBox(width: 12),
           Expanded(
@@ -363,12 +388,12 @@ class _NotificationItem extends StatelessWidget {
               children: [
                 Text(
                   notification.title,
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: textColor),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   notification.body,
-                  style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+                  style: AppTypography.caption.copyWith(color: mutedColor),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -378,7 +403,7 @@ class _NotificationItem extends StatelessWidget {
           const SizedBox(width: 8),
           Text(
             notification.timeAgo,
-            style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontSize: 10),
+            style: AppTypography.caption.copyWith(color: mutedColor, fontSize: 10),
           ),
         ],
       ),
@@ -401,14 +426,21 @@ class _ConnectionRequestCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: surfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(color: borderColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.04),
@@ -434,21 +466,21 @@ class _ConnectionRequestCard extends StatelessWidget {
                 children: [
                   Text(
                     request.initiatorName,
-                    style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
+                    style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: textColor),
                   ),
                   const SizedBox(height: 2),
                   if (request.initiatorNeighborhood.isNotEmpty)
                     Row(
                       children: [
-                        const Icon(Icons.location_on_outlined, size: 11, color: AppColors.textMuted),
+                        Icon(Icons.location_on_outlined, size: 11, color: mutedColor),
                         const SizedBox(width: 3),
-                        Text(request.initiatorNeighborhood, style: AppTypography.caption),
+                        Text(request.initiatorNeighborhood, style: AppTypography.caption.copyWith(color: mutedColor)),
                       ],
                     ),
                   const SizedBox(height: 2),
                   Text(
                     request.timeAgo,
-                    style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontSize: 10),
+                    style: AppTypography.caption.copyWith(color: mutedColor, fontSize: 10),
                   ),
                 ],
               ),
@@ -460,7 +492,7 @@ class _ConnectionRequestCard extends StatelessWidget {
                   child: Container(
                     width: 36,
                     height: 36,
-                    decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+                    decoration: BoxDecoration(color: primaryColor, shape: BoxShape.circle),
                     child: const Icon(Icons.check, color: Colors.white, size: 18),
                   ),
                 ),
@@ -471,11 +503,11 @@ class _ConnectionRequestCard extends StatelessWidget {
                     width: 36,
                     height: 36,
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: isDark ? borderColor : Colors.grey.shade100,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey.shade200),
+                      border: Border.all(color: borderColor),
                     ),
-                    child: const Icon(Icons.close, color: AppColors.textMuted, size: 18),
+                    child: Icon(Icons.close, color: mutedColor, size: 18),
                   ),
                 ),
               ],

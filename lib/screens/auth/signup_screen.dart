@@ -2,6 +2,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
@@ -116,25 +117,37 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    final DateTime? picked = await showDatePicker(
+    // Dismiss keyboard first if open
+    FocusScope.of(context).unfocus();
+    
+    // Small delay to let keyboard close
+    await Future.delayed(const Duration(milliseconds: 100));
+    
+    if (!mounted) return;
+    
+    final now = DateTime.now();
+    final maxDate = DateTime(now.year - 18, now.month, now.day);
+    final minDate = DateTime(now.year - 100, now.month, now.day);
+    
+    final picked = await showDatePicker(
       context: context,
-      initialDate: DateTime.now().subtract(const Duration(days: 365 * 20)),
-      firstDate: DateTime(1900),
-      lastDate: DateTime.now().subtract(const Duration(days: 365 * 18)),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: AppColors.primary,
-              onPrimary: Colors.white,
-              onSurface: AppColors.textPrimary,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
-    if (picked != null && picked != _selectedDate) {
+      initialDate: _selectedDate ?? DateTime(now.year - 22, 1, 1),
+      firstDate: minDate,
+      lastDate: maxDate,
+      helpText: 'Select Date of Birth',
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: ColorScheme.light(
+            primary: context.primaryColor,
+            onPrimary: Colors.white,
+            onSurface: context.textColor,
+            surface: context.surfaceColor),
+          textButtonTheme: TextButtonThemeData(
+            style: TextButton.styleFrom(
+              foregroundColor: context.primaryColor))),
+        child: child!));
+    
+    if (picked != null && mounted) {
       setState(() => _selectedDate = picked);
     }
   }
@@ -142,7 +155,7 @@ class _SignupScreenState extends State<SignupScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       body: SafeArea(
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
@@ -163,11 +176,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           style: AppTypography.displayLarge.copyWith(
                             fontSize: 28,
                             fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5)),
+                            letterSpacing: -0.5,
+                            color: context.textColor)),
                         const SizedBox(height: 4),
                         Text('Join the KanairoXO community',
                           style: AppTypography.bodyMedium.copyWith(
-                            color: AppColors.textMuted)),
+                            color: context.mutedColor)),
                       ],
                     ),
                   ),
@@ -185,9 +199,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.surfaceColor,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey.shade100),
+                      border: Border.all(color: context.borderColor),
                       boxShadow: [BoxShadow(
                         color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
@@ -207,37 +221,37 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 24),
 
                   // 5. Your Details Section
-                  const _SectionLabel(label: 'Your Details'),
+                  _SectionLabel(label: 'Your Details', color: context.textColor),
                   const SizedBox(height: 10),
                   Container(
-                    decoration: _cardDecoration(),
+                    decoration: _cardDecoration(context),
                     child: Column(children: [
                       _SignupField(
                         controller: _firstNameController,
                         hint: 'First Name',
                         icon: Icons.person_outline),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _SignupField(
                         controller: _lastNameController,
                         hint: 'Last Name',
                         icon: Icons.person_outline),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _SignupField(
                         controller: _emailController,
                         hint: 'Email Address',
                         icon: Icons.mail_outline,
                         keyboardType: TextInputType.emailAddress),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _SignupField(
                         controller: _phoneController,
                         hint: 'Phone Number',
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _GenderDropdown(
                         value: _selectedGender,
                         onChanged: (val) => setState(() => _selectedGender = val)),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _DateOfBirthField(
                         date: _selectedDate,
                         onTap: () => _selectDate(context)),
@@ -245,10 +259,10 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 16),
 
                   // 6. Password Section
-                  const _SectionLabel(label: 'Set Password'),
+                  _SectionLabel(label: 'Set Password', color: context.textColor),
                   const SizedBox(height: 10),
                   Container(
-                    decoration: _cardDecoration(),
+                    decoration: _cardDecoration(context),
                     child: Column(children: [
                       _SignupField(
                         controller: _passwordController,
@@ -259,9 +273,9 @@ class _SignupScreenState extends State<SignupScreen> {
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             size: 18,
-                            color: AppColors.textMuted),
+                            color: context.mutedColor),
                           onPressed: () => setState(() => _obscurePassword = !_obscurePassword))),
-                      const _FieldDivider(),
+                      _FieldDivider(color: context.borderColor),
                       _SignupField(
                         controller: _confirmPasswordController,
                         hint: 'Confirm Password',
@@ -271,7 +285,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           icon: Icon(
                             _obscureConfirm ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                             size: 18,
-                            color: AppColors.textMuted),
+                            color: context.mutedColor),
                           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm))),
                     ])),
                   
@@ -279,34 +293,34 @@ class _SignupScreenState extends State<SignupScreen> {
                   if (_signupType == 'couple') ...[
                     const SizedBox(height: 24),
                     Row(children: [
-                      Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+                      Expanded(child: Container(height: 1, color: context.borderColor)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryGlass,
+                            color: context.isDark ? context.primaryColor.withOpacity(0.15) : AppColors.primaryGlass,
                             borderRadius: BorderRadius.circular(999)),
                           child: Text('Partner Details',
                             style: AppTypography.caption.copyWith(
-                              color: AppColors.primary,
+                              color: context.primaryColor,
                               fontWeight: FontWeight.w600)))),
-                      Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+                      Expanded(child: Container(height: 1, color: context.borderColor)),
                     ]),
                     const SizedBox(height: 16),
                     Container(
-                      decoration: _cardDecoration(),
+                      decoration: _cardDecoration(context),
                       child: Column(children: [
                         _SignupField(
                           controller: _partnerFirstNameController,
                           hint: 'Partner First Name',
                           icon: Icons.person_outline),
-                        const _FieldDivider(),
+                        _FieldDivider(color: context.borderColor),
                         _SignupField(
                           controller: _partnerLastNameController,
                           hint: 'Partner Last Name',
                           icon: Icons.person_outline),
-                        const _FieldDivider(),
+                        _FieldDivider(color: context.borderColor),
                         _SignupField(
                           controller: _partnerEmailController,
                           hint: 'Partner Email',
@@ -320,9 +334,9 @@ class _SignupScreenState extends State<SignupScreen> {
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: context.surfaceColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: Colors.grey.shade100)),
+                      border: Border.all(color: context.borderColor)),
                     child: Column(children: [
                       Row(children: [
                         SizedBox(
@@ -330,18 +344,18 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Checkbox(
                             value: _agreeTerms,
                             onChanged: (val) => setState(() => _agreeTerms = val ?? false),
-                            activeColor: AppColors.primary,
+                            activeColor: context.primaryColor,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            side: BorderSide(color: Colors.grey.shade300))),
+                            side: BorderSide(color: context.isDark ? context.mutedColor : Colors.grey.shade300))),
                         const SizedBox(width: 10),
                         Expanded(child: RichText(
                           text: TextSpan(
-                            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                            style: AppTypography.caption.copyWith(color: context.textColor.withOpacity(0.7)),
                             children: [
                               const TextSpan(text: 'I agree to the '),
                               TextSpan(
                                 text: 'Terms & Conditions',
-                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                                style: TextStyle(color: context.primaryColor, fontWeight: FontWeight.w600),
                                 recognizer: TapGestureRecognizer()..onTap = () {}),
                             ]))),
                       ]),
@@ -352,18 +366,18 @@ class _SignupScreenState extends State<SignupScreen> {
                           child: Checkbox(
                             value: _agreePrivacy,
                             onChanged: (val) => setState(() => _agreePrivacy = val ?? false),
-                            activeColor: AppColors.primary,
+                            activeColor: context.primaryColor,
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            side: BorderSide(color: Colors.grey.shade300))),
+                            side: BorderSide(color: context.isDark ? context.mutedColor : Colors.grey.shade300))),
                         const SizedBox(width: 10),
                         Expanded(child: RichText(
                           text: TextSpan(
-                            style: AppTypography.caption.copyWith(color: AppColors.textSecondary),
+                            style: AppTypography.caption.copyWith(color: context.textColor.withOpacity(0.7)),
                             children: [
                               const TextSpan(text: 'I agree to the '),
                               TextSpan(
                                 text: 'Privacy Policy',
-                                style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w600),
+                                style: TextStyle(color: context.primaryColor, fontWeight: FontWeight.w600),
                                 recognizer: TapGestureRecognizer()..onTap = () {}),
                             ]))),
                       ]),
@@ -383,12 +397,12 @@ class _SignupScreenState extends State<SignupScreen> {
 
                   // 10. Social Login
                   Row(children: [
-                    Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+                    Expanded(child: Divider(color: context.borderColor)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Text('or continue with',
-                        style: AppTypography.caption.copyWith(color: AppColors.textMuted))),
-                    Expanded(child: Container(height: 1, color: Colors.grey.shade200)),
+                        style: AppTypography.caption.copyWith(color: context.mutedColor))),
+                    Expanded(child: Divider(color: context.borderColor)),
                   ]),
                   const SizedBox(height: 16),
                   Row(
@@ -406,11 +420,11 @@ class _SignupScreenState extends State<SignupScreen> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Already have an account? ',
-                        style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted)),
+                        style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
                       GestureDetector(
                         onTap: widget.onLoginTap,
                         child: Text('Log In',
-                          style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600))),
+                          style: AppTypography.bodyMedium.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600))),
                     ]),
                   const SizedBox(height: 24),
                 ],
@@ -422,11 +436,11 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  BoxDecoration _cardDecoration() {
+  BoxDecoration _cardDecoration(BuildContext context) {
     return BoxDecoration(
-      color: Colors.white,
+      color: context.surfaceColor,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: Colors.grey.shade100),
+      border: Border.all(color: context.borderColor),
       boxShadow: [BoxShadow(
         color: Colors.black.withOpacity(0.04),
         blurRadius: 8,
@@ -451,16 +465,16 @@ class _ToggleOption extends StatelessWidget {
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: isSelected ? AppColors.primary : Colors.transparent,
+            color: isSelected ? context.primaryColor : Colors.transparent,
             borderRadius: BorderRadius.circular(12)),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.textMuted),
+              Icon(icon, size: 16, color: isSelected ? Colors.white : context.mutedColor),
               const SizedBox(width: 6),
               Text(label,
                 style: AppTypography.labelMedium.copyWith(
-                  color: isSelected ? Colors.white : AppColors.textMuted,
+                  color: isSelected ? Colors.white : context.mutedColor,
                   fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400)),
             ])),
       ),
@@ -491,11 +505,11 @@ class _SignupField extends StatelessWidget {
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: AppTypography.bodyMedium.copyWith(color: AppColors.textPrimary),
+      style: AppTypography.bodyMedium.copyWith(color: context.textColor),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted),
-        prefixIcon: Icon(icon, size: 18, color: AppColors.textMuted),
+        hintStyle: AppTypography.bodyMedium.copyWith(color: context.mutedColor),
+        prefixIcon: Icon(icon, size: 18, color: context.mutedColor),
         suffixIcon: suffix,
         filled: true,
         fillColor: Colors.transparent,
@@ -503,28 +517,30 @@ class _SignupField extends StatelessWidget {
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
         focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: AppColors.primary.withOpacity(0.3), width: 1)),
+          borderSide: BorderSide(color: context.primaryColor.withOpacity(0.3), width: 1)),
       ));
   }
 }
 
 class _SectionLabel extends StatelessWidget {
   final String label;
-  const _SectionLabel({required this.label});
+  final Color color;
+  const _SectionLabel({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) {
     return Text(label,
-      style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.textPrimary));
+      style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: color));
   }
 }
 
 class _FieldDivider extends StatelessWidget {
-  const _FieldDivider();
+  final Color color;
+  const _FieldDivider({required this.color});
 
   @override
   Widget build(BuildContext context) {
-    return Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 16), color: Colors.grey.shade100);
+    return Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 16), color: color);
   }
 }
 
@@ -538,19 +554,21 @@ class _GenderDropdown extends StatelessWidget {
   Widget build(BuildContext context) {
     return DropdownButtonFormField<String>(
       value: value,
-      hint: Text('Gender', style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted)),
-      icon: const Icon(Icons.keyboard_arrow_down, size: 18, color: AppColors.textMuted),
-      decoration: const InputDecoration(
-        prefixIcon: Icon(Icons.wc_outlined, size: 18, color: AppColors.textMuted),
+      hint: Text('Gender', style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
+      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: context.mutedColor),
+      dropdownColor: context.surfaceColor,
+      decoration: InputDecoration(
+        prefixIcon: Icon(Icons.wc_outlined, size: 18, color: context.mutedColor),
         filled: true,
         fillColor: Colors.transparent,
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border: InputBorder.none,
         enabledBorder: InputBorder.none,
-        focusedBorder: InputBorder.none),
-      items: const [
-        DropdownMenuItem(value: 'Male', child: Text('Male')),
-        DropdownMenuItem(value: 'Female', child: Text('Female')),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: context.primaryColor.withOpacity(0.3), width: 1))),
+      items: [
+        DropdownMenuItem(value: 'Male', child: Text('Male', style: TextStyle(color: context.textColor))),
+        DropdownMenuItem(value: 'Female', child: Text('Female', style: TextStyle(color: context.textColor))),
       ],
       onChanged: onChanged);
   }
@@ -564,18 +582,25 @@ class _DateOfBirthField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return TextFormField(
+      readOnly: true,
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(children: [
-          const Icon(Icons.calendar_today_outlined, size: 18, color: AppColors.textMuted),
-          const SizedBox(width: 12),
-          Text(
-            date != null ? DateFormat('dd/MM/yyyy').format(date!) : 'Date of Birth',
-            style: AppTypography.bodyMedium.copyWith(color: date != null ? AppColors.textPrimary : AppColors.textMuted)),
-        ])),
-    );
+      controller: TextEditingController(
+        text: date != null ? DateFormat('dd/MM/yyyy').format(date!) : ''),
+      style: AppTypography.bodyMedium.copyWith(color: context.textColor),
+      decoration: InputDecoration(
+        hintText: 'Date of Birth',
+        hintStyle: AppTypography.bodyMedium.copyWith(color: context.mutedColor),
+        prefixIcon: Icon(Icons.calendar_today_outlined, size: 18, color: context.mutedColor),
+        suffixIcon: Icon(Icons.keyboard_arrow_down, size: 18, color: context.mutedColor),
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: context.primaryColor.withOpacity(0.3), width: 1)),
+        filled: true,
+        fillColor: Colors.transparent,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      ));
   }
 }
 
@@ -593,9 +618,9 @@ class _SocialButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: context.borderColor),
           boxShadow: [BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
@@ -603,10 +628,10 @@ class _SocialButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 20, color: AppColors.textPrimary),
+            Icon(icon, size: 20, color: context.textColor),
             const SizedBox(width: 8),
             Text(label,
-              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
           ])),
     );
   }

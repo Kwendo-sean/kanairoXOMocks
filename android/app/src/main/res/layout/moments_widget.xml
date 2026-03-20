@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="#FAF7F4"
+  android:padding="8dp"
+  android:orientation="vertical">
+  
+  <LinearLayout
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingBottom="6dp"
+    android:gravity="center_vertical">
+    
+    <ImageView
+      android:layout_width="16dp"
+      android:layout_height="16dp"
+      android:src="@mipmap/ic_launcher"
+      android:scaleType="fitCenter"/>
+    
+    <TextView
+      android:layout_width="wrap_content"
+      android:layout_height="wrap_content"
+      android:text="Moments"
+      android:textSize="11sp"
+      android:textStyle="bold"
+      android:textColor="#8B1A1A"
+      android:paddingStart="4dp"/>
+  </LinearLayout>
+  
+  <GridLayout
+    android:layout_width="match_parent"
+    android:layout_height="0dp"
+    android:layout_weight="1"
+    android:rowCount="2"
+    android:columnCount="2">
+    
+    <FrameLayout
+      android:layout_width="0dp"
+      android:layout_height="0dp"
+      android:layout_columnWeight="1"
+      android:layout_rowWeight="1"
+      android:layout_margin="2dp"
+      android:background="#FFFFFF"
+      android:elevation="2dp">
+      
+      <ImageView
+        android:id="@+id/photo_1"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="16dp"/>
+      
+      <TextView
+        android:id="@+id/swahili_1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="Furaha kubwa"
+        android:textSize="8sp"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:paddingBottom="2dp"
+        android:paddingTop="2dp"
+        android:fontFamily="cursive"/>
+    </FrameLayout>
+    
+    <FrameLayout
+      android:layout_width="0dp"
+      android:layout_height="0dp"
+      android:layout_columnWeight="1"
+      android:layout_rowWeight="1"
+      android:layout_margin="2dp"
+      android:background="#FFFFFF"
+      android:elevation="2dp">
+      
+      <ImageView
+        android:id="@+id/photo_2"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="16dp"/>
+      
+      <TextView
+        android:id="@+id/swahili_2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="Wakati mzuri"
+        android:textSize="8sp"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:paddingBottom="2dp"
+        android:fontFamily="cursive"/>
+    </FrameLayout>
+    
+    <FrameLayout
+      android:layout_width="0dp"
+      android:layout_height="0dp"
+      android:layout_columnWeight="1"
+      android:layout_rowWeight="1"
+      android:layout_margin="2dp"
+      android:background="#FFFFFF"
+      android:elevation="2dp">
+      
+      <ImageView
+        android:id="@+id/photo_3"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="16dp"/>
+      
+      <TextView
+        android:id="@+id/swahili_3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="Maisha ni mazuri"
+        android:textSize="8sp"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:paddingBottom="2dp"
+        android:fontFamily="cursive"/>
+    </FrameLayout>
+    
+    <FrameLayout
+      android:layout_width="0dp"
+      android:layout_height="0dp"
+      android:layout_columnWeight="1"
+      android:layout_rowWeight="1"
+      android:layout_margin="2dp"
+      android:background="#FFFFFF"
+      android:elevation="2dp">
+      
+      <ImageView
+        android:id="@+id/photo_4"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:scaleType="centerCrop"
+        android:layout_marginBottom="16dp"/>
+      
+      <TextView
+        android:id="@+id/swahili_4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        android:text="Pamoja daima"
+        android:textSize="8sp"
+        android:textColor="#333333"
+        android:gravity="center"
+        android:paddingBottom="2dp"
+        android:fontFamily="cursive"/>
+    </FrameLayout>
+  </GridLayout>
+</LinearLayout>

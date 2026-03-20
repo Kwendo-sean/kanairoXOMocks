@@ -13,4 +13,8 @@ class AuthStorage {
     }
     return deviceId;
   }
+
+  static Future<void> clearAll() async {
+    await _storage.deleteAll();
+  }
 }

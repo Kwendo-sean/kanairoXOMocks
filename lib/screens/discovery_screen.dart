@@ -2,6 +2,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/models/connection_context_model.dart';
 import 'package:kanairoxo/services/discovery_service.dart';
@@ -9,7 +10,6 @@ import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/notification_service.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
-import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
@@ -193,7 +193,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Text('Saved for later'),
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.themePrimary(context),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -247,20 +247,24 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   @override
   Widget build(BuildContext context) {
+    final bgColor = context.bgColor;
+    final textColor = context.textColor;
+    final primaryColor = context.primaryColor;
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Discover', style: AppTypography.displayMedium.copyWith(fontSize: 20)),
+        title: Text('Discover', style: AppTypography.displayMedium.copyWith(fontSize: 20, color: textColor)),
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
           Stack(
             children: [
               IconButton(
-                icon: const Icon(
+                icon: Icon(
                   Icons.notifications_outlined,
-                  color: Color(0xFF1A1A1A),
+                  color: textColor,
                   size: 22,
                 ),
                 onPressed: () => Navigator.push(
@@ -276,7 +280,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                     width: 16,
                     height: 16,
                     decoration: BoxDecoration(
-                      color: AppColors.primary,
+                      color: primaryColor,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
@@ -297,7 +301,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         ],
       ),
       body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: AppColors.primary))
+          ? Center(child: CircularProgressIndicator(color: primaryColor))
           : _error != null
               ? _buildError()
               : _discoveries.isEmpty
@@ -313,9 +317,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: AppColors.primary),
+            Icon(Icons.error_outline, size: 48, color: context.primaryColor),
             const SizedBox(height: 12),
-            Text(_error ?? 'An error occurred', textAlign: TextAlign.center, style: AppTypography.bodyMedium),
+            Text(_error ?? 'An error occurred', textAlign: TextAlign.center, style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
             const SizedBox(height: 12),
             LiquidGlassButton(
               size: LiquidButtonSize.md,
@@ -335,11 +339,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 60, color: AppColors.textMuted),
+            Icon(Icons.people_outline, size: 60, color: context.mutedColor),
             const SizedBox(height: 12),
-            Text('No profiles right now', style: AppTypography.displayMedium),
+            Text('No profiles right now', style: AppTypography.displayMedium.copyWith(color: context.textColor)),
             const SizedBox(height: 8),
-            Text("Check back later", style: AppTypography.bodyMedium),
+            Text("Check back later", style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
             const SizedBox(height: 16),
             LiquidGlassButton(
               size: LiquidButtonSize.md,
@@ -353,6 +357,8 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   Widget _buildPageView() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return PageView.builder(
       controller: _pageController,
       itemCount: _discoveries.length,
@@ -374,16 +380,30 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                 if (discoveryItem.explanation.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 12),
-                    child: GlassCard(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isDark ? const Color(0xFF1C1612) : Colors.white,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                          color: isDark ? const Color(0xFF2E2820) : Colors.grey.shade200,
+                        ),
+                      ),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       child: Row(
                         children: [
-                          Icon(Icons.auto_awesome, color: AppColors.primary, size: 16),
+                          Icon(
+                            Icons.auto_awesome_outlined,
+                            size: 16,
+                            color: isDark ? const Color(0xFFC0394B) : AppColors.primary,
+                          ),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               discoveryItem.explanation,
-                              style: AppTypography.bodyMedium.copyWith(fontSize: 12),
+                              style: AppTypography.bodyMedium.copyWith(
+                                fontSize: 12,
+                                color: isDark ? const Color(0xFF7A6E66) : AppColors.textMuted,
+                              ),
                             ),
                           ),
                         ],
@@ -473,12 +493,12 @@ class _ContextCardShimmer extends StatelessWidget {
     return Container(
       height: 100,
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: context.isDark ? context.surfaceColor : Colors.grey.shade100,
         borderRadius: BorderRadius.circular(16)),
       child: Center(child: 
         CircularProgressIndicator(
           strokeWidth: 1.5,
-          color: AppColors.primary)));
+          color: context.primaryColor)));
   }
 }
 
@@ -494,9 +514,9 @@ class _SharedEventCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(color: context.borderColor),
           boxShadow: [BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
@@ -518,37 +538,37 @@ class _SharedEventCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.celebration_outlined, size: 13, color: AppColors.primary),
+                  Icon(Icons.celebration_outlined, size: 13, color: context.primaryColor),
                   const SizedBox(width: 4),
                   Text('You are both going to this',
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.primary,
+                      color: context.primaryColor,
                       fontWeight: FontWeight.w600)),
                 ]),
                 const SizedBox(height: 4),
                 Text(data.title,
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: context.textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Row(children: [
-                  Icon(Icons.calendar_today_outlined, size: 11, color: AppColors.textMuted),
+                  Icon(Icons.calendar_today_outlined, size: 11, color: context.mutedColor),
                   const SizedBox(width: 3),
-                  Text(data.date, style: AppTypography.caption),
+                  Text(data.date, style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   const SizedBox(width: 8),
                   if (data.location.isNotEmpty) ...[
-                    Icon(Icons.location_on_outlined, size: 11, color: AppColors.textMuted),
+                    Icon(Icons.location_on_outlined, size: 11, color: context.mutedColor),
                     const SizedBox(width: 3),
                     Expanded(child: Text(data.location,
-                      style: AppTypography.caption,
+                      style: AppTypography.caption.copyWith(color: context.mutedColor),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis)),
                   ],
                 ]),
               ]))),
           Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18)),
+            padding: const EdgeInsets.only(right: 12),
+            child: Icon(Icons.chevron_right, color: context.mutedColor, size: 18)),
         ])));
   }
 }
@@ -565,9 +585,9 @@ class _MomentsPreviewCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: context.borderColor),
         boxShadow: [BoxShadow(
           color: Colors.black.withOpacity(0.04),
           blurRadius: 10,
@@ -576,13 +596,13 @@ class _MomentsPreviewCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.photo_library_outlined, size: 14, color: AppColors.primary),
+            Icon(Icons.photo_library_outlined, size: 14, color: context.primaryColor),
             const SizedBox(width: 6),
             Text('Recent moments from $userName',
-              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
             const Spacer(),
             Text('${data.totalMoments} total',
-              style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+              style: AppTypography.caption.copyWith(color: context.mutedColor)),
           ]),
           const SizedBox(height: 10),
           Row(children: [
@@ -603,7 +623,7 @@ class _MomentsPreviewCard extends StatelessWidget {
                   aspectRatio: 1,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: Colors.grey.shade100,
+                      color: context.isDark ? context.borderColor : Colors.grey.shade100,
                       borderRadius: BorderRadius.circular(10)),
                   ))))),
           ]),
@@ -620,9 +640,9 @@ class _HotspotsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: context.surfaceColor,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: context.borderColor),
         boxShadow: [BoxShadow(
           color: Colors.black.withOpacity(0.04),
           blurRadius: 10,
@@ -631,13 +651,13 @@ class _HotspotsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(children: [
-            Icon(Icons.location_on_outlined, size: 14, color: AppColors.primary),
+            Icon(Icons.location_on_outlined, size: 14, color: context.primaryColor),
             const SizedBox(width: 6),
             Expanded(child: Text(
               data.sameNeighborhood
                 ? 'You might cross paths in ${data.neighborhood}'
                 : 'Spots between you both',
-              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600))),
+              style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor))),
           ]),
           const SizedBox(height: 10),
           Wrap(
@@ -647,17 +667,17 @@ class _HotspotsCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: AppColors.primaryGlass,
+                  color: AppColors.themePrimaryGlass(context),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: AppColors.primary.withOpacity(0.15))),
+                  border: Border.all(color: context.primaryColor.withOpacity(0.15))),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.storefront_outlined, size: 12, color: AppColors.primary),
+                    Icon(Icons.storefront_outlined, size: 12, color: context.primaryColor),
                     const SizedBox(width: 4),
                     Text(spot,
                       style: AppTypography.caption.copyWith(
-                        color: AppColors.primary,
+                        color: context.primaryColor,
                         fontWeight: FontWeight.w500)),
                   ]))).toList()),
         ]));
@@ -677,9 +697,9 @@ class _NextEventCard extends StatelessWidget {
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: context.surfaceColor,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade100),
+          border: Border.all(color: context.borderColor),
           boxShadow: [BoxShadow(
             color: Colors.black.withOpacity(0.04),
             blurRadius: 10,
@@ -701,33 +721,33 @@ class _NextEventCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(children: [
-                  Icon(Icons.event_outlined, size: 13, color: AppColors.primary),
+                  Icon(Icons.event_outlined, size: 13, color: context.primaryColor),
                   const SizedBox(width: 4),
                   Text(
                     data.isHosting ? '$userName is hosting' : '$userName is going to',
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.primary,
+                      color: context.primaryColor,
                       fontWeight: FontWeight.w600)),
                 ]),
                 const SizedBox(height: 4),
                 Text(data.title,
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: context.textColor),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 4),
                 Row(children: [
-                  Icon(Icons.calendar_today_outlined, size: 11, color: AppColors.textMuted),
+                  Icon(Icons.calendar_today_outlined, size: 11, color: context.mutedColor),
                   const SizedBox(width: 3),
-                  Text(data.date, style: AppTypography.caption),
+                  Text(data.date, style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   const SizedBox(width: 8),
-                  Icon(Icons.people_outline, size: 11, color: AppColors.textMuted),
+                  Icon(Icons.people_outline, size: 11, color: context.mutedColor),
                   const SizedBox(width: 3),
-                  Text('${data.attendeeCount} going', style: AppTypography.caption),
+                  Text('${data.attendeeCount} going', style: AppTypography.caption.copyWith(color: context.mutedColor)),
                 ]),
               ]))),
           Padding(
-            padding: EdgeInsets.only(right: 12),
-            child: Icon(Icons.chevron_right, color: AppColors.textMuted, size: 18)),
+            padding: const EdgeInsets.only(right: 12),
+            child: Icon(Icons.chevron_right, color: context.mutedColor, size: 18)),
         ])));
   }
 }
@@ -745,7 +765,7 @@ class _MusicTeaserCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
+            color: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withOpacity(0.5)),
             boxShadow: [BoxShadow(
@@ -756,35 +776,35 @@ class _MusicTeaserCard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(children: [
-                Icon(Icons.music_note_outlined, size: 16, color: AppColors.primary),
+                Icon(Icons.music_note_outlined, size: 16, color: context.primaryColor),
                 const SizedBox(width: 6),
                 Text(data['title'] ?? 'Music Compatibility',
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
               ]),
               const SizedBox(height: 6),
-              Text(data['subtitle'] ?? '', style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+              Text(data['subtitle'] ?? '', style: AppTypography.caption.copyWith(color: context.mutedColor)),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: _MusicConnectButton(
                   icon: Icons.music_note,
                   label: 'Spotify',
                   color: const Color(0xFF1DB954),
-                  onTap: () => _showComingSoon(context))),
+                  onTap: () => _showComingSoon(context, 'Spotify'))),
                 const SizedBox(width: 10),
                 Expanded(child: _MusicConnectButton(
                   icon: Icons.music_note,
                   label: 'Apple Music',
                   color: const Color(0xFFFC3C44),
-                  onTap: () => _showComingSoon(context))),
+                  onTap: () => _showComingSoon(context, 'Apple Music'))),
               ]),
             ]))));
   }
 
-  void _showComingSoon(BuildContext context) {
+  void _showComingSoon(BuildContext context, String service) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Music integration coming soon', style: AppTypography.caption.copyWith(color: Colors.white)),
-        backgroundColor: AppColors.primary,
+        content: Text('$service integration coming soon', style: AppTypography.caption.copyWith(color: Colors.white)),
+        backgroundColor: AppColors.themePrimary(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2)));
@@ -840,7 +860,7 @@ class _MusicCompatibilityCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.7),
+            color: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: Colors.white.withOpacity(0.5)),
             boxShadow: [BoxShadow(
@@ -856,35 +876,35 @@ class _MusicCompatibilityCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: const Color(0xFF1DB954).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(8)),
-                  child: Icon(Icons.music_note_outlined, size: 15, color: Color(0xFF1DB954))),
+                  child: const Icon(Icons.music_note_outlined, size: 15, color: Color(0xFF1DB954))),
                 const SizedBox(width: 8),
-                Text('Music Compatibility', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+                Text('Music Compatibility', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryGlass,
+                    color: AppColors.themePrimaryGlass(context),
                     borderRadius: BorderRadius.circular(999)),
                   child: Text('${MusicPlaceholderData.compatibilityScore}% match',
-                    style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600))),
+                    style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600))),
               ]),
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade50,
+                  color: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: Colors.grey.shade100)),
+                  border: Border.all(color: context.borderColor)),
                 child: Row(children: [
-                  Icon(Icons.graphic_eq_outlined, size: 14, color: Color(0xFF1DB954)),
+                  const Icon(Icons.graphic_eq_outlined, size: 14, color: Color(0xFF1DB954)),
                   const SizedBox(width: 6),
-                  Text('Recently played: ', style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                  Text('Recently played: ', style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   Expanded(child: Text(MusicPlaceholderData.currentlyPlaying,
-                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
+                    style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: context.textColor),
                     maxLines: 1, overflow: TextOverflow.ellipsis)),
                 ])),
               const SizedBox(height: 12),
-              Text('Artists you both love', style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              Text('Artists you both love', style: AppTypography.caption.copyWith(color: context.mutedColor, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
@@ -899,12 +919,12 @@ class _MusicCompatibilityCard extends StatelessWidget {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.headphones_outlined, size: 11, color: Color(0xFF1DB954)),
+                        const Icon(Icons.headphones_outlined, size: 11, color: Color(0xFF1DB954)),
                         const SizedBox(width: 4),
-                        Text(artist, style: AppTypography.caption.copyWith(color: Color(0xFF1DB954), fontWeight: FontWeight.w500)),
+                        Text(artist, style: AppTypography.caption.copyWith(color: const Color(0xFF1DB954), fontWeight: FontWeight.w500)),
                       ]))).toList()),
               const SizedBox(height: 10),
-              Text('Shared genres', style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+              Text('Shared genres', style: AppTypography.caption.copyWith(color: context.mutedColor, fontWeight: FontWeight.w600)),
               const SizedBox(height: 6),
               Wrap(
                 spacing: 6,
@@ -912,8 +932,8 @@ class _MusicCompatibilityCard extends StatelessWidget {
                 children: MusicPlaceholderData.sharedGenres.map((genre) =>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(999)),
-                    child: Text(genre, style: AppTypography.caption.copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w500))))
+                    decoration: BoxDecoration(color: context.isDark ? context.borderColor : Colors.grey.shade100, borderRadius: BorderRadius.circular(999)),
+                    child: Text(genre, style: AppTypography.caption.copyWith(color: context.textColor, fontWeight: FontWeight.w500))))
                   .toList()),
               const SizedBox(height: 12),
               Container(
@@ -939,9 +959,10 @@ class _MusicCompatibilityCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFF1DB954).withOpacity(0.25))),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.music_note, size: 13, color: Color(0xFF1DB954)),
+                        const Icon(Icons.music_note, size: 13, color: Color(0xFF1DB954)),
                         const SizedBox(width: 5),
                         Text('Spotify', style: AppTypography.caption.copyWith(color: const Color(0xFF1DB954), fontWeight: FontWeight.w600)),
                       ])))),
@@ -955,9 +976,10 @@ class _MusicCompatibilityCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: const Color(0xFFFC3C44).withOpacity(0.25))),
                     child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.music_note, size: 13, color: Color(0xFFFC3C44)),
+                        const Icon(Icons.music_note, size: 13, color: Color(0xFFFC3C44)),
                         const SizedBox(width: 5),
                         Text('Apple Music', style: AppTypography.caption.copyWith(color: const Color(0xFFFC3C44), fontWeight: FontWeight.w600)),
                       ])))),
@@ -973,7 +995,7 @@ class _MusicCompatibilityCard extends StatelessWidget {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text('$service integration coming soon', style: AppTypography.caption.copyWith(color: Colors.white)),
-        backgroundColor: AppColors.primary,
+        backgroundColor: AppColors.themePrimary(context),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         duration: const Duration(seconds: 2)));

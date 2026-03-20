@@ -8,6 +8,8 @@ import 'package:kanairoxo/providers/notification_provider.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/providers/theme_provider.dart';
 import 'package:kanairoxo/services/notification_service.dart';
+import 'package:kanairoxo/services/widget_service.dart';
+import 'package:kanairoxo/services/moment_service.dart';
 import 'package:provider/provider.dart';
 
 final NotificationService notificationService = NotificationService();
@@ -15,7 +17,10 @@ final NotificationService notificationService = NotificationService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Run app immediately to prevent getting stuck on the native splash screen
+  // Register observer for widget refreshing
+  WidgetsBinding.instance.addObserver(_AppLifecycleObserver());
+  
+  // Run app immediately
   runApp(const MyApp());
 
   // Initialize services in the background
@@ -24,11 +29,30 @@ Future<void> main() async {
 
 Future<void> _initializeServices() async {
   try {
-    // Initialize Firebase with a timeout to prevent hanging the app
     await Firebase.initializeApp().timeout(const Duration(seconds: 5));
     await notificationService.init();
   } catch (e) {
     debugPrint('Service initialization timed out or failed: $e');
+  }
+}
+
+class _AppLifecycleObserver extends WidgetsBindingObserver {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _refreshWidgets();
+    }
+  }
+
+  Future<void> _refreshWidgets() async {
+    try {
+      final momentService = MomentService();
+      final moments = await momentService.getMoments();
+      // Using unread count 0 as fallback if provider is not accessible directly here
+      await WidgetService.refreshAllWidgets(moments, 0, 0);
+    } catch (e) {
+      debugPrint('Widget refresh error: $e');
+    }
   }
 }
 

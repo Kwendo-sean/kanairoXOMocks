@@ -84,12 +84,23 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        backgroundColor: bgColor,
         elevation: 0,
-        title: Text('New Moment', style: AppTypography.screenTitle),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: textColor, size: 22),
+          onPressed: () => Navigator.pop(context)),
+        title: Text('Create Moment', style: AppTypography.screenTitle.copyWith(color: textColor)),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
@@ -104,9 +115,9 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                 height: 300,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.7),
+                  color: surfaceColor,
                   borderRadius: AppRadius.lg,
-                  border: Border.all(color: Colors.white.withOpacity(0.4)),
+                  border: Border.all(color: borderColor),
                 ),
                 child: _selectedImage != null
                     ? ClipRRect(
@@ -116,9 +127,9 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.add_a_photo_outlined, size: 48, color: AppColors.primary),
+                          Icon(Icons.add_a_photo_outlined, size: 48, color: mutedColor),
                           const SizedBox(height: 12),
-                          Text('Select a Photo', style: AppTypography.bodyLarge),
+                          Text('Select a Photo', style: AppTypography.bodyLarge.copyWith(color: textColor)),
                         ],
                       ),
               ),
@@ -126,7 +137,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
             const SizedBox(height: 20),
 
             // 2. CAPTION INPUT
-            _buildSectionTitle('What\'s happening?'),
+            _buildSectionTitle('What\'s happening?', textColor),
             ClipRRect(
               borderRadius: AppRadius.md,
               child: BackdropFilter(
@@ -134,13 +145,15 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                 child: TextField(
                   controller: _captionController,
                   maxLines: 4,
-                  style: AppTypography.bodyLarge,
+                  style: AppTypography.bodyLarge.copyWith(color: textColor),
                   decoration: InputDecoration(
                     hintText: 'Share the vibe...',
-                    hintStyle: AppTypography.bodyLarge.copyWith(color: AppColors.textMuted),
+                    hintStyle: AppTypography.bodyLarge.copyWith(color: mutedColor),
                     filled: true,
-                    fillColor: Colors.white.withOpacity(0.7),
-                    border: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide.none),
+                    fillColor: surfaceColor,
+                    border: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: borderColor)),
+                    enabledBorder: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: borderColor)),
+                    focusedBorder: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: primaryColor, width: 1.5)),
                     contentPadding: const EdgeInsets.all(16),
                   ),
                 ),
@@ -149,7 +162,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
             const SizedBox(height: 20),
 
             // 3. MOMENT TYPE
-            _buildSectionTitle('Tag the Moment'),
+            _buildSectionTitle('Tag the Moment', textColor),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -162,14 +175,14 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.7),
+                          color: isSelected ? primaryColor : surfaceColor,
                           borderRadius: AppRadius.full,
-                          border: Border.all(color: isSelected ? AppColors.primary : Colors.white.withOpacity(0.4)),
+                          border: Border.all(color: isSelected ? primaryColor : borderColor),
                         ),
                         child: Text(
                           type['label']!,
                           style: AppTypography.labelMedium.copyWith(
-                            color: isSelected ? Colors.white : AppColors.textPrimary,
+                            color: isSelected ? Colors.white : textColor,
                             fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                           ),
                         ),
@@ -197,10 +210,10 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
     );
   }
 
-  Widget _buildSectionTitle(String title) {
+  Widget _buildSectionTitle(String title, Color textColor) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Text(title, style: AppTypography.displayMedium.copyWith(fontSize: 16)),
+      child: Text(title, style: AppTypography.displayMedium.copyWith(fontSize: 16, color: textColor)),
     );
   }
 }

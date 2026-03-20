@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+  xmlns:android="http://schemas.android.com/apk/res/android"
+  android:id="@+id/drop_widget_root"
+  android:layout_width="match_parent"
+  android:layout_height="match_parent"
+  android:background="#0A0A1A"
+  android:padding="12dp"
+  android:orientation="vertical"
+  android:gravity="center"
+  android:clickable="true"
+  android:focusable="true">
+  
+  <TextView
+    android:id="@+id/drop_status"
+    android:text="THE DROP"
+    android:textColor="#8B1A1A"
+    android:textSize="10sp"
+    android:textStyle="bold"
+    android:letterSpacing="0.2"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"/>
+  
+  <TextView
+    android:id="@+id/countdown_text"
+    android:text="00:00:00"
+    android:textColor="#FFFFFF"
+    android:textSize="28sp"
+    android:textStyle="bold"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"/>
+  
+  <TextView
+    android:id="@+id/drop_title"
+    android:text="Friday at 6pm"
+    android:textColor="#FFFFFF88"
+    android:textSize="10sp"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:maxLines="1"
+    android:ellipsize="end"/>
+</LinearLayout>

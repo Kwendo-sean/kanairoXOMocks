@@ -1,16 +1,21 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/moment_service.dart';
-import 'package:kanairoxo/widgets/three_d_carousel.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:kanairoxo/screens/create_moment_screen.dart';
 import 'package:kanairoxo/screens/singles/moment_viewer_screen.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:dio/dio.dart';
+import '../utils/constants.dart';
+import '../widgets/moments/the_drop_widget.dart';
+import '../widgets/moments/polaroid_stack.dart';
+import '../widgets/moments/constellation_view.dart';
+import '../services/widget_service.dart';
 
 class MomentsScreen extends StatefulWidget {
   const MomentsScreen({super.key});
@@ -21,10 +26,14 @@ class MomentsScreen extends StatefulWidget {
 
 class _MomentsScreenState extends State<MomentsScreen> {
   final MomentService _momentService = MomentService();
+  final Dio apiClient = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
+  
   List<Moment> _allMoments = [];
+  DropModel? _dropData;
+  
   bool _isLoading = true;
   String _selectedTag = 'All';
-  int _carouselIndex = 0;
+  String _carouselStyle = 'polaroid';
 
   final List<String> _subtitles = [
     'Where Nairobi comes alive',
@@ -42,35 +51,91 @@ class _MomentsScreenState extends State<MomentsScreen> {
   void initState() {
     super.initState();
     _carouselSubtitle = _subtitles[DateTime.now().millisecond % _subtitles.length];
+    
     _loadMoments();
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadStylePreference();
+      _loadDropData();
+    });
   }
 
-  Future<void> _loadMoments() async {
-    setState(() => _isLoading = true);
+  Future<void> _loadStylePreference() async {
     try {
-      final moments = await _momentService.getMoments();
-      setState(() {
-        _allMoments = moments;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
+      final prefs = await SharedPreferences.getInstance();
+      final saved = prefs.getString('carousel_style');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading moments: $e')),
-        );
+        setState(() {
+          _carouselStyle = saved ?? 'polaroid';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _carouselStyle = 'polaroid';
+        });
       }
     }
   }
 
-  List<Moment> get _filteredMoments {
-    if (_selectedTag == 'All') return _allMoments;
-    return _allMoments.where((m) =>
-      m.type.name.toLowerCase() == _selectedTag.toLowerCase()
-    ).toList();
+  Future<void> _switchStyle(String style) async {
+    if (_carouselStyle == style) return;
+    
+    setState(() => _carouselStyle = style);
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('carousel_style', style);
+    } catch (e) {
+      // Error
+    }
   }
 
-  void _navigateToCreate() async {
+  Future<void> _loadMoments() async {
+    if (!mounted) return;
+    setState(() => _isLoading = true);
+    try {
+      final moments = await _momentService.getMoments();
+      if (!mounted) return;
+      setState(() {
+        _allMoments = moments;
+        _isLoading = false;
+      });
+      WidgetService.refreshAllWidgets(_allMoments, 0, 0); 
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _loadDropData() async {
+    try {
+      final response = await apiClient.get('/api/v1/moments/drop/');
+      if (mounted) {
+        setState(() {
+          _dropData = DropModel.fromJson(response.data as Map<String, dynamic>);
+        });
+        if (_dropData != null) {
+          WidgetService.updateDropWidget(
+              secondsUntilDrop: _dropData!.secondsUntilDrop,
+              isLive: _dropData!.status == 'live');
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _dropData = null);
+      }
+    }
+  }
+
+  List<Moment> get filteredMoments {
+    if (_selectedTag == 'All') return _allMoments;
+    return _allMoments
+        .where((m) => m.type.name.toLowerCase() == _selectedTag.toLowerCase())
+        .toList();
+  }
+
+  void openCreateMoment() async {
     final result = await Navigator.push(
       context,
       MaterialPageRoute(builder: (context) => const CreateMomentScreen()),
@@ -81,185 +146,286 @@ class _MomentsScreenState extends State<MomentsScreen> {
   }
 
   void _openMomentViewer(int index) {
-    Navigator.push(context, PageRouteBuilder(
-      opaque: false,
-      barrierColor: Colors.black87,
-      pageBuilder: (_, __, ___) => 
-        MomentViewerScreen(
-          moments: _allMoments,
-          initialIndex: index),
-      transitionsBuilder: (_, anim, __, child) =>
-        FadeTransition(opacity: anim, child: child),
-    ));
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        pageBuilder: (_, __, ___) => MomentViewerScreen(
+            moments: _allMoments, initialIndex: index),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        backgroundColor: Colors.transparent,
+    try {
+      return _buildScreen();
+    } catch (e) {
+      return Scaffold(
+        backgroundColor: context.bgColor,
+        appBar: _buildAppBar(),
+        body: Center(child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.error_outline,
+              size: 48, color: context.mutedColor),
+            const SizedBox(height: 12),
+            Text('Something went wrong',
+              style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
+            const SizedBox(height: 8),
+            Text(e.toString(),
+              style: AppTypography.caption.copyWith(
+                color: context.mutedColor),
+              textAlign: TextAlign.center),
+            const SizedBox(height: 16),
+            LiquidGlassButton(
+              size: LiquidButtonSize.md,
+              onPressed: () => setState(() {}),
+              child: Text('Retry',
+                style: AppTypography.buttonText)),
+          ])));
+    }
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+        backgroundColor: context.bgColor,
         elevation: 0,
-        title: Text('Moments', style: AppTypography.screenTitle),
+        automaticallyImplyLeading: false,
+        title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
         centerTitle: true,
         actions: [
           TextButton.icon(
-            icon: const Icon(Icons.add_circle_outline, size: 16, color: AppColors.primary),
-            label: Text('Create',
-                style: AppTypography.labelMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-            onPressed: _navigateToCreate,
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Column(
-              children: [
-                _buildCarouselSection(),
-                _buildFilterTabs(),
-                Expanded(
-                  child: RefreshIndicator(
-                    onRefresh: _loadMoments,
-                    child: _filteredMoments.isEmpty
-                        ? _buildTagEmptyState()
-                        : _buildMomentsFeed(),
-                  ),
-                ),
-              ],
-            ),
-    );
+              icon: Icon(Icons.add_circle_outline,
+                  size: 16, color: context.primaryColor),
+              label: Text('Create',
+                  style: AppTypography.labelMedium.copyWith(
+                      color: context.primaryColor,
+                      fontWeight: FontWeight.w600)),
+              onPressed: openCreateMoment),
+        ]);
   }
 
-  Widget _buildCarouselSection() {
-    final validMoments = _allMoments
-        .where((m) => m.photoUrl.isNotEmpty && Uri.tryParse(m.photoUrl)?.hasAbsolutePath == true)
-        .toList();
+  Widget _buildScreen() {
+    return Scaffold(
+      backgroundColor: context.bgColor,
+      appBar: _buildAppBar(),
+      body: _isLoading
+        ? Center(child: CircularProgressIndicator(
+            color: context.primaryColor,
+            strokeWidth: 2))
+        : _buildBody());
+  }
+  
+  Widget _buildBody() {
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
+      slivers: [
+        
+        SliverToBoxAdapter(
+          child: _safeTopSection()),
 
-    if (validMoments.isEmpty) {
-      return Container(
-        height: 260,
-        margin: const EdgeInsets.all(16),
+        if (_dropData?.status != 'live')
+          SliverToBoxAdapter(
+            child: _buildViewToggle()),
+        
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text(_carouselSubtitle,
+              style: AppTypography.caption.copyWith(
+                color: context.mutedColor,
+                fontStyle: FontStyle.italic),
+              textAlign: TextAlign.center))),
+        
+        SliverPersistentHeader(
+          pinned: true,
+          delegate: _FilterTabsDelegate(
+            selectedTag: _selectedTag,
+            onTagSelected: (tag) => setState(() =>
+              _selectedTag = tag),
+            backgroundColor: context.bgColor)),
+        
+        if (filteredMoments.isEmpty)
+          SliverToBoxAdapter(
+            child: _buildTagEmptyState())
+        else
+          SliverList(
+            delegate: SliverChildBuilderDelegate(
+              (ctx, i) => _MomentCard(
+                moment: filteredMoments[i],
+                onLike: () => _toggleLike(filteredMoments[i]),
+                onComment: () => _openComments(context, filteredMoments[i]),
+                onImageTap: () => _openMomentViewer(_allMoments.indexOf(filteredMoments[i]))),
+              childCount: filteredMoments.length)),
+        
+        const SliverToBoxAdapter(
+          child: SizedBox(height: 80)),
+      ]);
+  }
+
+  Widget _buildViewToggle() {
+    return Center(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.all(3),
         decoration: BoxDecoration(
-          color: Colors.grey.shade100,
-          borderRadius: AppRadius.lg),
-        child: Center(child: Column(
+          color: context.surfaceColor,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: context.borderColor),
+          boxShadow: [BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 8,
+            offset: const Offset(0, 2))]),
+        child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.photo_library_outlined,
-              size: 36, color: AppColors.textMuted),
-            const SizedBox(height: 8),
-            Text('Your moments will appear here',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textMuted)),
+            GestureDetector(
+              onTap: () => _switchStyle('polaroid'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _carouselStyle == 'polaroid'
+                    ? context.primaryColor
+                    : Colors.transparent,
+                  borderRadius: 
+                    BorderRadius.circular(999)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.photo_album_outlined,
+                      size: 14,
+                      color: _carouselStyle == 'polaroid'
+                        ? Colors.white
+                        : context.mutedColor),
+                    const SizedBox(width: 5),
+                    Text('Polaroid',
+                      style: AppTypography.caption
+                        .copyWith(
+                          color: _carouselStyle == 
+                            'polaroid'
+                            ? Colors.white
+                            : context.mutedColor,
+                          fontWeight: _carouselStyle == 
+                            'polaroid'
+                            ? FontWeight.w600
+                            : FontWeight.w400)),
+                  ])),
+            ),
+            GestureDetector(
+              onTap: () => _switchStyle(
+                'constellation'),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeInOut,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 7),
+                decoration: BoxDecoration(
+                  color: _carouselStyle == 
+                    'constellation'
+                    ? context.primaryColor
+                    : Colors.transparent,
+                  borderRadius: 
+                    BorderRadius.circular(999)),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.auto_awesome_outlined,
+                      size: 14,
+                      color: _carouselStyle == 
+                        'constellation'
+                        ? Colors.white
+                        : context.mutedColor),
+                    const SizedBox(width: 5),
+                    Text('Stars',
+                      style: AppTypography.caption
+                        .copyWith(
+                          color: _carouselStyle == 
+                            'constellation'
+                            ? Colors.white
+                            : context.mutedColor,
+                          fontWeight: _carouselStyle == 
+                            'constellation'
+                            ? FontWeight.w600
+                            : FontWeight.w400)),
+                  ])),
+            ),
           ])));
+  }
+  
+  Widget _safeTopSection() {
+    try {
+      return _buildTopSection();
+    } catch (e) {
+      return Container(
+        height: 200,
+        margin: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: context.isDark ? context.surfaceColor : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(20)),
+        child: Center(child: Icon(
+          Icons.photo_library_outlined,
+          size: 48, color: context.mutedColor)));
+    }
+  }
+
+  Widget _buildTopSection() {
+    if (_dropData != null && (_dropData!.status == 'live' || _dropData!.secondsUntilDrop > 0)) {
+       return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: TheDropWidget(
+          dropData: _dropData!,
+          onRefresh: _loadDropData));
     }
 
-    return Column(
-      children: [
-        ThreeDCarousel(
-          height: 260,
-          imageUrls: validMoments.take(5).map((m) => m.photoUrl).toList(),
-          onPageChanged: (index) => setState(() => _carouselIndex = index),
-          onCardTap: (index) => _openMomentViewer(index),
-        ),
-        const SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: List.generate(validMoments.take(5).length, (index) {
-            return Container(
-              width: 6,
-              height: 6,
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _carouselIndex == index ? AppColors.primary : AppColors.textMuted,
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: 12),
-        Text(_carouselSubtitle,
-          style: AppTypography.caption.copyWith(
-            color: AppColors.textMuted,
-            fontStyle: FontStyle.italic),
-          textAlign: TextAlign.center),
-        const SizedBox(height: 16),
-      ],
-    );
-  }
+    if (_carouselStyle == 'constellation') {
+      return Padding(
+          padding: const EdgeInsets.only(top: 12),
+          child: ConstellationView(
+              moments: _allMoments, 
+              onTap: (m) => _openMomentViewer(_allMoments.indexOf(m))));
+    }
 
-  Widget _buildFilterTabs() {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: ['All', 'Event', 'Meetup', 'Vibe']
-          .map((tag) => Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedTag = tag),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _selectedTag == tag ? AppColors.primary : Colors.white,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    color: _selectedTag == tag ? AppColors.primary : Colors.grey.shade200,
-                    width: 1),
-                ),
-                child: Text(tag,
-                  style: AppTypography.labelMedium.copyWith(
-                    color: _selectedTag == tag ? Colors.white : AppColors.textSecondary,
-                    fontWeight: _selectedTag == tag ? FontWeight.w600 : FontWeight.w400)),
-              ),
-            ))).toList(),
-      ),
-    );
-  }
-
-  Widget _buildMomentsFeed() {
-    return ListView.builder(
-      padding: const EdgeInsets.only(bottom: 80),
-      itemCount: _filteredMoments.length,
-      itemBuilder: (context, index) => _MomentCard(
-        moment: _filteredMoments[index],
-        onLike: () => _toggleLike(_filteredMoments[index]),
-        onComment: () => _openComments(context, _filteredMoments[index]),
-      ),
-    );
+    return Padding(
+        padding: const EdgeInsets.only(top: 12),
+        child: PolaroidStack(
+            moments: _allMoments.take(10).toList(),
+            onTap: (m) => _openMomentViewer(_allMoments.indexOf(m))));
   }
 
   Widget _buildTagEmptyState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.photo_library_outlined,
-              size: 44, color: AppColors.textMuted),
-            const SizedBox(height: 12),
-            Text(
-              _selectedTag == 'All'
-                ? 'No moments yet'
-                : 'No $_selectedTag moments yet',
-              style: AppTypography.bodyMedium.copyWith(
-                fontWeight: FontWeight.w600)),
-            const SizedBox(height: 6),
-            Text(
-              'Be the first to share one',
-              style: AppTypography.caption.copyWith(
-                color: AppColors.textMuted)),
-            const SizedBox(height: 16),
-            LiquidGlassButton(
-              size: LiquidButtonSize.md,
-              onPressed: _navigateToCreate,
-              child: Text('Create Moment',
-                style: AppTypography.buttonText)),
-          ])));
+        child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.photo_library_outlined,
+                  size: 44, color: context.mutedColor),
+              const SizedBox(height: 12),
+              Text(
+                  _selectedTag == 'All'
+                      ? 'No moments yet'
+                      : 'No $_selectedTag moments yet',
+                  style:
+                      AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
+              const SizedBox(height: 6),
+              Text('Be the first to share one',
+                  style:
+                      AppTypography.caption.copyWith(color: context.mutedColor)),
+              const SizedBox(height: 16),
+              LiquidGlassButton(
+                  size: LiquidButtonSize.md,
+                  onPressed: openCreateMoment,
+                  child: Text('Create Moment', style: AppTypography.buttonText)),
+            ])));
   }
 
   Future<void> _toggleLike(Moment moment) async {
@@ -285,15 +451,84 @@ class _MomentsScreenState extends State<MomentsScreen> {
   }
 }
 
+class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
+  final String selectedTag;
+  final Function(String) onTagSelected;
+  final Color backgroundColor;
+
+  _FilterTabsDelegate({
+    required this.selectedTag,
+    required this.onTagSelected,
+    required this.backgroundColor,
+  });
+
+  @override
+  double get minExtent => 52;
+  @override
+  double get maxExtent => 52;
+  
+  @override
+  bool shouldRebuild(_FilterTabsDelegate old) =>
+    old.selectedTag != selectedTag ||
+    old.backgroundColor != backgroundColor;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(
+      color: backgroundColor,
+      child: _buildTabs(context));
+  }
+
+  Widget _buildTabs(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        border: Border(
+          bottom: BorderSide(
+            color: context.borderColor))),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: ['All', 'Event', 'Meetup', 'Vibe']
+            .map((tag) => Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  child: GestureDetector(
+                    onTap: () => onTagSelected(tag),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: selectedTag == tag ? context.primaryColor : context.surfaceColor,
+                        borderRadius: BorderRadius.circular(999),
+                        border: Border.all(
+                            color: selectedTag == tag ? context.primaryColor : context.borderColor,
+                            width: 1),
+                      ),
+                      child: Text(tag,
+                          style: GoogleFonts.dmSans(
+                            fontSize: 13,
+                            color: selectedTag == tag ? Colors.white : context.mutedColor,
+                            fontWeight: selectedTag == tag ? FontWeight.w600 : FontWeight.w400)),
+                    ),
+                  ),
+                ))
+            .toList(),
+      ),
+    );
+  }
+}
+
 class _MomentCard extends StatelessWidget {
   final Moment moment;
   final VoidCallback onLike;
   final VoidCallback onComment;
+  final VoidCallback onImageTap;
 
   const _MomentCard({
     required this.moment,
     required this.onLike,
     required this.onComment,
+    required this.onImageTap,
   });
 
   @override
@@ -301,9 +536,9 @@ class _MomentCard extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: AppRadius.lg,
-        border: Border.all(color: Colors.grey.shade100, width: 1),
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.borderColor, width: 1),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withOpacity(0.05),
@@ -324,9 +559,9 @@ class _MomentCard extends StatelessWidget {
                   backgroundImage: (moment.userAvatarUrl != null && moment.userAvatarUrl!.isNotEmpty) 
                       ? NetworkImage(moment.userAvatarUrl!) 
                       : null,
-                  backgroundColor: AppColors.primaryGlass,
+                  backgroundColor: AppColors.themePrimaryGlass(context),
                   child: (moment.userAvatarUrl == null || moment.userAvatarUrl!.isEmpty) 
-                      ? const Icon(Icons.person_outline, size: 18, color: AppColors.primary) 
+                      ? Icon(Icons.person_outline, size: 18, color: context.primaryColor) 
                       : null,
                 ),
                 const SizedBox(width: 10),
@@ -335,28 +570,21 @@ class _MomentCard extends StatelessWidget {
                   children: [
                     Text(moment.userName,
                         style: AppTypography.labelMedium
-                            .copyWith(fontWeight: FontWeight.w600)),
-                    Text(moment.timeAgo, style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                            .copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
+                    Text(moment.timeAgo, style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   ],
                 ),
                 const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryGlass,
+                    color: AppColors.themePrimaryGlass(context),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
                     moment.type.name.toUpperCase(),
-                    style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 10),
+                    style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600, fontSize: 10),
                   ),
-                ),
-                const SizedBox(width: 4),
-                IconButton(
-                  icon: const Icon(Icons.more_horiz, size: 18, color: AppColors.textMuted),
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {},
                 ),
               ],
             ),
@@ -364,26 +592,20 @@ class _MomentCard extends StatelessWidget {
 
           GestureDetector(
             onDoubleTap: onLike,
-            child: CachedNetworkImage(
-              imageUrl: moment.photoUrl,
-              fit: BoxFit.cover,
-              width: double.infinity,
-              height: 240,
-              errorWidget: (context, url, error) {
-                debugPrint('IMG ERROR: $url | $error');
-                return Container(
-                  color: Colors.grey.shade100,
-                  child: const Center(child: Icon(
-                    Icons.broken_image_outlined,
-                    color: AppColors.textMuted, 
-                    size: 24)));
-              },
-              placeholder: (context, url) => Container(
-                color: Colors.grey.shade50,
-                child: const Center(child: 
-                  CircularProgressIndicator(
-                    strokeWidth: 1.5,
-                    color: AppColors.primary))),
+            onTap: onImageTap,
+            child: ClipRRect(
+              borderRadius: BorderRadius.zero,
+              child: Image.network(
+                moment.photoUrl,
+                fit: BoxFit.cover,
+                width: double.infinity,
+                height: 300,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey.shade100,
+                  height: 300,
+                  child: Center(child: Icon(Icons.broken_image_outlined, color: context.mutedColor)),
+                ),
+              ),
             ),
           ),
 
@@ -392,9 +614,9 @@ class _MomentCard extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Row(
                 children: [
-                  const Icon(Icons.location_on_outlined, size: 13, color: AppColors.textMuted),
+                  Icon(Icons.location_on_outlined, size: 13, color: context.mutedColor),
                   const SizedBox(width: 3),
-                  Text(moment.location!, style: AppTypography.caption),
+                  Text(moment.location!, style: AppTypography.caption.copyWith(color: context.mutedColor)),
                 ],
               ),
             ),
@@ -403,7 +625,7 @@ class _MomentCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
             child: Text(
               moment.caption,
-              style: AppTypography.bodyMedium,
+              style: AppTypography.bodyMedium.copyWith(color: context.textColor),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),
@@ -415,7 +637,7 @@ class _MomentCard extends StatelessWidget {
               children: [
                 _MomentAction(
                   icon: moment.isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: moment.isLiked ? AppColors.primary : AppColors.textMuted,
+                  color: moment.isLiked ? context.primaryColor : context.mutedColor,
                   label: '${moment.likeCount}',
                   onTap: onLike,
                 ),
@@ -425,24 +647,10 @@ class _MomentCard extends StatelessWidget {
                   label: '${moment.commentCount}',
                   onTap: onComment,
                 ),
-                const SizedBox(width: 4),
-                _MomentAction(
-                  icon: Icons.send_outlined,
-                  label: 'Share',
-                  color: AppColors.textMuted,
-                  onTap: () => ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('Social sharing coming soon',
-                      style: AppTypography.caption.copyWith(color: Colors.white)),
-                    backgroundColor: AppColors.primary,
-                    duration: const Duration(seconds: 2),
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  )),
-                ),
                 const Spacer(),
                 _MomentAction(
                   icon: moment.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  color: moment.isSaved ? AppColors.primary : AppColors.textMuted,
+                  color: moment.isSaved ? context.primaryColor : context.mutedColor,
                   label: '',
                   onTap: () {},
                 ),
@@ -472,8 +680,8 @@ class _MomentAction extends StatelessWidget {
   Widget build(BuildContext context) {
     return TextButton.icon(
       onPressed: onTap,
-      icon: Icon(icon, size: 16, color: color ?? AppColors.textMuted),
-      label: label.isNotEmpty ? Text(label, style: AppTypography.caption) : const SizedBox.shrink(),
+      icon: Icon(icon, size: 16, color: color ?? context.mutedColor),
+      label: label.isNotEmpty ? Text(label, style: AppTypography.caption.copyWith(color: context.mutedColor)) : const SizedBox.shrink(),
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         minimumSize: Size.zero,
@@ -534,19 +742,19 @@ class _MomentCommentsSheetState extends State<_MomentCommentsSheet> {
       maxChildSize: 0.9,
       builder: (context, scrollController) {
         return Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          decoration: BoxDecoration(
+            color: context.surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
+              Container(width: 40, height: 4, decoration: BoxDecoration(color: context.borderColor, borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 12),
-              Text('Comments', style: AppTypography.displayMedium),
+              Text('Comments', style: AppTypography.displayMedium.copyWith(color: context.textColor)),
               Expanded(
                 child: _isLoading 
-                  ? const Center(child: CircularProgressIndicator())
+                  ? Center(child: CircularProgressIndicator(color: context.primaryColor))
                   : ListView.builder(
                       controller: scrollController,
                       itemCount: _comments.length,
@@ -558,8 +766,8 @@ class _MomentCommentsSheetState extends State<_MomentCommentsSheet> {
                             backgroundImage: comment['user_avatar'] != null ? NetworkImage(comment['user_avatar']) : null,
                             child: comment['user_avatar'] == null ? const Icon(Icons.person, size: 14) : null,
                           ),
-                          title: Text(comment['user_name'] ?? 'User', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold)),
-                          subtitle: Text(comment['text'] ?? '', style: AppTypography.bodyMedium),
+                          title: Text(comment['user_name'] ?? 'User', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold, color: context.textColor)),
+                          subtitle: Text(comment['text'] ?? '', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
                         );
                       },
                     ),
@@ -571,18 +779,19 @@ class _MomentCommentsSheetState extends State<_MomentCommentsSheet> {
                     Expanded(
                       child: TextField(
                         controller: _commentController,
+                        style: TextStyle(color: context.textColor),
                         decoration: InputDecoration(
                           hintText: 'Add a comment...',
-                          hintStyle: AppTypography.caption,
+                          hintStyle: AppTypography.caption.copyWith(color: context.mutedColor),
                           filled: true,
-                          fillColor: Colors.grey[100],
-                          border: OutlineInputBorder(borderRadius: AppRadius.full, borderSide: BorderSide.none),
+                          fillColor: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey[100],
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
                           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                         ),
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.send, color: AppColors.primary),
+                      icon: Icon(Icons.send, color: context.primaryColor),
                       onPressed: _addComment,
                     ),
                   ],
@@ -592,66 +801,6 @@ class _MomentCommentsSheetState extends State<_MomentCommentsSheet> {
           ),
         );
       },
-    );
-  }
-}
-
-class _MomentDetailModal extends StatelessWidget {
-  final Moment moment;
-
-  const _MomentDetailModal({required this.moment});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          Center(
-            child: InteractiveViewer(
-              child: CachedNetworkImage(
-                imageUrl: moment.photoUrl,
-                fit: BoxFit.contain,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 40,
-            right: 16,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 30),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          Positioned(
-            bottom: 40,
-            left: 16,
-            right: 16,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(moment.userName, style: AppTypography.displayMedium.copyWith(color: Colors.white)),
-                Text('${moment.timeAgo} • ${moment.location ?? ""}', style: AppTypography.caption.copyWith(color: Colors.white70)),
-                const SizedBox(height: 12),
-                Text(moment.caption, style: AppTypography.bodyLarge.copyWith(color: Colors.white)),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    const CircleAvatar(radius: 14),
-                    const SizedBox(width: -8),
-                    const CircleAvatar(radius: 14),
-                    const SizedBox(width: -8),
-                    const CircleAvatar(radius: 14),
-                    const SizedBox(width: 8),
-                    Text('and others were there', style: AppTypography.caption.copyWith(color: Colors.white70)),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

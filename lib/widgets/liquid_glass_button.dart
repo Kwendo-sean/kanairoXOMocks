@@ -59,7 +59,7 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.color ?? AppColors.primary;
+    final Color baseColor = widget.color ?? AppColors.primary;
     
     final backgroundColor = switch (widget.variant) {
       LiquidButtonVariant.primary => baseColor.withOpacity(0.9),

@@ -20,6 +20,12 @@ class _AuthGateState extends State<AuthGate> {
   @override
   void initState() {
     super.initState();
+    // If the user is already authenticated (e.g. returning from login screen),
+    // we don't want to show the splash screen again.
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isAuthenticated) {
+      _splashFinished = true;
+    }
   }
 
   void _onSplashComplete() {
@@ -32,14 +38,13 @@ class _AuthGateState extends State<AuthGate> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_splashFinished) {
+    final authProvider = context.watch<AuthProvider>();
+
+    if (!_splashFinished && !authProvider.isAuthenticated) {
       return SplashScreen(onComplete: _onSplashComplete);
     }
 
-    final authProvider = context.watch<AuthProvider>();
-
     if (authProvider.isLoading) {
-      // Show a loading screen while checking auth status post-splash
       return const Scaffold(
         body: Center(
           child: CircularProgressIndicator(),
@@ -50,7 +55,6 @@ class _AuthGateState extends State<AuthGate> {
     if (!authProvider.isAuthenticated) {
       return OnboardingScreen(
         onComplete: () {
-          // Using a named route ensures consistency with your app's navigation
           Navigator.of(context).pushReplacementNamed('/signup');
         },
       );
@@ -63,7 +67,6 @@ class _AuthGateState extends State<AuthGate> {
       }
       return CoupleHomeScreen();
     } else {
-      // For single accounts, navigate to the main app screen
       return const MainAppScreen();
     }
   }

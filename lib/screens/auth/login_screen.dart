@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -60,7 +61,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final auth = context.watch<AuthProvider>();
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -70,9 +71,9 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const SizedBox(height: 60),
-                Text('Welcome Back', style: AppTypography.displayLarge),
+                Text('Welcome Back', style: AppTypography.displayLarge.copyWith(color: context.textColor)),
                 const SizedBox(height: 8),
-                Text('Sign in to continue your journey', style: AppTypography.bodyLarge),
+                Text('Sign in to continue your journey', style: AppTypography.bodyLarge.copyWith(color: context.mutedColor)),
                 const SizedBox(height: 48),
 
                 if (auth.error != null)
@@ -92,7 +93,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _phoneController,
                   hintText: 'Phone Number',
                   keyboardType: TextInputType.phone,
-                  prefixIcon: const Icon(Icons.phone_outlined, color: AppColors.textSecondary),
+                  prefixIcon: Icon(Icons.phone_outlined, color: context.mutedColor),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Please enter your phone number';
                     return null;
@@ -104,10 +105,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   controller: _passwordController,
                   hintText: 'Password',
                   obscureText: _obscurePassword,
-                  prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textSecondary),
+                  prefixIcon: Icon(Icons.lock_outline, color: context.mutedColor),
                   suffixIcon: IconButton(
                     onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                    icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                    icon: Icon(_obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: context.mutedColor),
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) return 'Please enter your password';
@@ -119,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {},
-                    child: Text('Forgot Password?', style: AppTypography.labelMedium.copyWith(color: AppColors.primary)),
+                    child: Text('Forgot Password?', style: AppTypography.labelMedium.copyWith(color: context.primaryColor)),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -140,12 +141,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 Row(
                   children: [
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider(color: context.borderColor)),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('or continue with', style: AppTypography.caption),
+                      child: Text('or continue with', style: AppTypography.caption.copyWith(color: context.mutedColor)),
                     ),
-                    const Expanded(child: Divider()),
+                    Expanded(child: Divider(color: context.borderColor)),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -164,10 +165,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Don\'t have an account? ', style: AppTypography.bodyMedium),
+                      Text('Don\'t have an account? ', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
                       TextButton(
                         onPressed: widget.onSignupTap,
-                        child: Text('Sign Up', style: AppTypography.labelMedium.copyWith(color: AppColors.primary)),
+                        child: Text('Sign Up', style: AppTypography.labelMedium.copyWith(color: context.primaryColor)),
                       ),
                     ],
                   ),
@@ -188,9 +189,9 @@ class _LoginScreenState extends State<LoginScreen> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.withOpacity(0.3)),
+          border: Border.all(color: context.borderColor),
         ),
-        child: Icon(icon, color: AppColors.textPrimary),
+        child: Icon(icon, color: context.textColor),
       ),
     );
   }
@@ -212,27 +213,27 @@ class _LoginScreenState extends State<LoginScreen> {
           controller: controller,
           obscureText: obscureText,
           keyboardType: keyboardType,
-          style: AppTypography.bodyLarge,
+          style: AppTypography.bodyLarge.copyWith(color: context.textColor),
           validator: validator,
           decoration: InputDecoration(
             hintText: hintText,
-            hintStyle: AppTypography.bodyLarge.copyWith(color: AppColors.textMuted),
+            hintStyle: AppTypography.bodyLarge.copyWith(color: context.mutedColor),
             prefixIcon: prefixIcon,
             suffixIcon: suffixIcon,
             filled: true,
-            fillColor: Colors.white.withOpacity(0.7),
+            fillColor: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.4)),
+              borderSide: BorderSide(color: context.borderColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: Colors.white.withOpacity(0.4)),
+              borderSide: BorderSide(color: context.borderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(16),
-              borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+              borderSide: BorderSide(color: context.primaryColor, width: 1.5),
             ),
           ),
         ),

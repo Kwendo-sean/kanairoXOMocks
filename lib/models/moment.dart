@@ -21,7 +21,7 @@ class Moment {
   final String? eventName;
   final DateTime date;
   final MomentType type;
-  final String photoUrl; // Keeping as non-nullable for now but will ensure it's not empty string if null in JSON
+  final String photoUrl;
   final String caption;
   final String? location;
   final int likeCount;
@@ -54,10 +54,8 @@ class Moment {
   }
 
   factory Moment.fromJson(Map<String, dynamic> json) {
-    // Handle nested user object or potential root fields
     final userJson = json['user'] is Map ? json['user'] as Map<String, dynamic> : null;
     
-    // Image URL — handle variations as requested in Fix 3
     final rawImageUrl = 
         json['image_url'] 
         ?? json['image']
@@ -66,14 +64,12 @@ class Moment {
         ?? json['media_url']
         ?? json['file'];
     
-    // User photo — handle variations
     final rawUserPhoto = 
         userJson?['profile_photo_url'] 
         ?? userJson?['photo'] 
         ?? userJson?['avatar'] 
         ?? userJson?['profile_photo'];
     
-    // Username — handle variations
     final userName = userJson?['full_name'] ?? userJson?['display_name'] ?? userJson?['username'] ?? json['author_name'] ?? 'User';
 
     return Moment(

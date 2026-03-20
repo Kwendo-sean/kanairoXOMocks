@@ -8,10 +8,6 @@ import 'package:kanairoxo/utils/auth_storage.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 
-// Since Firebase is not yet in pubspec or configured, 
-// we'll keep the structure but comment out Firebase specific calls 
-// until the user adds the packages.
-
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
@@ -44,8 +40,6 @@ class NotificationService {
         // Handle local notification tap if needed
       },
     );
-
-    // TODO: Initialize Firebase Messaging when package is added
   }
 
   Future<void> showNotification(String title, String body) async {
@@ -68,11 +62,9 @@ class NotificationService {
 
   Future<void> registerFCMToken() async {
     try {
-      // String? fcmToken = await FirebaseMessaging.instance.getToken();
-      String? fcmToken = "mock_token"; // Placeholder
+      // Mock token for now
+      String? fcmToken = "mock_token"; 
       
-      if (fcmToken == null) return;
-
       final deviceId = await AuthStorage.getOrCreateDeviceId();
 
       await _apiClient.post('api/v1/accounts/device/register/', {
@@ -83,7 +75,8 @@ class NotificationService {
 
       debugPrint('FCM token registered');
     } catch (e) {
-      debugPrint('FCM register error: $e');
+      // Non-critical — app works without this
+      debugPrint('FCM register skipped: $e');
     }
   }
 

@@ -41,10 +41,14 @@ class ApiClient {
     return headers;
   }
 
-  Future<dynamic> get(String endpoint, {Map<String, String>? queryParameters}) async {
+  Future<dynamic> get(String endpoint, {Map<String, String>? queryParameters, Map<String, String>? headers}) async {
     return _handleRequest(() async {
       final url = Uri.parse('$baseUrl/$endpoint').replace(queryParameters: queryParameters);
-      return http.get(url, headers: await _getHeaders());
+      final mergedHeaders = await _getHeaders();
+      if (headers != null) {
+        mergedHeaders.addAll(headers);
+      }
+      return http.get(url, headers: mergedHeaders);
     });
   }
 

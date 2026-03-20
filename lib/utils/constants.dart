@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
-
 class AppConstants {
   static const String appName = 'KanairoXO';
   static const double defaultBorderRadius = 12.0;
   static const double cardBorderRadius = 16.0;
   static const double buttonBorderRadius = 999.0;
-  
   static const Duration splashDuration = Duration(seconds: 7);
   static const Duration messageDisappearDuration = Duration(hours: 48);
   static const Duration storyDuration = Duration(hours: 12);
-  
   static const Duration pageTransitionDuration = Duration(milliseconds: 300);
   static const Duration buttonAnimationDuration = Duration(milliseconds: 200);
-
   static const String eventsCacheKey = 'cached_events';
   static const String categoriesCacheKey = 'cached_categories';
-
   static const Color primaryBeige = Color(0xFFFAF7F4);
   static const Color primaryRed = Color(0xFF8B1A1A);
   static const Color primaryBlack = Color(0xFF000000);
@@ -37,9 +32,7 @@ class AppStrings {
   static const String gender = 'Gender';
   static const String dateOfBirth = 'Date of Birth';
   static const String optional = 'Optional';
-
   static const String notificationsTitle = 'Notifications';
-
   static const String passwordMismatch = 'Passwords do not match';
   static const String acceptTermsError = 'You must accept terms and privacy policy';
   static const String phoneValidation = 'Please enter a valid Kenyan phone number';
@@ -48,7 +41,6 @@ class AppStrings {
 class ApiConstants {
   static const String baseUrl = 'http://192.168.100.6:8000';
   static const int timeout = 30;
-
   static String fixMediaUrl(String? raw) {
     if (raw == null || raw.trim().isEmpty) return '';
     if (raw.startsWith('http://') || raw.startsWith('https://')) return raw;
