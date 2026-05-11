@@ -16,7 +16,7 @@ class DatesHistoryScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const PhosphorIcon(PhosphorIcons.magnifyingGlass),
+            icon: PhosphorIcon(PhosphorIcons.magnifyingGlass()),
             tooltip: 'Search',
           ),
         ],
@@ -44,7 +44,7 @@ class DatesHistoryScreen extends StatelessWidget {
           // TODO: Navigate to Plan Date Screen
         },
         label: const Text('Plan New Date', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        icon: const PhosphorIcon(PhosphorIcons.calendarPlus, color: Colors.white),
+        icon: PhosphorIcon(PhosphorIcons.calendarPlus(), color: Colors.white),
         backgroundColor: AppConstants.primaryRed,
       ),
     );

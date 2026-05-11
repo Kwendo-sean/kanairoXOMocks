@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+
 class AppConstants {
   static const String appName = 'KanairoXO';
   static const double defaultBorderRadius = 12.0;
   static const double cardBorderRadius = 16.0;
   static const double buttonBorderRadius = 999.0;
   static const Duration splashDuration = Duration(seconds: 7);
+  static const Duration serviceTimeout = Duration(seconds: 20);
   static const Duration messageDisappearDuration = Duration(hours: 48);
   static const Duration storyDuration = Duration(hours: 12);
   static const Duration pageTransitionDuration = Duration(milliseconds: 300);
@@ -12,7 +14,7 @@ class AppConstants {
   static const String eventsCacheKey = 'cached_events';
   static const String categoriesCacheKey = 'cached_categories';
   static const Color primaryBeige = Color(0xFFFAF7F4);
-  static const Color primaryRed = Color(0xFF8B1A1A);
+  static const Color primaryRed = Color(0xFF9B111E); // Senior Engineer Update: 9B111E
   static const Color primaryBlack = Color(0xFF000000);
   static const Color successGreen = Color(0xFF2E7D32);
   static const Color lightGray = Color(0xFFE0E0E0);

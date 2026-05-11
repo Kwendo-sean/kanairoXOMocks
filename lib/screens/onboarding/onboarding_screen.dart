@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 
 class OnboardingScreen extends StatefulWidget {

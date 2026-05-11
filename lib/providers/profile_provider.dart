@@ -1,72 +1,88 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'dart:io';
 import '../models/user_model.dart';
-import '../services/api_client.dart';
+import '../models/profile_model.dart';
 import '../services/profile_api_service.dart';
 import './auth_provider.dart';
 
 class ProfileProvider with ChangeNotifier {
   final ProfileApiService _profileApiService = ProfileApiService();
-  AuthProvider? _authProvider;
-
   User? _currentUser;
+  ProfileModel? _myProfile;
   User? _viewedProfile;
   List<User> _savedProfiles = [];
   List<User> _discoveredProfiles = [];
   bool _isLoading = false;
   String? _error;
   bool _isProfileSaved = false;
+  
+  // Cache busting timestamp
+  String _imageVersion = DateTime.now().millisecondsSinceEpoch.toString();
 
   User? get currentUser => _currentUser;
+  ProfileModel? get myProfile => _myProfile;
   User? get viewedProfile => _viewedProfile;
   List<User> get savedProfiles => _savedProfiles;
   List<User> get discoveredProfiles => _discoveredProfiles;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isProfileSaved => _isProfileSaved;
+  String get imageVersion => _imageVersion;
 
   void update(AuthProvider authProvider) {
-    _authProvider = authProvider;
     if (!authProvider.isAuthenticated) {
       _currentUser = null;
+      _myProfile = null;
       _savedProfiles = [];
       _discoveredProfiles = [];
     }
     notifyListeners();
   }
 
-  List<Map<String, String>> get neighborhoods => _profileApiService.getNeighborhoods();
-  List<Map<String, String>> get lifeStages => _profileApiService.getLifeStages();
-  List<Map<String, String>> get socialCircles => _profileApiService.getSocialCircles();
-  List<Map<String, String>> get connectionFrequencies => _profileApiService.getConnectionFrequencies();
-  List<Map<String, String>> get visibilityOptions => _profileApiService.getVisibilityOptions();
-  List<String> get commonInterests => _profileApiService.getCommonInterests();
+  void bustImageCache() {
+    _imageVersion = DateTime.now().millisecondsSinceEpoch.toString();
+    imageCache.clear();
+    imageCache.clearLiveImages();
+    notifyListeners();
+  }
 
-  Future<User?> loadMyProfile() async {
-    if (_isLoading) return _currentUser;
-
+  Future<void> refreshMyProfile() async {
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _currentUser = await _profileApiService.getMyProfile();
+      // Parallel fetch for speed
+      final results = await Future.wait([
+        _profileApiService.getMyProfile(),
+        _profileApiService.getProfile(),
+      ]);
+      
+      _currentUser = results[0] as User;
+      _myProfile = results[1] as ProfileModel;
+      
+      // Auto-bust cache on refresh to ensure UI sees new photos
+      bustImageCache();
       _error = null;
-      notifyListeners();
-      return _currentUser;
     } catch (e) {
       _error = e.toString();
-      _currentUser = null;
-      notifyListeners();
-      return null; // Return null on failure instead of rethrowing
+      debugPrint('Error refreshing profile: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
+  Future<User?> loadMyProfile() async {
+    if (_isLoading) return _currentUser;
+    await refreshMyProfile();
+    return _currentUser;
+  }
+
   Future<void> handleLogout() async {
     _currentUser = null;
+    _myProfile = null;
     _savedProfiles = [];
     _discoveredProfiles = [];
     notifyListeners();
@@ -94,15 +110,46 @@ class ProfileProvider with ChangeNotifier {
   }
 
   Future<void> updateProfile(UserProfileUpdate update) async {
-    if (_isLoading) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _currentUser = await _profileApiService.updateProfile(update);
+      await _profileApiService.updateProfile(update);
+      await refreshMyProfile();
     } catch (e) {
       _error = e.toString();
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  /// New single photo upload handler
+  Future<void> uploadProfilePhoto(File file) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+
+    try {
+      final newUrl = await _profileApiService.uploadSingleProfilePhoto(file);
+      
+      // Update local models immediately with the returned URL
+      if (_myProfile != null) {
+        _myProfile = _myProfile!.copyWith(profilePhotoUrl: newUrl);
+      }
+      
+      // Clear cache and update version to force refresh
+      bustImageCache();
+      
+      // We don't necessarily NEED to re-fetch the full profile if the URL is updated,
+      // but it's good practice to keep everything in sync eventually.
+      // For immediate response, the local state update is enough.
+    } catch (e) {
+      _error = e.toString();
+      debugPrint('Photo upload error: $e');
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -115,21 +162,22 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
     try {
       await _profileApiService.uploadProfilePhotos(images);
-      await loadMyProfile(); // Reloads the profile
+      await refreshMyProfile();
     } catch (e) {
       _error = e.toString();
+      rethrow;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
-
+  
   Future<void> reorderProfilePhotos(List<Map<String, dynamic>> photos) async {
     _isLoading = true;
     notifyListeners();
     try {
       await _profileApiService.reorderProfilePhotos(photos);
-      await loadMyProfile();
+      await refreshMyProfile();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -137,14 +185,13 @@ class ProfileProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
 
   Future<void> deleteProfilePhoto(String photoUrl) async {
     _isLoading = true;
     notifyListeners();
     try {
       await _profileApiService.deleteProfilePhoto(photoUrl);
-      await loadMyProfile();
+      await refreshMyProfile();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -158,7 +205,7 @@ class ProfileProvider with ChangeNotifier {
     notifyListeners();
     try {
       await _profileApiService.setMainProfilePhoto(photoUrl);
-      await loadMyProfile();
+      await refreshMyProfile();
     } catch (e) {
       _error = e.toString();
     } finally {
@@ -166,37 +213,6 @@ class ProfileProvider with ChangeNotifier {
       notifyListeners();
     }
   }
-
-  Future<void> uploadVoiceIntro(XFile audioFile) async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      await _profileApiService.uploadVoiceIntro(audioFile);
-      await loadMyProfile();
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> deleteVoiceIntro() async {
-    _isLoading = true;
-    notifyListeners();
-    try {
-      await _profileApiService.deleteVoiceIntro();
-      await loadMyProfile();
-    } catch (e) {
-      _error = e.toString();
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
-  }
-
-
-  // ... other methods like search, save, etc. remain the same ...
 
   Future<void> _checkIfProfileSaved(String id) async {
     try {
@@ -210,12 +226,6 @@ class ProfileProvider with ChangeNotifier {
 
   void clearError() {
     _error = null;
-    notifyListeners();
-  }
-
-  void clearViewedProfile() {
-    _viewedProfile = null;
-    _isProfileSaved = false;
     notifyListeners();
   }
 }

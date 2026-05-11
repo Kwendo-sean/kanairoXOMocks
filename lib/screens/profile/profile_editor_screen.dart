@@ -4,11 +4,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/services/api_client.dart';
-import 'package:http/http.dart' as http;
+import 'package:kanairoxo/models/user_model.dart';
 
 class ProfileEditorScreen extends StatefulWidget {
   final VoidCallback onClose;
@@ -20,8 +21,8 @@ class ProfileEditorScreen extends StatefulWidget {
 }
 
 class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
-  late TextEditingController _bioController;
-  late TextEditingController _headlineController;
+  final _bioController = TextEditingController();
+  final _headlineController = TextEditingController();
   final _interestInputController = TextEditingController();
 
   File? _profilePhotoFile;
@@ -34,9 +35,10 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   String? _selectedSocialCircle;
   String? _visibility;
   String? _gender;
-  DateTime? _dateOfBirth;
-
-  bool _isLoading = false;
+  
+  bool _isLoading = true;
+  bool _isSaving = false;
+  bool _isSelectingGender = false;
   final ApiClient apiClient = ApiClient();
 
   final _neighborhoods = [
@@ -65,23 +67,37 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   @override
   void initState() {
     super.initState();
-    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-    final user = profileProvider.currentUser;
-    final profile = user?.profile;
+    _loadInitialData();
+  }
 
-    if (user != null && profile != null) {
-      _bioController = TextEditingController(text: profile.bio);
-      _headlineController = TextEditingController(text: profile.headline);
-      _selectedInterests.addAll(profile.interests);
-      _selectedNeighborhood = profile.neighborhoodDisplay;
-      _selectedLifeStage = profile.lifeStage;
-      _selectedSocialCircle = profile.primarySocialCircle;
-      _visibility = profile.profileVisibility ?? 'public';
-      _currentPhotoUrl = profile.mainProfilePhoto;
-    } else {
-      _bioController = TextEditingController();
-      _headlineController = TextEditingController();
-      _visibility = 'public';
+  Future<void> _loadInitialData() async {
+    setState(() => _isLoading = true);
+    try {
+      final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+      final user = await profileProvider.loadMyProfile();
+      final profile = profileProvider.myProfile;
+
+      if (user != null && profile != null) {
+        _bioController.text = profile.bio;
+        _headlineController.text = profile.headline;
+        _selectedInterests.clear();
+        _selectedInterests.addAll(profile.interests.map((i) => i.name));
+        _selectedNeighborhood = profile.primaryNeighborhood;
+        _selectedLifeStage = profile.lifeStage;
+        _selectedSocialCircle = profile.primarySocialCircle;
+        _visibility = profile.profileVisibility;
+        _currentPhotoUrl = profile.profilePhotoUrl;
+        _gender = user.gender;
+
+        // Force gender selection ONLY for social logins (no phone number) missing gender
+        if ((_gender == null || _gender!.isEmpty) && user.phoneNumber.isEmpty) {
+          _isSelectingGender = true;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error loading profile: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -143,76 +159,74 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     setState(() => _selectedInterests.remove(name));
   }
 
+  Future<void> _updateGender(String gender) async {
+    setState(() => _isSaving = true);
+    try {
+      await apiClient.patch('api/v1/profiles/edit/', {'gender': gender});
+      setState(() {
+        _gender = gender;
+        _isSelectingGender = false;
+        _isSaving = false;
+      });
+    } catch (e) {
+      debugPrint('Error updating gender: $e');
+      if (mounted) {
+        setState(() => _isSaving = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update gender: ${e.toString()}'))
+        );
+      }
+    }
+  }
+
   Future<void> _saveProfile() async {
-    setState(() => _isLoading = true);
+    setState(() => _isSaving = true);
+    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
     
     try {
-      final profilePayload = {
-        'headline': _headlineController.text.trim(),
-        'bio': _bioController.text.trim(),
-        'primary_neighborhood': _selectedNeighborhood ?? '',
-        'life_stage': _selectedLifeStage ?? '',
-        'primary_social_circle': _selectedSocialCircle ?? '',
-        'profile_visibility': _visibility,
-      };
+      // 1. Update basic profile info via Provider
+      await profileProvider.updateProfile(UserProfileUpdate(
+        headline: _headlineController.text.trim(),
+        bio: _bioController.text.trim(),
+        primaryNeighborhood: _selectedNeighborhood,
+        lifeStage: _selectedLifeStage,
+        primarySocialCircle: _selectedSocialCircle,
+        profileVisibility: _visibility,
+        interests: _selectedInterests,
+      ));
       
-      await apiClient.patch(
-        'api/v1/profiles/edit/',
-        profilePayload);
-      
-      if (_gender != null || _dateOfBirth != null) {
-        final accountPayload = <String, dynamic>{};
-        if (_gender != null) accountPayload['gender'] = _gender;
-        if (_dateOfBirth != null) {
-          accountPayload['date_of_birth'] = 
-            '${_dateOfBirth!.year}-${_dateOfBirth!.month.toString().padLeft(2,'0')}-${_dateOfBirth!.day.toString().padLeft(2,'0')}';
-        }
-        
-        if (accountPayload.isNotEmpty) {
-          await apiClient.patch(
-            'api/v1/accounts/profile/',
-            accountPayload);
-        }
+      // 2. Update account info (gender) - sync with profiles/edit as requested
+      if (_gender != null) {
+        await apiClient.patch('api/v1/profiles/edit/', {'gender': _gender});
       }
       
+      // 3. Upload photo if changed - Uses specific upload endpoint with immediate UI sync
       if (_profilePhotoFile != null) {
-        final token = await apiClient.getAccessToken();
-        final url = Uri.parse('${ApiClient.baseUrl}/api/v1/profiles/edit/');
-        final request = http.MultipartRequest('PATCH', url);
-        if (token != null) {
-          request.headers['Authorization'] = 'Bearer $token';
-        }
-        request.files.add(await http.MultipartFile.fromPath('profile_photo', _profilePhotoFile!.path));
-        
-        final streamedResponse = await request.send();
-        final response = await http.Response.fromStream(streamedResponse);
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw Exception('Photo upload failed: ${response.statusCode}');
-        }
+        await profileProvider.uploadProfilePhoto(_profilePhotoFile!);
       }
       
-      if (_selectedInterests.isNotEmpty) {
-        await apiClient.post(
-          'api/v1/profiles/interests/bulk/',
-          {'interests': _selectedInterests});
-      }
-      
+      // 4. Refresh both providers to sync state and prevent loops
+      await profileProvider.refreshMyProfile();
+      await authProvider.refreshProfile();
+
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Profile updated',
+          content: Text('Profile updated successfully',
             style: AppTypography.caption.copyWith(color: Colors.white)),
           backgroundColor: AppColors.primary,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           duration: const Duration(seconds: 2)));
       
-      Navigator.pop(context, true);
+      Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       
     } catch (e) {
+      debugPrint('Save error: $e');
       if (!mounted) return;
-      setState(() => _isLoading = false);
+      setState(() => _isSaving = false);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not save: ${e.toString()}',
@@ -226,12 +240,23 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
-    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
     final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
     final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
     final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
     final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
     final primaryGlass = isDark ? const Color(0x26C0394B) : const Color(0x148B1A1A);
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (_isSelectingGender) {
+      return _buildGenderSelectionStep(bgColor, textColor, mutedColor, surfaceColor, borderColor, primaryColor, primaryGlass);
+    }
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -245,7 +270,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
         centerTitle: true,
         actions: [
           TextButton(
-            onPressed: _isLoading ? null : _saveProfile,
+            onPressed: _isSaving ? null : _saveProfile,
             child: Text('Save', style: AppTypography.labelMedium.copyWith(color: primaryColor, fontWeight: FontWeight.w600))),
         ],
       ),
@@ -272,37 +297,111 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     );
   }
 
+  Widget _buildGenderSelectionStep(Color bgColor, Color textColor, Color mutedColor, Color surfaceColor, Color borderColor, Color primaryColor, Color primaryGlass) {
+    return Scaffold(
+      backgroundColor: bgColor,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SizedBox(height: 40),
+              Text('One last thing', style: AppTypography.displayLarge.copyWith(color: textColor, fontSize: 32)),
+              const SizedBox(height: 12),
+              Text('How do you identify? This helps us curate better experiences for you.', 
+                style: AppTypography.bodyLarge.copyWith(color: mutedColor)),
+              const SizedBox(height: 48),
+              _buildGenderCard('Man', 'male', Icons.male, primaryColor, primaryGlass, borderColor, textColor, mutedColor, surfaceColor),
+              const SizedBox(height: 16),
+              _buildGenderCard('Woman', 'female', Icons.female, primaryColor, primaryGlass, borderColor, textColor, mutedColor, surfaceColor),
+              const Spacer(),
+              if (_isSaving)
+                const Center(child: CircularProgressIndicator(color: AppColors.primary)),
+              const SizedBox(height: 24),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildGenderCard(String label, String value, IconData icon, Color primaryColor, Color primaryGlass, Color borderColor, Color textColor, Color mutedColor, Color surfaceColor) {
+    bool isSelected = _gender == value;
+    return GestureDetector(
+      onTap: _isSaving ? null : () => _updateGender(value),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: isSelected ? primaryGlass : surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: isSelected ? primaryColor : borderColor, width: isSelected ? 2 : 1),
+          boxShadow: isSelected ? [BoxShadow(color: primaryColor.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))] : [],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: isSelected ? primaryColor : borderColor.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: isSelected ? Colors.white : mutedColor, size: 24),
+            ),
+            const SizedBox(width: 16),
+            Text(label, style: AppTypography.bodyLarge.copyWith(
+              color: isSelected ? primaryColor : textColor,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            )),
+            const Spacer(),
+            if (isSelected) Icon(Icons.check_circle, color: primaryColor),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildProfilePhoto(Color borderColor, Color primaryColor) {
+    final profileProvider = Provider.of<ProfileProvider>(context);
+    final imgVersion = profileProvider.imageVersion;
+    final myProfile = profileProvider.myProfile;
+    
     return Center(
       child: Stack(
         clipBehavior: Clip.none,
         children: [
           Container(
-            width: 96, height: 96,
+            width: 100, height: 100,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              border: Border.all(color: Colors.white.withOpacity(0.8), width: 3),
+              border: Border.all(color: Colors.white, width: 3),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.1),
-                  blurRadius: 12,
+                  blurRadius: 10,
                   offset: const Offset(0, 4))
               ]),
             child: ClipOval(
               child: _profilePhotoFile != null
                 ? Image.file(_profilePhotoFile!, fit: BoxFit.cover)
-                : SafeNetworkImage(url: _currentPhotoUrl, fit: BoxFit.cover, width: 96, height: 96))),
+                : SafeNetworkImage(
+                    url: myProfile?.profilePhotoUrl ?? _currentPhotoUrl, 
+                    version: imgVersion,
+                    fit: BoxFit.cover, 
+                    width: 100, 
+                    height: 100))),
           Positioned(
             bottom: 0, right: 0,
             child: GestureDetector(
               onTap: _pickProfilePhoto,
               child: Container(
-                width: 30, height: 30,
+                width: 32, height: 32,
                 decoration: BoxDecoration(
                   color: primaryColor,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.white, width: 2)),
-                child: const Icon(Icons.camera_alt, color: Colors.white, size: 15)))),
+                child: const Icon(Icons.camera_alt, color: Colors.white, size: 16)))),
         ],
       ),
     );
@@ -347,6 +446,21 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       children: [
         _SectionHeader(title: 'About You', textColor: textColor),
         const SizedBox(height: 12),
+        _StyledDropdown(
+          value: _gender == 'male' ? 'Male' : (_gender == 'female' ? 'Female' : null),
+          hint: 'Gender',
+          prefixIcon: Icons.wc_outlined,
+          items: ['Male', 'Female'],
+          onChanged: (val) {
+             if (val == 'Male') setState(() => _gender = 'male');
+             if (val == 'Female') setState(() => _gender = 'female');
+          },
+          textColor: textColor,
+          mutedColor: mutedColor,
+          surfaceColor: surfaceColor,
+          borderColor: borderColor,
+          primaryColor: primaryColor),
+        const SizedBox(height: 10),
         _StyledDropdown(
           value: _selectedNeighborhood,
           hint: 'Primary Neighborhood',
@@ -478,8 +592,8 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
       width: double.infinity,
       child: LiquidGlassButton(
         size: LiquidButtonSize.xl,
-        onPressed: _isLoading ? null : _saveProfile,
-        child: _isLoading
+        onPressed: _isSaving ? null : _saveProfile,
+        child: _isSaving
           ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
           : Text('Save Changes', style: AppTypography.buttonText)));
   }

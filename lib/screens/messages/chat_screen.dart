@@ -633,7 +633,7 @@ class DatePlannerModal extends StatelessWidget {
                     Icon(
                       PhosphorIcons.star(),
                       size: 14,
-                      color: AppConstants.warningAmber,
+                      color: Colors.amber,
                     ),
                     const SizedBox(width: 4),
                     Text(

@@ -2,13 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/widgets/experience_card.dart';
 import 'package:kanairoxo/models/data_models.dart';
-import 'package:kanairoxo/services/events_api_service.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/widgets/glass_card.dart';
+import 'package:kanairoxo/screens/events/ticket_purchase_screen.dart';
 
 class EventsScreen extends StatefulWidget {
   final void Function(Experience) onJoinExperience;
@@ -25,17 +24,13 @@ class EventsScreen extends StatefulWidget {
 }
 
 class _EventsScreenState extends State<EventsScreen> {
-  late EventsApiService _eventsApiService;
   final ScrollController _scrollController = ScrollController();
-  bool _isLoading = false;
   bool _isLoadingMore = false;
-  int _currentPage = 1;
   bool _hasMore = true;
 
   @override
   void initState() {
     super.initState();
-    _eventsApiService = EventsApiService();
     _loadExperiences();
     _setupScrollController();
   }
@@ -50,32 +45,15 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 
   Future<void> _loadExperiences() async {
-    if (_isLoading) return;
-
-    setState(() {
-      _isLoading = true;
-    });
-
     try {
       final eventsProvider = Provider.of<EventsProvider>(context, listen: false);
       await eventsProvider.fetchExperiences();
 
       setState(() {
-        _currentPage = 1;
         _hasMore = true;
       });
     } catch (e) {
       debugPrint('Error loading experiences: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load experiences'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    } finally {
-      setState(() {
-        _isLoading = false;
-      });
     }
   }
 
@@ -92,20 +70,15 @@ class _EventsScreenState extends State<EventsScreen> {
 
       setState(() {
         _hasMore = hasMore;
-        _currentPage++;
       });
     } catch (e) {
       debugPrint('Error loading more experiences: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load more experiences'),
-          backgroundColor: Colors.red,
-        ),
-      );
     } finally {
-      setState(() {
-        _isLoadingMore = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isLoadingMore = false;
+        });
+      }
     }
   }
 
@@ -113,98 +86,182 @@ class _EventsScreenState extends State<EventsScreen> {
     return _loadExperiences();
   }
 
+  void _goToTicketScreen(Experience experience) {
+    Navigator.push(context,
+      MaterialPageRoute(
+        builder: (_) => TicketPurchaseScreen(
+          event: experience)));
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}';
+  }
+
   Future<void> _handleJoinExperience(Experience experience) async {
-    try {
-      final eventsProvider = Provider.of<EventsProvider>(context, listen: false);
-
-      if (experience.isFull) {
-        final joinWaitlist = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Event is Full'),
-            content: const Text('This event is currently at capacity. Would you like to join the waitlist?'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Join Waitlist'),
-              ),
-            ],
-          ),
-        );
-
-        if (joinWaitlist == true) {
-          final result = await eventsProvider.joinWaitlist(experience.id);
-
-          if (result['success']) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text("Added to waitlist at position ${result['position']}"),
-                backgroundColor: Colors.green,
-              ),
-            );
-          }
-        }
-      } else {
-        final shouldRegister = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text('Join ${experience.title}'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Price: ${experience.priceDisplay}'),
-                const SizedBox(height: 8),
-                Text('Date: ${experience.formattedDate} at ${experience.formattedTime}'),
-                const SizedBox(height: 8),
-                Text('Venue: ${experience.venueName}'),
-                const SizedBox(height: 8),
-                Text('Spots left: ${experience.ticketsAvailable}'),
-              ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
+    if (experience.isFull) {
+      final joinWaitlist = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Event is Full'),
+          content: const Text('This event is currently at capacity. Would you like to join the waitlist?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Cancel'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('Register'),
-              ),
-            ],
-          ),
-        );
-
-        if (shouldRegister == true) {
-          final result = await eventsProvider.registerForExperience(
-            experienceId: experience.id,
-          );
-
-          if (result['success']) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Successfully registered for ${experience.title}'),
-                backgroundColor: Colors.green,
-              ),
-            );
-
-            widget.onJoinExperience(experience);
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('Error joining experience: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Failed to register: ${e.toString()}'),
-          backgroundColor: Colors.red,
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Join Waitlist'),
+            ),
+          ],
         ),
       );
+
+      if (joinWaitlist == true) {
+        final eventsProvider = Provider.of<EventsProvider>(context, listen: false);
+        final result = await eventsProvider.joinWaitlist(experience.id);
+
+        if (result['success']) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Added to waitlist at position ${result['position']}"),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
+      return;
     }
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isDark
+              ? const Color(0xFF1C1612)
+              : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: isDark
+                ? const Color(0xFF2E2820)
+                : Colors.grey.shade100)),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.08),
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24))),
+                child: Row(children: [
+                  Expanded(child: Text(
+                    experience.title,
+                    style: AppTypography.displayMedium.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w700),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis)),
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                      size: 20,
+                      color: AppColors.textMuted),
+                    onPressed: () =>
+                      Navigator.pop(context),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints()),
+                ])),
+
+              // Details
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Price
+                    _DetailRow(
+                      icon: Icons.confirmation_number_outlined,
+                      label: experience.basePrice > 0
+                        ? 'KES ${experience.basePrice.toInt()}'
+                        : 'Free entry'),
+
+                    const SizedBox(height: 10),
+
+                    // Date
+                    _DetailRow(
+                      icon: Icons.calendar_today_outlined,
+                      label: _formatDate(experience.startDateTime)),
+
+                    const SizedBox(height: 10),
+
+                    // Venue
+                    _DetailRow(
+                      icon: Icons.location_on_outlined,
+                      label: experience.venueName),
+
+                    const SizedBox(height: 10),
+
+                    // Spots
+                    _DetailRow(
+                      icon: Icons.people_outline,
+                      label: '${experience.ticketsAvailable} spots left'),
+
+                    const SizedBox(height: 20),
+
+                    // Buttons
+                    Row(children: [
+                      // Cancel
+                      Expanded(child: OutlinedButton(
+                        onPressed: () =>
+                          Navigator.pop(context),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          side: BorderSide(
+                            color: AppColors.textMuted.withOpacity(0.3)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999))),
+                        child: Text('Cancel',
+                          style: AppTypography.caption.copyWith(
+                              color: AppColors.textMuted,
+                              fontWeight: FontWeight.w500)))),
+
+                      const SizedBox(width: 12),
+
+                      // Buy Ticket / Get Ticket
+                      Expanded(child: ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _goToTicketScreen(experience);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(999))),
+                        child: Text(
+                          experience.basePrice > 0
+                            ? 'Buy Ticket'
+                            : 'Get Ticket',
+                          style: AppTypography.caption.copyWith(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w600)))),
+                    ]),
+                  ])),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -215,12 +272,19 @@ class _EventsScreenState extends State<EventsScreen> {
     final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
     final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
     final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
-    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
 
     return Consumer<EventsProvider>(
       builder: (context, eventsProvider, child) {
         final experiences = eventsProvider.experiences;
         final featuredExperiences = eventsProvider.featuredExperiences;
+        final isLoading = eventsProvider.isLoading;
+
+        final allExperiences = [...experiences];
+        for (var featured in featuredExperiences) {
+          if (!allExperiences.any((e) => e.id == featured.id)) {
+            allExperiences.insert(0, featured);
+          }
+        }
 
         return Scaffold(
           backgroundColor: bgColor,
@@ -229,11 +293,7 @@ class _EventsScreenState extends State<EventsScreen> {
             elevation: 0,
             title: Text(
               'Experiences',
-              style: TextStyle(
-                color: textColor,
-                fontWeight: FontWeight.w600,
-                fontFamily: 'DM Sans',
-              ),
+              style: AppTypography.screenTitle.copyWith(color: textColor),
             ),
             centerTitle: true,
             automaticallyImplyLeading: false,
@@ -259,15 +319,13 @@ class _EventsScreenState extends State<EventsScreen> {
               const SizedBox(width: 8),
             ],
           ),
-          body: _isLoading
-              ? Center(child: CircularProgressIndicator(color: primaryColor))
-              : RefreshIndicator(
+          body: RefreshIndicator(
             onRefresh: _refreshExperiences,
+            color: AppColors.primary,
             child: ListView(
               controller: _scrollController,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               children: [
-                // Host Event Section
                 LiquidGlassButton(
                   size: LiquidButtonSize.lg,
                   width: double.infinity,
@@ -292,7 +350,6 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
                 const SizedBox(height: 16),
                 
-                // Featured experiences section
                 if (featuredExperiences.isNotEmpty) ...[
                   Text(
                     'Featured Experiences',
@@ -305,7 +362,7 @@ class _EventsScreenState extends State<EventsScreen> {
                   ),
                   const SizedBox(height: 12),
                   SizedBox(
-                    height: 180,
+                    height: 160,
                     child: ListView.builder(
                       scrollDirection: Axis.horizontal,
                       itemCount: featuredExperiences.length,
@@ -319,9 +376,8 @@ class _EventsScreenState extends State<EventsScreen> {
                               '/events/${experience.id}',
                             );
                           },
-                          child: Container(
-                            width: 260,
-                            margin: const EdgeInsets.only(right: 12),
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 12),
                             child: FeaturedExperienceCard(
                               experience: experience,
                             ),
@@ -333,7 +389,6 @@ class _EventsScreenState extends State<EventsScreen> {
                   const SizedBox(height: 24),
                 ],
 
-                // All experiences
                 Text(
                   'All Experiences',
                   style: TextStyle(
@@ -354,7 +409,7 @@ class _EventsScreenState extends State<EventsScreen> {
                 ),
                 const SizedBox(height: 16),
 
-                if (experiences.isEmpty)
+                if (allExperiences.isEmpty && !isLoading)
                   Padding(
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
@@ -385,7 +440,7 @@ class _EventsScreenState extends State<EventsScreen> {
                     ),
                   )
                 else ...[
-                  ...experiences.map((experience) {
+                  ...allExperiences.map((experience) {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: Container(
@@ -412,15 +467,19 @@ class _EventsScreenState extends State<EventsScreen> {
                     );
                   }).toList(),
 
-                  if (_isLoadingMore)
-                    Padding(
-                      padding: const EdgeInsets.all(12.0),
+                  if (isLoading || _isLoadingMore)
+                    const Padding(
+                      padding: EdgeInsets.all(12.0),
                       child: Center(
-                        child: CircularProgressIndicator(color: primaryColor),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                        ),
                       ),
                     ),
 
-                  if (!_hasMore && experiences.isNotEmpty)
+                  if (!_hasMore && allExperiences.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.all(12.0),
                       child: Center(
@@ -498,7 +557,6 @@ class _EventsScreenState extends State<EventsScreen> {
                 Expanded(
                   child: ListView(
                     children: const [
-                      // Add filter options here
                     ],
                   ),
                 ),
@@ -518,6 +576,33 @@ class _EventsScreenState extends State<EventsScreen> {
   }
 }
 
+class _DetailRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  
+  const _DetailRow({
+    required this.icon,
+    required this.label});
+  
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness
+      == Brightness.dark;
+    return Row(children: [
+      Icon(icon,
+        size: 16,
+        color: AppColors.primary.withOpacity(0.7)),
+      const SizedBox(width: 10),
+      Expanded(child: Text(label,
+        style: AppTypography.bodyMedium.copyWith(
+          color: isDark
+            ? const Color(0xFFF5EFE6)
+            : const Color(0xFF1A1A1A),
+          fontSize: 14))),
+    ]);
+  }
+}
+
 class FeaturedExperienceCard extends StatelessWidget {
   final Experience experience;
 
@@ -528,89 +613,85 @@ class FeaturedExperienceCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: AppRadius.md,
-      ),
-      child: Stack(
-        children: [
-          if (experience.coverImage != null)
-            ClipRRect(
-              borderRadius: AppRadius.md,
-              child: Image.network(
-                experience.coverImage!,
-                width: double.infinity,
-                height: double.infinity,
-                fit: BoxFit.cover,
-              ),
-            ),
+    return Container(
+      width: 200,
+      height: 160,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(0xFF2A0808),
+            Color(0xFF1A0505),
+          ])),
+      child: Stack(children: [
+        // Large faint letter in background
+        Positioned(
+          right: -10, top: -10,
+          child: Text(
+            experience.title.isNotEmpty
+              ? experience.title[0].toUpperCase()
+              : 'K',
+            style: TextStyle(
+              fontSize: 110,
+              fontWeight: FontWeight.w900,
+              color: AppColors.primary.withOpacity(0.08),
+              height: 1))),
 
-          Container(
-            decoration: BoxDecoration(
-              borderRadius: AppRadius.md,
-              gradient: LinearGradient(
-                begin: Alignment.bottomCenter,
-                end: Alignment.topCenter,
-                colors: [
-                  Colors.black.withOpacity(0.8),
-                  Colors.transparent,
-                  Colors.transparent,
-                ],
-              ),
-            ),
-          ),
+        // Content
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              // Featured badge
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(6)),
+                child: const Text('FEATURED',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.5))),
 
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Text(
-                    'FEATURED',
-                    style: TextStyle(
+              // Event details at bottom
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(experience.title,
+                    style: AppTypography.labelMedium.copyWith(
                       color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis),
 
-                Text(
-                  experience.title,
-                  style: AppTypography.displayMedium.copyWith(color: Colors.white, fontSize: 16),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 4),
+                  const SizedBox(height: 4),
 
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, size: 12, color: Colors.white70),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        experience.venueName,
-                        style: AppTypography.caption.copyWith(color: Colors.white70),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
+                  Row(children: [
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 11,
+                      color: Colors.white.withOpacity(0.55)),
+                    const SizedBox(width: 3),
+                    Expanded(child: Text(
+                      experience.neighborhood.isNotEmpty
+                        ? experience.neighborhood
+                        : experience.venueName,
+                      style: TextStyle(
+                        color: Colors.white.withOpacity(0.55),
+                        fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis)),
+                  ]),
+                ]),
+            ])),
+      ]));
   }
 }

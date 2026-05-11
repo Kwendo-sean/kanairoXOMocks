@@ -1,6 +1,3 @@
-import 'package:flutter/material.dart';
-import '../core/utils/url_helper.dart';
-
 class UserProfile {
   final String name;
   final int age;
@@ -42,7 +39,6 @@ class Experience {
   final String title;
   final String description;
   final String shortDescription;
-  final String? coverImage;
   final String venueName;
   final String venueAddress;
   final String neighborhood;
@@ -80,7 +76,6 @@ class Experience {
     required this.title,
     required this.description,
     required this.shortDescription,
-    this.coverImage,
     required this.venueName,
     required this.venueAddress,
     required this.neighborhood,
@@ -115,40 +110,50 @@ class Experience {
   });
 
   factory Experience.fromJson(Map<String, dynamic> json) {
+    // Map backend fields to model fields with safe fallbacks
+    final startStr = json['start_datetime'] ?? json['start_at'];
+    final endStr = json['end_datetime'] ?? json['end_at'];
+    
     return Experience(
-      id: json['id'] ?? '',
-      title: json['title'] ?? '',
-      description: json['description'] ?? '',
+      id: json['id']?.toString() ?? '',
+      title: json['title'] ?? 'Untitled Experience',
+      description: json['description'] ?? json['short_description'] ?? '',
       shortDescription: json['short_description'] ?? '',
-      coverImage: UrlHelper.fixMediaUrl(json['cover_image']),
-      venueName: json['venue_name'] ?? '',
+      venueName: json['venue_name'] ?? 'TBD',
       venueAddress: json['venue_address'] ?? '',
       neighborhood: json['neighborhood'] ?? 'other',
-      startDateTime: DateTime.parse(json['start_datetime']),
-      endDateTime: DateTime.parse(json['end_datetime']),
+      startDateTime: startStr != null ? DateTime.parse(startStr) : DateTime.now(),
+      endDateTime: endStr != null ? DateTime.parse(endStr) : DateTime.now().add(const Duration(hours: 2)),
       timezone: json['timezone'] ?? 'Africa/Nairobi',
       maxCapacity: json['max_capacity'] ?? 0,
-      currentAttendees: json['current_attendees'] ?? 0,
-      isFull: json['is_full'] ?? false,
+      currentAttendees: json['current_attendees'] ?? json['attendee_count'] ?? 0,
+      isFull: json['is_full'] ?? json['is_sold_out'] ?? false,
       pricingTier: json['pricing_tier'] ?? 'free',
-      basePrice: double.tryParse(json['base_price'].toString()) ?? 0.0,
+      basePrice: double.tryParse(json['base_price']?.toString() ?? '0') ?? 0.0,
       currency: json['currency'] ?? 'KES',
       primaryMood: json['primary_mood'] ?? 'social',
       secondaryMoods: List<String>.from(json['secondary_moods'] ?? []),
       targetIntents: List<String>.from(json['target_intents'] ?? []),
-      discoveryScore: double.tryParse(json['discovery_score'].toString()) ?? 0.0,
+      discoveryScore: double.tryParse(json['discovery_score']?.toString() ?? '0') ?? 0.0,
       isFeatured: json['is_featured'] ?? false,
       isVerified: json['is_verified'] ?? false,
-      status: json['status'] ?? 'draft',
+      status: json['status'] ?? 'live',
       eventType: json['event_type'] ?? 'community',
       category: json['category'] != null
-          ? ExperienceCategory.fromJson(json['category'])
+          ? (json['category'] is String 
+              ? ExperienceCategory(id: json['category'], name: 'Category', description: '', icon: 'calendar', color: '#8B1A1A')
+              : ExperienceCategory.fromJson(json['category']))
           : null,
       tags: json['tags'] != null
           ? List<ExperienceTag>.from(
               json['tags'].map((x) => ExperienceTag.fromJson(x)))
           : [],
-      organizer: ExperienceOrganizer.fromJson(json['organizer'] ?? {}),
+      organizer: json['organizer'] != null 
+          ? ExperienceOrganizer.fromJson(json['organizer'])
+          : ExperienceOrganizer(
+              id: '', 
+              firstName: json['organizer_name'] ?? 'Organizer', 
+              trustScore: 0),
       collaborators: json['collaborators'] != null
           ? List<ExperienceCollaborator>.from(
               json['collaborators']
@@ -164,10 +169,10 @@ class Experience {
                   .map((x) => ExperiencePricingTier.fromJson(x)))
           : [],
       analytics: json['analytics'],
-      savesCount: json['saves_count'] ?? 0,
-      sharesCount: json['shares_count'] ?? 0,
-      createdAt: DateTime.parse(json['created_at']),
-      updatedAt: DateTime.parse(json['updated_at']),
+      savesCount: json['saves_count'] ?? json['save_count'] ?? 0,
+      sharesCount: json['shares_count'] ?? json['share_count'] ?? 0,
+      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
   }
 
@@ -176,7 +181,6 @@ class Experience {
         'title': title,
         'description': description,
         'short_description': shortDescription,
-        'cover_image': coverImage,
         'venue_name': venueName,
         'venue_address': venueAddress,
         'neighborhood': neighborhood,
@@ -218,7 +222,6 @@ class Experience {
       title: title,
       description: description,
       shortDescription: shortDescription,
-      coverImage: coverImage,
       venueName: venueName,
       venueAddress: venueAddress,
       neighborhood: neighborhood,
@@ -300,7 +303,7 @@ class ExperienceCategory {
 
   factory ExperienceCategory.fromJson(Map<String, dynamic> json) {
     return ExperienceCategory(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
       icon: json['icon'] ?? 'calendar',
@@ -330,7 +333,7 @@ class ExperienceTag {
 
   factory ExperienceTag.fromJson(Map<String, dynamic> json) {
     return ExperienceTag(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
     );
@@ -362,10 +365,10 @@ class ExperienceOrganizer {
 
   factory ExperienceOrganizer.fromJson(Map<String, dynamic> json) {
     return ExperienceOrganizer(
-      id: json['id'] ?? '',
-      firstName: json['first_name'] ?? '',
+      id: json['id']?.toString() ?? '',
+      firstName: json['first_name'] ?? json['name'] ?? '',
       lastName: json['last_name'] ?? '',
-      profilePicture: UrlHelper.fixMediaUrl(json['profile_picture']),
+      profilePicture: json['profile_picture'] ?? json['photo'],
       trustScore: json['trust_score'] ?? 0,
       bio: json['bio'],
     );
@@ -400,11 +403,11 @@ class ExperienceCollaborator {
 
   factory ExperienceCollaborator.fromJson(Map<String, dynamic> json) {
     return ExperienceCollaborator(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       name: json['display_name'] ?? json['external_name'] ?? '',
       title: json['external_title'],
       bio: json['external_bio'],
-      photo: UrlHelper.fixMediaUrl(json['external_photo']),
+      photo: json['external_photo'],
       collaboratorType: json['collaborator_type'] ?? 'speaker',
     );
   }
@@ -440,7 +443,7 @@ class ExperienceSchedule {
 
   factory ExperienceSchedule.fromJson(Map<String, dynamic> json) {
     return ExperienceSchedule(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       title: json['title'] ?? '',
       description: json['description'] ?? '',
       startTime: DateTime.parse(json['start_time']),
@@ -488,10 +491,10 @@ class ExperiencePricingTier {
 
   factory ExperiencePricingTier.fromJson(Map<String, dynamic> json) {
     return ExperiencePricingTier(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
-      price: double.tryParse(json['price'].toString()) ?? 0.0,
+      price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,
       currency: json['currency'] ?? 'KES',
       maxQuantity: json['max_quantity'],
       currentQuantity: json['current_quantity'] ?? 0,
@@ -549,12 +552,12 @@ class ExperienceAttendee {
 
   factory ExperienceAttendee.fromJson(Map<String, dynamic> json) {
     return ExperienceAttendee(
-      id: json['id'] ?? '',
-      eventId: json['event'] ?? '',
-      userId: json['user'] ?? '',
+      id: json['id']?.toString() ?? '',
+      eventId: json['event']?.toString() ?? '',
+      userId: json['user']?.toString() ?? '',
       status: json['status'] ?? 'registered',
       paymentStatus: json['payment_status'] ?? 'pending',
-      paidAmount: double.tryParse(json['paid_amount'].toString()) ?? 0.0,
+      paidAmount: double.tryParse(json['paid_amount']?.toString() ?? '0') ?? 0.0,
       checkInTime: json['check_in_time'] != null
           ? DateTime.parse(json['check_in_time'])
           : null,
@@ -564,7 +567,7 @@ class ExperienceAttendee {
       numberOfGuests: json['number_of_guests'] ?? 0,
       rating: json['rating'],
       review: json['review'],
-      registrationDate: DateTime.parse(json['registration_date']),
+      registrationDate: DateTime.parse(json['registration_date'] ?? DateTime.now().toIso8601String()),
     );
   }
 }
@@ -590,9 +593,9 @@ class ExperienceWaitlist {
 
   factory ExperienceWaitlist.fromJson(Map<String, dynamic> json) {
     return ExperienceWaitlist(
-      id: json['id'] ?? '',
-      eventId: json['event'] ?? '',
-      userId: json['user'] ?? '',
+      id: json['id']?.toString() ?? '',
+      eventId: json['event']?.toString() ?? '',
+      userId: json['user']?.toString() ?? '',
       position: json['position'] ?? 0,
       joinedAt: DateTime.parse(json['joined_at'] ?? DateTime.now().toIso8601String()),
       notifiedAt: json['notified_at'] != null
@@ -605,7 +608,6 @@ class ExperienceWaitlist {
   }
 }
 
-// Sample data for the prototype
 final sampleProfiles = [
   UserProfile(
     name: 'Sofia',

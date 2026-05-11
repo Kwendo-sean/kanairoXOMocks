@@ -63,7 +63,7 @@ class _SomedayScreenState extends State<SomedayScreen> {
         onPressed: _addAspiration,
         backgroundColor: AppConstants.primaryRed,
         tooltip: 'Add Aspiration',
-        child: const PhosphorIcon(PhosphorIcons.plus, color: Colors.white, size: 28),
+        child: PhosphorIcon(PhosphorIcons.plus(), color: Colors.white, size: 28),
       ),
     );
   }

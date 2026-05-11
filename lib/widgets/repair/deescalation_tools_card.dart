@@ -18,22 +18,22 @@ class DeescalationToolsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                PhosphorIcon(PhosphorIcons.handPalm, color: AppConstants.primaryRed, size: 28),
-                SizedBox(width: 12),
-                Text(
+                PhosphorIcon(PhosphorIcons.handPalm(PhosphorIconsStyle.regular), color: AppConstants.primaryRed, size: 28),
+                const SizedBox(width: 12),
+                const Text(
                   'De-escalation Tools',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _buildTool(context, icon: PhosphorIcons.timer, title: 'Take a 20-Minute Timeout', subtitle: 'Pause the conversation and cool down.'),
+            _buildTool(context, icon: PhosphorIcons.timer(PhosphorIconsStyle.regular), title: 'Take a 20-Minute Timeout', subtitle: 'Pause the conversation and cool down.'),
             const Divider(height: 24),
-            _buildTool(context, icon: PhosphorIcons.wind, title: 'Breathing Sync Exercise', subtitle: 'A guided exercise to calm your bodies.'),
+            _buildTool(context, icon: PhosphorIcons.wind(PhosphorIconsStyle.regular), title: 'Breathing Sync Exercise', subtitle: 'A guided exercise to calm your bodies.'),
             const Divider(height: 24),
-            _buildTool(context, icon: PhosphorIcons.quotes, title: '"Remember Why" Prompt', subtitle: 'Revisit a positive memory together.'),
+            _buildTool(context, icon: PhosphorIcons.quotes(PhosphorIconsStyle.regular), title: '"Remember Why" Prompt', subtitle: 'Revisit a positive memory together.'),
           ],
         ),
       ),

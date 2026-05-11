@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-import '../utils/constants.dart';
+import 'package:kanairoxo/utils/constants.dart';
 
 enum MomentType { event, meetup, vibe, date }
 
@@ -14,6 +13,26 @@ extension MomentTypeExtension on MomentType {
   }
 }
 
+class LinkedEvent {
+  final int id;
+  final String title;
+  final String? coverImageUrl;
+
+  LinkedEvent({
+    required this.id,
+    required this.title,
+    this.coverImageUrl,
+  });
+
+  factory LinkedEvent.fromJson(Map<String, dynamic> json) {
+    return LinkedEvent(
+      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      title: json['title'] ?? json['name'] ?? '',
+      coverImageUrl: json['cover_image'] ?? json['image_url'],
+    );
+  }
+}
+
 class Moment {
   final String id;
   final String userName;
@@ -24,10 +43,26 @@ class Moment {
   final String photoUrl;
   final String caption;
   final String? location;
-  final int likeCount;
-  final int commentCount;
-  final bool isLiked;
-  final bool isSaved;
+  
+  final int likesCount;
+  final int commentsCount;
+  final bool isLikedByMe;
+  final bool isSavedByMe;
+  
+  // Backwards compatibility getters
+  int get likeCount => likesCount;
+  int get commentCount => commentsCount;
+  bool get isLiked => isLikedByMe;
+  bool get isSaved => isSavedByMe;
+  
+  // Music fields
+  final String? trackName;
+  final String? trackArtist;
+  final String? trackImageUrl;
+  final String? trackPreviewUrl;
+  
+  // Linked Event
+  final LinkedEvent? linkedEvent;
 
   Moment({
     required this.id,
@@ -39,10 +74,15 @@ class Moment {
     required this.photoUrl,
     required this.caption,
     this.location,
-    this.likeCount = 0,
-    this.commentCount = 0,
-    this.isLiked = false,
-    this.isSaved = false,
+    required this.likesCount,
+    required this.commentsCount,
+    required this.isLikedByMe,
+    required this.isSavedByMe,
+    this.trackName,
+    this.trackArtist,
+    this.trackImageUrl,
+    this.trackPreviewUrl,
+    this.linkedEvent,
   });
 
   String get timeAgo {
@@ -72,6 +112,11 @@ class Moment {
     
     final userName = userJson?['full_name'] ?? userJson?['display_name'] ?? userJson?['username'] ?? json['author_name'] ?? 'User';
 
+    LinkedEvent? linked;
+    if (json['linked_event'] != null) {
+      linked = LinkedEvent.fromJson(json['linked_event']);
+    }
+
     return Moment(
       id: json['id']?.toString() ?? '',
       caption: json['caption'] ?? json['description'] ?? '',
@@ -80,11 +125,17 @@ class Moment {
       date: DateTime.tryParse(json['created_at'] ?? json['timestamp'] ?? '') ?? DateTime.now(),
       userName: userName.toString(),
       userAvatarUrl: rawUserPhoto != null ? ApiConstants.fixMediaUrl(rawUserPhoto.toString()) : null,
-      likeCount: json['likes_count'] ?? json['like_count'] ?? json['likes'] ?? 0,
-      commentCount: json['comments_count'] ?? json['comment_count'] ?? json['comments'] ?? 0,
-      isLiked: json['is_liked'] ?? false,
-      isSaved: json['is_saved'] ?? false,
+      likesCount: json['likes_count'] ?? json['like_count'] ?? 0,
+      commentsCount: json['comments_count'] ?? json['comment_count'] ?? 0,
+      isLikedByMe: json['is_liked_by_me'] ?? json['is_liked'] ?? false,
+      isSavedByMe: json['is_saved_by_me'] ?? json['is_saved'] ?? false,
       location: json['location_name'] ?? json['location'],
+      trackName: json['track_name'],
+      trackArtist: json['track_artist'],
+      trackImageUrl: json['track_image_url'],
+      trackPreviewUrl: json['track_preview_url'] ?? json['song_preview_url'],
+      linkedEvent: linked,
+      eventName: linked?.title ?? json['event_name'],
     );
   }
 }

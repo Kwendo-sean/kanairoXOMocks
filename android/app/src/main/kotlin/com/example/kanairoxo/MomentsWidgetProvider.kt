@@ -5,8 +5,7 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
+import android.graphics.*
 import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -20,41 +19,32 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
     }
 
     companion object {
-        private const val MAX_BITMAP_WIDTH = 200
-        private const val MAX_BITMAP_HEIGHT = 200
+        private const val MAX_BITMAP_WIDTH = 600
+        private const val MAX_BITMAP_HEIGHT = 600
 
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, widgetData: SharedPreferences) {
             val views = RemoteViews(context.packageName, R.layout.moments_widget)
 
-            val photoIds = listOf(R.id.photo_1, R.id.photo_2, R.id.photo_3, R.id.photo_4)
-            val swahiliIds = listOf(R.id.swahili_1, R.id.swahili_2, R.id.swahili_3, R.id.swahili_4)
-            val defaultPhrases = listOf("Furaha kubwa", "Wakati mzuri", "Maisha ni mazuri", "Pamoja daima")
+            // Change 2: Set Title Bitmap
+            views.setImageViewBitmap(R.id.widget_title, createTitleBitmap(context))
 
-            for (i in 0..3) {
-                val path = widgetData.getString("photo_path_$i", "") ?: ""
-                val phrase = widgetData.getString("swahili_$i", defaultPhrases[i]) ?: defaultPhrases[i]
-
-                views.setTextViewText(swahiliIds[i], phrase)
-
-                if (path.isNotEmpty()) {
-                    val file = File(path)
-                    if (file.exists()) {
-                        val scaledBitmap = loadScaledBitmap(path)
-                        if (scaledBitmap != null) {
-                            views.setImageViewBitmap(photoIds[i], scaledBitmap)
-                            views.setViewVisibility(photoIds[i], View.VISIBLE)
-                            views.setViewVisibility(swahiliIds[i], View.VISIBLE)
-                        } else {
-                            views.setImageViewResource(photoIds[i], R.mipmap.ic_launcher)
-                        }
+            // Change 1: Show only the latest photo
+            val latestPhoto = widgetData.getString("moment_photo_0", null)
+            
+            if (latestPhoto != null) {
+                val file = File(latestPhoto)
+                if (file.exists()) {
+                    val bitmap = loadScaledBitmap(latestPhoto)
+                    if (bitmap != null) {
+                        views.setImageViewBitmap(R.id.widget_moment_image, bitmap)
                     } else {
-                        views.setImageViewResource(photoIds[i], R.mipmap.ic_launcher)
+                        views.setImageViewResource(R.id.widget_moment_image, R.mipmap.ic_launcher)
                     }
                 } else {
-                    views.setImageViewResource(photoIds[i], R.mipmap.ic_launcher)
-                    views.setViewVisibility(photoIds[i], View.INVISIBLE)
-                    views.setViewVisibility(swahiliIds[i], View.INVISIBLE)
+                    views.setImageViewResource(R.id.widget_moment_image, R.mipmap.ic_launcher)
                 }
+            } else {
+                views.setImageViewResource(R.id.widget_moment_image, R.mipmap.ic_launcher)
             }
 
             val intent = Intent(context, MainActivity::class.java).apply {
@@ -65,9 +55,25 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
                 context, 0, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
-            views.setOnClickPendingIntent(R.id.photo_1, pendingIntent) // Simplified click handling
+            views.setOnClickPendingIntent(R.id.widget_moment_image, pendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
+        }
+
+        private fun createTitleBitmap(context: Context): Bitmap {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                textSize = 42f
+                color = Color.parseColor("#8B1A1A")
+                typeface = Typeface.create("cursive", Typeface.ITALIC)
+                setShadowLayer(4f, 0f, 2f, Color.argb(80, 0, 0, 0))
+            }
+            val text = "Moments"
+            val width = paint.measureText(text).toInt() + 16
+            val height = 56
+            val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bmp)
+            canvas.drawText(text, 8f, 44f, paint)
+            return bmp
         }
 
         private fun loadScaledBitmap(path: String): Bitmap? {
@@ -86,15 +92,9 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
 
                 options.inJustDecodeBounds = false
                 options.inSampleSize = sampleSize
-                options.inPreferredConfig = Bitmap.Config.RGB_565
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888
 
-                val sampledBitmap = BitmapFactory.decodeFile(path, options) ?: return null
-
-                val scaled = Bitmap.createScaledBitmap(sampledBitmap, MAX_BITMAP_WIDTH, MAX_BITMAP_HEIGHT, true)
-                if (scaled != sampledBitmap) {
-                    sampledBitmap.recycle()
-                }
-                scaled
+                BitmapFactory.decodeFile(path, options)
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

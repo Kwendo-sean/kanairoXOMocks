@@ -18,22 +18,22 @@ class MilestoneHighlightsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 PhosphorIcon(PhosphorIcons.star(PhosphorIconsStyle.fill), color: AppConstants.primaryRed, size: 28),
-                SizedBox(width: 12),
-                Text(
+                const SizedBox(width: 12),
+                const Text(
                   'Milestone Highlights',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _buildMilestone(icon: PhosphorIcons.airplaneTilt, title: 'First Trip Together', date: 'January 2023'),
+            _buildMilestone(icon: PhosphorIcons.airplaneTilt(PhosphorIconsStyle.regular), title: 'First Trip Together', date: 'January 2023'),
             const Divider(height: 24),
-            _buildMilestone(icon: PhosphorIcons.house, title: 'Moved In Together', date: 'June 2023'),
+            _buildMilestone(icon: PhosphorIcons.house(PhosphorIconsStyle.regular), title: 'Moved In Together', date: 'June 2023'),
             const Divider(height: 24),
-            _buildMilestone(icon: PhosphorIcons.ring, title: 'Got Engaged!', date: 'December 2023'),
+            _buildMilestone(icon: PhosphorIcons.circlesThree(PhosphorIconsStyle.regular), title: 'Got Engaged!', date: 'December 2023'),
           ],
         ),
       ),

@@ -1,13 +1,13 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
 import '../core/theme/app_typography.dart';
 import '../models/discovery_models.dart';
 import '../providers/connection_provider.dart';
 import '../providers/notification_provider.dart';
+import 'safe_network_image.dart';
 import 'liquid_glass_button.dart';
 
 class ProfileCard extends StatefulWidget {
@@ -16,8 +16,8 @@ class ProfileCard extends StatefulWidget {
   final String compatibilityText;
   final String explanation;
   final VoidCallback onNotNow;
-  final VoidCallback onSave;
   final VoidCallback? onConnectionSuccess;
+  final VoidCallback? onMessage;
 
   const ProfileCard({
     super.key,
@@ -26,8 +26,8 @@ class ProfileCard extends StatefulWidget {
     required this.compatibilityText,
     required this.explanation,
     required this.onNotNow,
-    required this.onSave,
     this.onConnectionSuccess,
+    this.onMessage,
   });
 
   @override
@@ -37,6 +37,7 @@ class ProfileCard extends StatefulWidget {
 class _ProfileCardState extends State<ProfileCard> {
   bool _isProcessing = false;
   String? _connectionStatus;
+  bool _isInitiator = false;
 
   @override
   void initState() {
@@ -53,17 +54,24 @@ class _ProfileCardState extends State<ProfileCard> {
       if (data['exists'] == true) {
         setState(() {
           _connectionStatus = data['connection_type'];
+          _isInitiator = data['is_initiator'] ?? false;
         });
       } else {
         setState(() {
           _connectionStatus = 'none';
+          _isInitiator = false;
         });
       }
     }
   }
 
   Future<void> _handleConnect() async {
-    if (_isProcessing || _connectionStatus == 'pending_sent' || _connectionStatus == 'mutual') {
+    if (_isProcessing || _connectionStatus == 'pending_sent' || (_connectionStatus == 'pending' && _isInitiator)) {
+      return;
+    }
+
+    if (_connectionStatus == 'mutual') {
+      widget.onMessage?.call();
       return;
     }
 
@@ -79,20 +87,14 @@ class _ProfileCardState extends State<ProfileCard> {
 
       if (result['success'] == true) {
         setState(() {
-          _connectionStatus = 'pending_sent';
+          _connectionStatus = 'pending';
+          _isInitiator = true;
         });
 
         await notificationProvider.refreshNotifications();
-
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Connection request sent!'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        }
-
+        
+        // Success snackbar removed as requested
+        
         widget.onConnectionSuccess?.call();
       } else {
         if (mounted) {
@@ -124,59 +126,16 @@ class _ProfileCardState extends State<ProfileCard> {
 
   String _getConnectButtonText() {
     if (_isProcessing) return 'Sending...';
-    switch (_connectionStatus) {
-      case 'pending_sent': return 'Request Sent';
-      case 'mutual': return 'Connected';
-      case 'pending': return 'Accept';
-      default: return 'Connect';
-    }
-  }
-
-  Widget _buildProfilePhoto(DiscoveryProfile profile) {
-    final url = profile.profilePhotoUrl;
-    final isValid = url != null && url.isNotEmpty && url.startsWith('http');
     
-    if (!isValid) {
-      // Placeholder when no photo
-      return Container(
-        color: Colors.grey.shade200,
-        child: Center(
-          child: Icon(
-            Icons.person_outline,
-            size: 80,
-            color: Colors.grey.shade400,
-          ),
-        ),
-      );
+    if (_connectionStatus == 'mutual') return 'Message';
+    
+    if (_connectionStatus == 'pending') {
+      return _isInitiator ? 'Request Sent' : 'Accept';
     }
     
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      height: double.infinity,
-      errorWidget: (context, url, error) {
-        return Container(
-          color: Colors.grey.shade200,
-          child: Center(
-            child: Icon(
-              Icons.person_outline,
-              size: 80,
-              color: Colors.grey.shade400,
-            ),
-          ),
-        );
-      },
-      placeholder: (context, url) => Container(
-        color: Colors.grey.shade100,
-        child: const Center(
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.primary,
-          ),
-        ),
-      ),
-    );
+    if (_connectionStatus == 'pending_sent') return 'Request Sent';
+    
+    return 'Connect';
   }
 
   @override
@@ -204,10 +163,12 @@ class _ProfileCardState extends State<ProfileCard> {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                // Background photo - Fix 3
-                _buildProfilePhoto(widget.profile),
-
-                // Bottom gradient overlay - Fix 3
+                SafeNetworkImage(
+                  url: widget.profile.profilePhotoUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
                 Positioned.fill(
                   child: DecoratedBox(
                     decoration: BoxDecoration(
@@ -223,8 +184,6 @@ class _ProfileCardState extends State<ProfileCard> {
                     ),
                   ),
                 ),
-
-                // Name + match badge
                 Positioned(
                   left: 0,
                   right: 0,
@@ -272,8 +231,6 @@ class _ProfileCardState extends State<ProfileCard> {
                                 ],
                               ),
                             ),
-                            
-                            // Match badge
                             ClipRRect(
                               borderRadius: AppRadius.full,
                               child: BackdropFilter(
@@ -281,7 +238,7 @@ class _ProfileCardState extends State<ProfileCard> {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.85),
+                                    color: AppColors.themePrimary(context).withOpacity(0.85),
                                     borderRadius: AppRadius.full,
                                     border: Border.all(
                                       color: Colors.white.withOpacity(0.2),
@@ -319,31 +276,18 @@ class _ProfileCardState extends State<ProfileCard> {
         
         const SizedBox(height: 16),
         
-        // Action buttons row below card
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              LiquidGlassButton(
-                variant: LiquidButtonVariant.outline,
-                size: LiquidButtonSize.sm,
-                onPressed: widget.onSave,
-                child: Row(
-                  children: [
-                    const Icon(Icons.bookmark_border, size: 16, color: AppColors.primary),
-                    const SizedBox(width: 4),
-                    Text('Save', style: AppTypography.labelMedium.copyWith(color: AppColors.primary)),
-                  ],
-                ),
-              ),
               LiquidGlassButton(
                 size: LiquidButtonSize.lg,
                 onPressed: _handleConnect,
                 child: Row(
                   children: [
                     Icon(
-                      _connectionStatus == 'mutual' ? Icons.check_circle : Icons.favorite,
+                      _connectionStatus == 'mutual' ? Icons.chat_bubble_outline : Icons.favorite,
                       size: 18,
                       color: Colors.white,
                     ),
@@ -352,6 +296,7 @@ class _ProfileCardState extends State<ProfileCard> {
                   ],
                 ),
               ),
+              const SizedBox(width: 16),
               LiquidGlassButton(
                 variant: LiquidButtonVariant.ghost,
                 size: LiquidButtonSize.sm,

@@ -1,10 +1,20 @@
 import 'package:flutter/foundation.dart';
-
 import '../models/data_models.dart';
 import 'api_client.dart';
 
 class EventsApiService {
   final ApiClient _apiClient = ApiClient();
+
+  /// Flattens events_by_category map into a single list of events
+  List<dynamic> _flattenCategoryMap(Map<String, dynamic> categoryMap) {
+    final List<dynamic> allEvents = [];
+    categoryMap.forEach((category, events) {
+      if (events is List) {
+        allEvents.addAll(events);
+      }
+    });
+    return allEvents;
+  }
 
   Future<List<Experience>> fetchExperiences({
     String? category,
@@ -23,23 +33,56 @@ class EventsApiService {
       if (limit != null) 'limit': limit.toString(),
     };
 
-    final response = await _apiClient.get('api/v1/events/', queryParameters: queryParams);
-    final results = response['results'] ?? response;
+    try {
+      final response = await _apiClient.get('api/v1/events/', queryParameters: queryParams);
+      
+      List<dynamic> list = [];
+      if (response is List) {
+        list = response;
+      } else if (response is Map) {
+        if (response.containsKey('results') && response['results'] is List) {
+          list = response['results'];
+        } else if (response.containsKey('events_by_category') && response['events_by_category'] is Map<String, dynamic>) {
+          list = _flattenCategoryMap(response['events_by_category']);
+        } else if (response.containsKey('events') && response['events'] is List) {
+          list = response['events'];
+        }
+      }
 
-    if (results is List) {
-      return results.map((e) => Experience.fromJson(e)).toList();
+      return list.map((e) => Experience.fromJson(e)).toList();
+    } catch (e, stack) {
+      debugPrint('Events load error: $e');
+      debugPrint('Stack: $stack');
+      rethrow;
     }
-    return [];
   }
 
   Future<List<Experience>> fetchFeaturedExperiences() async {
-    final response = await _apiClient.get('api/v1/events/public/');
-    final featuredEvents = response['featured_events'] ?? [];
+    try {
+      final response = await _apiClient.get('api/v1/events/public/');
+      
+      List<dynamic> featuredList = [];
+      
+      if (response is Map) {
+        // First priority: explicit featured_events list
+        if (response.containsKey('featured_events') && response['featured_events'] is List) {
+          featuredList = response['featured_events'];
+        }
+        
+        // If featured is empty, but we have events_by_category, use some of those as fallback
+        if (featuredList.isEmpty && response.containsKey('events_by_category') && response['events_by_category'] is Map<String, dynamic>) {
+          featuredList = _flattenCategoryMap(response['events_by_category']);
+        }
+      } else if (response is List) {
+        featuredList = response;
+      }
 
-    if (featuredEvents is List) {
-      return featuredEvents.map((e) => Experience.fromJson(e)).toList();
+      return featuredList.map((e) => Experience.fromJson(e)).toList();
+    } catch (e, stack) {
+      debugPrint('Featured events load error: $e');
+      debugPrint('Stack: $stack');
+      rethrow;
     }
-    return [];
   }
 
   Future<List<ExperienceCategory>> fetchCategories() async {
@@ -54,10 +97,9 @@ class EventsApiService {
         return response.map((e) => ExperienceCategory.fromJson(e)).toList();
       }
       return [];
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching categories: $e');
-      }
+    } catch (e, stack) {
+      debugPrint('Categories load error: $e');
+      debugPrint('Stack: $stack');
       return [];
     }
   }
@@ -130,7 +172,6 @@ class EventsApiService {
   }
 
   Future<List<Map<String, dynamic>>> getTicketTemplates() async {
-    // Assuming ticket templates are not under the /v1/events/ path based on common practice
     final response = await _apiClient.get('api/tickets/templates/');
     return List<Map<String, dynamic>>.from(response);
   }

@@ -52,6 +52,19 @@ dependencies:
   # New dependencies for Polaroid and Tickets
   gal: ^2.3.2
   share_plus: ^7.2.1
+  
+  # Audio
+  audioplayers: ^6.0.0
+  just_audio: ^0.9.38
+  
+  # Shimmer
+  shimmer: ^3.0.0
+  
+  # Deep linking - Migrated from uni_links
+  app_links: ^3.4.5
+
+  # Social Auth
+  google_sign_in: ^6.1.6
 
 dev_dependencies:
   flutter_test:

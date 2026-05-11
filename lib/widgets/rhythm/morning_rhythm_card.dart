@@ -20,7 +20,7 @@ class MorningRhythmCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                PhosphorIcon(PhosphorIcons.sunrise(PhosphorIconsStyle.fill), color: Colors.orange, size: 28),
+                PhosphorIcon(PhosphorIcons.sun(PhosphorIconsStyle.fill), color: Colors.orange, size: 28),
                 const SizedBox(width: 12),
                 const Text(
                   'Morning Rhythm',

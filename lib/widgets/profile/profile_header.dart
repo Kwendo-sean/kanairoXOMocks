@@ -203,7 +203,7 @@ class ProfileHeader extends StatelessWidget {
             Column(
               children: [
                 Text(
-                  user.fullName ?? '',
+                  user.fullName,
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,

@@ -18,22 +18,22 @@ class ShareableCreationsCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 PhosphorIcon(PhosphorIcons.export(PhosphorIconsStyle.fill), color: AppConstants.primaryRed, size: 28),
-                SizedBox(width: 12),
-                Text(
+                const SizedBox(width: 12),
+                const Text(
                   'Share Your Story',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
               ],
             ),
             const SizedBox(height: 16),
-            _buildShareOption(context, icon: PhosphorIcons.filePdf, title: 'Export as PDF Book'),
+            _buildShareOption(context, icon: PhosphorIcons.filePdf(PhosphorIconsStyle.regular), title: 'Export as PDF Book'),
             const Divider(height: 24),
-            _buildShareOption(context, icon: PhosphorIcons.video, title: 'Create Video Montage'),
+            _buildShareOption(context, icon: PhosphorIcons.video(PhosphorIconsStyle.regular), title: 'Create Video Montage'),
             const Divider(height: 24),
-            _buildShareOption(context, icon: PhosphorIcons.image, title: 'Generate Social Media Post'),
+            _buildShareOption(context, icon: PhosphorIcons.image(PhosphorIconsStyle.regular), title: 'Generate Social Media Post'),
           ],
         ),
       ),

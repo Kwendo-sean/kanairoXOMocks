@@ -59,10 +59,6 @@ class SwahiliPhrases {
   ];
 
   static String getPhrase(Moment moment) {
-    if (moment.swahiliPhrase.isNotEmpty) {
-      return moment.swahiliPhrase;
-    }
-
     final tag = moment.type.name.toLowerCase();
     final phrases = _phrasesByTag[tag] ?? _general;
 

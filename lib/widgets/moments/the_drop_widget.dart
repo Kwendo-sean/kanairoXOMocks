@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../utils/constants.dart';
@@ -190,7 +189,8 @@ class _TheDropWidgetState extends State<TheDropWidget> {
                   style: AppTypography.caption.copyWith(color: Colors.white54)),
               const SizedBox(height: 12),
               Text(_formattedCountdown,
-                  style: GoogleFonts.dmSans(
+                  style: const TextStyle(
+                      fontFamily: 'DMSans',
                       fontSize: 36,
                       fontWeight: FontWeight.w700,
                       color: Colors.white,

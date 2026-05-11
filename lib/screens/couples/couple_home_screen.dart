@@ -1,13 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/data_models.dart';
+import 'package:kanairoxo/models/memory_model.dart';
 import 'package:kanairoxo/screens/couples/chat_screen.dart';
 import 'package:kanairoxo/screens/couples/couple_profile_screen.dart';
 import 'package:kanairoxo/screens/couples/dates_screen.dart';
-import 'package:kanairoxo/screens/couples/individual_profile_screen.dart';
 import 'package:kanairoxo/screens/couples/memories_screen.dart';
 import 'package:kanairoxo/screens/events/events_screen.dart';
 import 'package:provider/provider.dart';
@@ -15,8 +16,8 @@ import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/services/couple_service.dart';
 import 'package:kanairoxo/widgets/couple_bottom_nav_bar.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'dart:io';
 
 class CoupleHomeScreen extends StatefulWidget {
   const CoupleHomeScreen({super.key});
@@ -28,6 +29,7 @@ class CoupleHomeScreen extends StatefulWidget {
 class _CoupleHomeScreenState extends State<CoupleHomeScreen> {
   int _currentIndex = 0;
   late PageController _pageController;
+  DateTime? _lastPressedAt;
 
   @override
   void initState() {
@@ -41,42 +43,68 @@ class _CoupleHomeScreenState extends State<CoupleHomeScreen> {
     super.dispose();
   }
 
-  // FIXED: Corrected the order of screens to match the navbar (Dashboard, Calendar, Memories, Events, Profile)
-  final List<Widget> _screens = [
-    const _CoupleDashboardPage(),      // 0: Dashboard
-    const DatesScreen(),                // 1: Calendar
-    const MemoriesEnhancedScreen(),      // 2: Memories
-    EventsScreen(                       // 3: Events
-      onJoinExperience: (Experience experience) {},
-      onExperienceSelected: (Experience experience) {},
-    ),
-    const CoupleProfileScreen(),        // 4: Profile
-  ];
-
   void _onItemTapped(int index) {
     _pageController.jumpToPage(index);
+    setState(() => _currentIndex = index);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: PageView(
-        controller: _pageController,
-        physics: const NeverScrollableScrollPhysics(),
-        onPageChanged: (index) => setState(() => _currentIndex = index),
-        children: _screens,
+    final List<Widget> screens = [
+      _CoupleDashboardPage(onNavigate: _onItemTapped), // 0: Home
+      const DatesScreen(),                             // 1: Plans
+      const MemoriesEnhancedScreen(),                  // 2: Memories
+      EventsScreen(                                    // 3: Events
+        onJoinExperience: (Experience experience) {},
+        onExperienceSelected: (Experience experience) {},
       ),
-      bottomNavigationBar: CoupleBottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onItemTapped,
+      const CoupleProfileScreen(),                     // 4: Us
+    ];
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+
+        // If not on the first tab, go to the first tab instead of exiting
+        if (_currentIndex != 0) {
+          _onItemTapped(0);
+          return;
+        }
+
+        final now = DateTime.now();
+        if (_lastPressedAt == null ||
+            now.difference(_lastPressedAt!) > const Duration(seconds: 2)) {
+          _lastPressedAt = now;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Press back again to exit'),
+              duration: Duration(seconds: 2),
+            ),
+          );
+          return;
+        }
+        exit(0);
+      },
+      child: Scaffold(
+        backgroundColor: context.bgColor,
+        body: PageView(
+          controller: _pageController,
+          physics: const NeverScrollableScrollPhysics(),
+          children: screens,
+        ),
+        bottomNavigationBar: CoupleBottomNavBar(
+          currentIndex: _currentIndex,
+          onTap: _onItemTapped,
+        ),
       ),
     );
   }
 }
 
 class _CoupleDashboardPage extends StatefulWidget {
-  const _CoupleDashboardPage();
+  final Function(int) onNavigate;
+  const _CoupleDashboardPage({required this.onNavigate});
 
   @override
   State<_CoupleDashboardPage> createState() => _CoupleDashboardPageState();
@@ -86,11 +114,12 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
   final CoupleService _coupleService = CoupleService();
   CouplesDashboard? _dashboard;
   Map<String, dynamic>? _pulse;
-  Map<String, dynamic>? _stats;
-  Map<String, dynamic>? _dailyPrompt;
-  List<dynamic>? _challenges;
+  Map<String, dynamic>? _spotifyPlaylist;
+  Map<String, dynamic>? _partnerNowPlaying;
+  List<Memory> _recentMemories = [];
   bool _isLoading = true;
   String? _error;
+  String? _selectedMood;
 
   @override
   void initState() {
@@ -107,27 +136,27 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
 
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
-      if (authProvider.user == null) {
-        throw Exception('User session not found. Please log in again.');
+      final coupleId = authProvider.coupleStatus?.coupleId;
+      
+      if (coupleId == null) {
+        throw Exception('Couple session not found.');
       }
 
-      final dashboard = await _coupleService.getDashboard();
-      final String coupleId = authProvider.user!.id;
-      
       final results = await Future.wait([
+        _coupleService.getDashboard(),
         _coupleService.getPulse(coupleId),
-        _coupleService.getStats(coupleId),
-        _coupleService.getDailyPrompt(),
-        _coupleService.getChallenges(coupleId),
+        _coupleService.getSpotifyPlaylist(coupleId),
+        _coupleService.getPartnerNowPlaying(coupleId),
+        _coupleService.getMemories(limit: 4),
       ]);
 
       if (mounted) {
         setState(() {
-          _dashboard = dashboard;
-          _pulse = results[0] as Map<String, dynamic>?;
-          _stats = results[1] as Map<String, dynamic>?;
-          _dailyPrompt = results[2] as Map<String, dynamic>?;
-          _challenges = results[3] as List<dynamic>?;
+          _dashboard = results[0] as CouplesDashboard;
+          _pulse = results[1] as Map<String, dynamic>;
+          _spotifyPlaylist = results[2] as Map<String, dynamic>;
+          _partnerNowPlaying = results[3] as Map<String, dynamic>?;
+          _recentMemories = results[4] as List<Memory>;
           _isLoading = false;
         });
       }
@@ -153,19 +182,20 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
       return const Center(child: Text('No data available'));
     }
 
+    final iconColor = context.textColor;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       appBar: AppBar(
-        title: Text(_dashboard!.couple.coupleName ?? 'Us', style: AppTypography.screenTitle),
-        backgroundColor: AppColors.background,
+        title: Text('Home', style: AppTypography.screenTitle),
+        backgroundColor: Colors.transparent,
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.notifications_outlined, size: 22, color: Color(0xFF1A1A1A)),
+            icon: Icon(Icons.notifications_outlined, color: iconColor),
             onPressed: () => Navigator.pushNamed(context, '/notifications'),
           ),
           IconButton(
-            icon: const Icon(Icons.chat_bubble_outline, size: 22, color: Color(0xFF1A1A1A)),
+            icon: Icon(Icons.chat_bubble_outline, color: iconColor),
             onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ChatScreen())),
           ),
           const SizedBox(width: 8),
@@ -175,88 +205,385 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
         onRefresh: _loadDashboard,
         child: SingleChildScrollView(
           physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              _buildHeroSection(),
               _buildPulseCard(),
-              const SizedBox(height: 12),
-              _buildStreakRow(),
-              const SizedBox(height: 12),
-              _buildDailyPrompt(),
-              const SizedBox(height: 12),
-              _buildQuickStatsGrid(),
-              const SizedBox(height: 12),
-              _buildMusicSync(),
-              const SizedBox(height: 12),
-              _buildChallengesSection(),
-              const SizedBox(height: 12),
-              _buildRecentMoments(),
-              const SizedBox(height: 80),
+              const SizedBox(height: 16),
+              _buildStreakCard(),
+              const SizedBox(height: 16),
+              _buildSpotifyCard(),
+              const SizedBox(height: 24),
+              _buildQuickActions(),
+              const SizedBox(height: 32),
+              _buildRecentMemories(),
+              const SizedBox(height: 100),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildHeroSection() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final userA = authProvider.coupleUsers?[0];
+    final userB = authProvider.coupleUsers?[1];
+
+    return Center(
+      child: Column(
+        children: [
+          const SizedBox(height: 24),
+          SizedBox(
+            width: 120, height: 72,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: 0,
+                  child: _buildAvatar(userA?.profile?.mainProfilePhoto, userA?.firstName ?? 'User'),
+                ),
+                Positioned(
+                  right: 0,
+                  child: _buildAvatar(userB?.profile?.mainProfilePhoto, userB?.firstName ?? 'User'),
+                ),
+                Positioned(
+                  top: 20, left: 42,
+                  child: Container(
+                    width: 28, height: 28,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                    child: const Icon(Icons.favorite, color: Colors.white, size: 14),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            _dashboard!.couple.coupleName ?? 'Us',
+            style: AppTypography.displayLarge.copyWith(fontSize: 32),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.calendar_today_outlined, size: 12, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Text(
+                  _dashboard!.couple.anniversaryDate != null
+                    ? 'Together for ${_dashboard!.stats.daysTogether} days'
+                    : 'Set your anniversary',
+                  style: AppTypography.caption.copyWith(
+                    color: AppColors.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 28),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAvatar(String? url, String name) {
+    final hasValidUrl = url != null && url.isNotEmpty && (url.startsWith('http') || url.startsWith('https'));
+    return Container(
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white, width: 3),
+      ),
+      child: hasValidUrl
+          ? CachedNetworkImage(
+              imageUrl: url,
+              imageBuilder: (ctx, img) => CircleAvatar(radius: 32, backgroundImage: img),
+              placeholder: (ctx, url) => CircleAvatar(
+                radius: 32,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: const Icon(Icons.person_outline, color: AppColors.primary, size: 28),
+              ),
+              errorWidget: (ctx, url, err) => CircleAvatar(
+                radius: 32,
+                backgroundColor: AppColors.primary.withOpacity(0.1),
+                child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                    style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 24)),
+              ),
+            )
+          : CircleAvatar(
+              radius: 32,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              child: Text(name.isNotEmpty ? name[0].toUpperCase() : '?',
+                  style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 24)),
+            ),
     );
   }
 
   Widget _buildPulseCard() {
-    if (_pulse == null) return const SizedBox.shrink();
-    final bothSubmitted = _pulse!['current_user_submitted'] == true && _pulse!['partner_submitted'] == true;
+    final yourCheckin = _pulse?['your_checkin'];
+    final partnerCheckin = _pulse?['partner_checkin'];
+    final partnerName = _dashboard?.partner.name ?? 'Partner';
 
-    return GlassCard(
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: AppRadius.lg,
+        border: Border.all(color: context.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12, offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Relationship Pulse', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-              const Icon(Icons.favorite, color: AppColors.primary, size: 18),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (bothSubmitted)
-            Text(_pulse!['combined_mood_label'] ?? '', style: AppTypography.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600))
-          else
-            Text(_pulse!['current_user_submitted'] == true ? 'Waiting for partner...' : 'How are you feeling?', style: AppTypography.bodyMedium),
-          if (_pulse!['current_user_submitted'] == false) ...[
-            const SizedBox(height: 12),
+          if (yourCheckin == null) ...[
+            Text('How are you feeling today?', style: AppTypography.labelMedium),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              alignment: WrapAlignment.center,
+              children: ["Happy", "Content", "Tired", "Stressed", "Romantic"].map((mood) {
+                final isSelected = _selectedMood == mood;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedMood = mood),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                        color: isSelected ? AppColors.primary : AppColors.primary.withOpacity(0.2),
+                      ),
+                    ),
+                    child: Text(
+                      mood,
+                      style: AppTypography.caption.copyWith(
+                        color: isSelected ? Colors.white : AppColors.primary,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
             LiquidGlassButton(
-              size: LiquidButtonSize.md,
-              onPressed: () => _showCheckInSheet(),
+              onPressed: _selectedMood == null ? null : () async {
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                await _coupleService.submitCheckIn(authProvider.coupleStatus!.coupleId, _selectedMood!);
+                _loadDashboard();
+              },
               child: Text('Check In', style: AppTypography.buttonText),
             ),
+          ] else if (partnerCheckin == null) ...[
+            const Icon(Icons.favorite, color: AppColors.primary, size: 20),
+            const SizedBox(height: 8),
+            Text('Waiting for $partnerName...', style: AppTypography.labelMedium),
+            Text('You checked in as $yourCheckin', style: AppTypography.caption),
+          ] else ...[
+            const Icon(Icons.favorite, color: AppColors.primary, size: 20),
+            const SizedBox(height: 8),
+            Text(_pulse?['combined_label'] ?? 'Feeling connected', style: AppTypography.labelMedium),
+            Text(_pulse?['suggestion'] ?? 'Keep the romance alive!', style: AppTypography.caption),
           ],
         ],
       ),
     );
   }
 
-  void _showCheckInSheet() {
+  Widget _buildStreakCard() {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: AppRadius.md,
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.local_fire_department_outlined, color: AppColors.primary, size: 20),
+          const SizedBox(width: 8),
+          Text(
+            '${_dashboard!.stats.checkinStreak}',
+            style: TextStyle(
+              fontFamily: 'CormorantGaramond',
+              fontSize: 36,
+              fontWeight: FontWeight.w700,
+              color: AppColors.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Text('day streak', style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSpotifyCard() {
+    final playlist = _spotifyPlaylist;
+    final hasPlaylist = playlist != null && playlist['id'] != null;
+    final coverUrl = playlist != null ? playlist['cover_url'] as String? : null;
+    final hasValidCover = coverUrl != null && coverUrl.isNotEmpty && (coverUrl.startsWith('http') || coverUrl.startsWith('https'));
+    final partnerName = _dashboard?.partner.name ?? 'Partner';
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: AppRadius.lg,
+        border: Border.all(color: context.borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 12, offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (hasPlaylist) ...[
+            Row(
+              children: [
+                ClipRRect(
+                  borderRadius: AppRadius.md,
+                  child: hasValidCover
+                    ? CachedNetworkImage(
+                        imageUrl: coverUrl,
+                        width: 52, height: 52,
+                        fit: BoxFit.cover,
+                        errorWidget: (ctx, url, err) => Container(color: Colors.grey.shade100, child: const Icon(Icons.music_note)),
+                      )
+                    : Container(color: Colors.grey.shade100, width: 52, height: 52, child: const Icon(Icons.music_note)),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(playlist['name'] ?? 'Our Playlist', style: AppTypography.labelMedium),
+                      if (playlist['last_track'] != null)
+                        Text(
+                          '${playlist['last_track']['name']} · ${playlist['last_track']['artist']}',
+                          style: AppTypography.caption,
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Text('Create your playlist', style: AppTypography.labelMedium),
+            const SizedBox(height: 12),
+            LiquidGlassButton(
+              size: LiquidButtonSize.sm,
+              onPressed: () async {
+                final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                await _coupleService.createSpotifyPlaylist(authProvider.coupleStatus!.coupleId);
+                _loadDashboard();
+              },
+              child: Text('Create Now', style: AppTypography.buttonText),
+            ),
+          ],
+          const Divider(height: 32),
+          Row(
+            children: [
+              const Icon(Icons.headphones, size: 14, color: AppColors.textMuted),
+              const SizedBox(width: 8),
+              Text(
+                _partnerNowPlaying != null
+                  ? '$partnerName is listening to ${_partnerNowPlaying!['track_name']}'
+                  : 'Nothing playing right now',
+                style: AppTypography.caption,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickActions() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _QuickAction(
+          icon: Icons.calendar_today_outlined,
+          label: 'Plan Date',
+          onTap: () => widget.onNavigate(1),
+        ),
+        const SizedBox(width: 12),
+        _QuickAction(
+          icon: Icons.add_photo_alternate_outlined,
+          label: 'Add Memory',
+          onTap: () => widget.onNavigate(2),
+        ),
+        const SizedBox(width: 12),
+        _QuickAction(
+          icon: Icons.favorite_border,
+          label: 'Appreciate',
+          onTap: () => _openAppreciationBottomSheet(),
+        ),
+      ],
+    );
+  }
+
+  void _openAppreciationBottomSheet() {
+    final controller = TextEditingController();
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => GlassCard(
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        child: Padding(
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+        child: Container(
           padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Theme.of(ctx).cardColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('How are you feeling?', style: AppTypography.displayMedium),
-              const SizedBox(height: 24),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  _buildMoodOption(1, Icons.sentiment_very_dissatisfied),
-                  _buildMoodOption(2, Icons.sentiment_dissatisfied),
-                  _buildMoodOption(3, Icons.sentiment_neutral),
-                  _buildMoodOption(4, Icons.sentiment_satisfied),
-                  _buildMoodOption(5, Icons.sentiment_very_satisfied),
-                ],
+              Text('Send Appreciation', style: AppTypography.screenTitle),
+              const SizedBox(height: 16),
+              TextField(
+                controller: controller,
+                maxLines: 3,
+                decoration: InputDecoration(
+                  hintText: 'Say something kind...',
+                  border: OutlineInputBorder(borderRadius: AppRadius.md),
+                ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              LiquidGlassButton(
+                onPressed: () async {
+                  if (controller.text.trim().isEmpty) return;
+                  final authProvider = Provider.of<AuthProvider>(context, listen: false);
+                  await _coupleService.sendAppreciation(authProvider.coupleStatus!.coupleId, controller.text);
+                  Navigator.pop(ctx);
+                },
+                child: Text('Send', style: AppTypography.buttonText),
+              ),
             ],
           ),
         ),
@@ -264,289 +591,158 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
     );
   }
 
-  Widget _buildMoodOption(int value, IconData icon) {
-    return GestureDetector(
-      onTap: () async {
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
-        await _coupleService.submitPulse(authProvider.user!.id, value);
-        Navigator.pop(context);
-        _loadDashboard();
-      },
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-          border: Border.all(color: Colors.grey.shade200),
-        ),
-        child: Icon(icon, color: AppColors.primary, size: 28),
-      ),
-    );
-  }
-
-  Widget _buildStreakRow() {
-    if (_stats == null) return const SizedBox.shrink();
-    return Row(
-      children: [
-        Expanded(
-          child: _StatMiniCard(
-            icon: Icons.local_fire_department_outlined,
-            iconColor: const Color(0xFFE85D26),
-            value: '${_stats!['checkin_streak'] ?? 0} days',
-            label: 'Check-in Streak',
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: _StatMiniCard(
-            icon: Icons.celebration_outlined,
-            iconColor: AppColors.primary,
-            value: '${_stats!['days_to_anniversary'] ?? 0} days',
-            label: 'To Anniversary',
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildDailyPrompt() {
-    if (_dailyPrompt == null) return const SizedBox.shrink();
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.65),
-        borderRadius: AppRadius.md,
-        border: Border(
-          left: const BorderSide(color: AppColors.primary, width: 4),
-          top: BorderSide(color: Colors.white.withOpacity(0.5)),
-          right: BorderSide(color: Colors.white.withOpacity(0.5)),
-          bottom: BorderSide(color: Colors.white.withOpacity(0.5)),
-        ),
-      ),
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(children: [
-            const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.primary),
-            const SizedBox(width: 6),
-            Text("Today's Prompt", style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-          ]),
-          const SizedBox(height: 8),
-          Text(_dailyPrompt!['prompt'] ?? '', style: AppTypography.bodyMedium.copyWith(fontStyle: FontStyle.italic)),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: () {},
-            child: Row(children: [
-              Text('Discuss with partner', style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-              const SizedBox(width: 4),
-              const Icon(Icons.arrow_forward, size: 12, color: AppColors.primary),
-            ]),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickStatsGrid() {
-    if (_stats == null) return const SizedBox.shrink();
-    return GridView.count(
-      crossAxisCount: 2,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      childAspectRatio: 1.6,
-      children: [
-        _QuickStatCard(icon: Icons.photo_library_outlined, value: '${_stats!['memory_count'] ?? 0}', label: 'Memories'),
-        _QuickStatCard(icon: Icons.local_fire_department_outlined, value: '${_stats!['checkin_streak'] ?? 0} days', label: 'Streak', iconColor: const Color(0xFFE85D26)),
-        _QuickStatCard(icon: Icons.calendar_today_outlined, value: '${_stats!['date_count'] ?? 0}', label: 'Dates'),
-        _QuickStatCard(icon: Icons.star_outline, value: '${_stats!['appreciations_count'] ?? 0}', label: 'Appreciations'),
-      ],
-    );
-  }
-
-  Widget _buildMusicSync() {
-    final sync = _dashboard!.musicSync;
-    if (sync == null) return const SizedBox.shrink();
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.music_note_outlined, color: Color(0xFF1DB954), size: 16),
-              const SizedBox(width: 6),
-              Text('Music & Culture Sync', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text('Couple Anthem', style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
-          Text(sync.coupleAnthem, style: AppTypography.bodyLarge.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 12),
-          Text('Shared Artists', style: AppTypography.caption),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: sync.sharedArtists.map((a) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: AppRadius.full, border: Border.all(color: Colors.grey.shade200)),
-              child: Text(a, style: AppTypography.caption),
-            )).toList(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildChallengesSection() {
-    if (_challenges == null || _challenges!.isEmpty) return const SizedBox.shrink();
+  Widget _buildRecentMemories() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Text('Couple Challenges', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-            const Spacer(),
-            TextButton(onPressed: () {}, child: Text('See All', style: AppTypography.caption.copyWith(color: AppColors.primary))),
-          ],
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("Recent Memories", style: AppTypography.labelMedium.copyWith(fontSize: 16)),
+              TextButton(
+                onPressed: () => widget.onNavigate(2),
+                child: Text("See All", style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
         ),
+        const SizedBox(height: 8),
         SizedBox(
           height: 160,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(),
-            itemCount: _challenges!.length,
-            itemBuilder: (context, index) => _ChallengeCard(challenge: _challenges![index]),
-          ),
+          child: _recentMemories.isEmpty
+            ? _buildEmptyMemories()
+            : ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: _recentMemories.length,
+                itemBuilder: (ctx, index) => _PolaroidCard(memory: _recentMemories[index], index: index),
+              ),
         ),
       ],
     );
   }
 
-  Widget _buildRecentMoments() {
-    return Column(
-      children: [
-        Row(
-          children: [
-            Text('Recent Moments', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
-            const Spacer(),
-            TextButton(onPressed: () {}, child: Text('See All', style: AppTypography.caption.copyWith(color: AppColors.primary))),
-          ],
+  Widget _buildEmptyMemories() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      scrollDirection: Axis.horizontal,
+      itemCount: 3,
+      itemBuilder: (ctx, index) => Container(
+        width: 110,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 28),
+        decoration: BoxDecoration(
+          color: Theme.of(ctx).cardColor,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: Theme.of(ctx).dividerColor),
         ),
-        SizedBox(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            shrinkWrap: true,
-            physics: const ClampingScrollPhysics(),
-            itemBuilder: (ctx, i) => Container(
-              width: 80, height: 80,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(borderRadius: AppRadius.md, border: Border.all(color: Colors.white.withOpacity(0.6), width: 1.5)),
-              child: const ClipRRect(borderRadius: AppRadius.md, child: Icon(Icons.image, color: Colors.grey)),
-            ),
-            itemCount: 5,
+        child: Center(
+          child: Text(
+            index == 1 ? "Your story\nstarts here" : "",
+            textAlign: TextAlign.center,
+            style: AppTypography.caption.copyWith(fontSize: 10),
           ),
         ),
-      ],
+      ),
     );
   }
 
   Widget _buildErrorState() {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.error_outline, color: AppColors.primary, size: 48),
-            const SizedBox(height: 16),
-            Text('Failed to load dashboard', style: AppTypography.bodyLarge),
-            const SizedBox(height: 8),
-            Text(_error ?? 'An unexpected error occurred', textAlign: TextAlign.center, style: AppTypography.caption),
-            const SizedBox(height: 20),
-            LiquidGlassButton(size: LiquidButtonSize.md, onPressed: _loadDashboard, child: Text('Retry', style: AppTypography.buttonText)),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatMiniCard extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String value;
-  final String label;
-
-  const _StatMiniCard({required this.icon, required this.iconColor, required this.value, required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(color: AppColors.primaryGlass, shape: BoxShape.circle),
-            child: Icon(icon, color: iconColor, size: 16),
-          ),
-          const SizedBox(height: 8),
-          Text(value, style: AppTypography.displayMedium.copyWith(fontSize: 16)),
-          Text(label, style: AppTypography.caption),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickStatCard extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  final String label;
-  final Color? iconColor;
-
-  const _QuickStatCard({required this.icon, required this.value, required this.label, this.iconColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: iconColor ?? AppColors.primary, size: 18),
-          const SizedBox(height: 4),
-          Text(value, style: AppTypography.displayMedium.copyWith(fontSize: 16)),
-          Text(label, style: AppTypography.caption),
+          const Icon(Icons.error_outline, color: AppColors.primary, size: 48),
+          const SizedBox(height: 16),
+          Text('Failed to load home', style: AppTypography.bodyLarge),
+          const SizedBox(height: 8),
+          Text(_error ?? 'Error', textAlign: TextAlign.center, style: AppTypography.caption),
+          const SizedBox(height: 20),
+          LiquidGlassButton(onPressed: _loadDashboard, child: Text('Retry', style: AppTypography.buttonText)),
         ],
       ),
     );
   }
 }
 
-class _ChallengeCard extends StatelessWidget {
-  final dynamic challenge;
-  const _ChallengeCard({required this.challenge});
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 180,
-      margin: const EdgeInsets.only(right: 12),
-      child: GlassCard(
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            width: 52, height: 52,
+            decoration: BoxDecoration(
+              color: AppColors.themePrimary(context).withOpacity(0.08),
+              borderRadius: AppRadius.md,
+              border: Border.all(color: AppColors.themePrimary(context).withOpacity(0.15)),
+            ),
+            child: Icon(icon, color: AppColors.themePrimary(context), size: 22),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600)),
+        ],
+      ),
+    );
+  }
+}
+
+class _PolaroidCard extends StatelessWidget {
+  final Memory memory;
+  final int index;
+  const _PolaroidCard({required this.memory, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    final photoUrl = memory.photo;
+    final hasPhoto = photoUrl != null && photoUrl.isNotEmpty && (photoUrl.startsWith('http') || photoUrl.startsWith('https'));
+
+    return Transform.rotate(
+      angle: index.isOdd ? 0.03 : -0.02,
+      child: Container(
+        width: 110,
+        margin: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(6, 6, 6, 28),
+        decoration: BoxDecoration(
+          color: Theme.of(context).cardColor,
+          borderRadius: BorderRadius.circular(4),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.12),
+              blurRadius: 8, offset: const Offset(0, 4),
+            ),
+          ],
+        ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.star_outline, color: AppColors.primary, size: 18),
-            const SizedBox(height: 8),
-            Text(challenge['title'] ?? '', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(challenge['description'] ?? '', style: AppTypography.caption, maxLines: 2, overflow: TextOverflow.ellipsis),
-            const Spacer(),
-            Text('${challenge['days_left']} days left', style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(2),
+              child: hasPhoto
+                ? CachedNetworkImage(
+                    imageUrl: photoUrl,
+                    width: 98, height: 98,
+                    fit: BoxFit.cover,
+                    placeholder: (ctx, url) => Container(color: Colors.grey.shade100),
+                    errorWidget: (ctx, url, err) => Container(color: Colors.grey.shade100, child: const Icon(Icons.photo_outlined, size: 20)),
+                  )
+                : Container(color: Colors.grey.shade100, width: 98, height: 98, child: const Icon(Icons.photo_outlined, size: 20)),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              memory.title,
+              style: AppTypography.caption.copyWith(fontStyle: FontStyle.italic),
+              maxLines: 1, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+            ),
           ],
         ),
       ),

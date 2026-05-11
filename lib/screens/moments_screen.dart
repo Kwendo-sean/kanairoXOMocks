@@ -1,21 +1,22 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/moment_service.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/widgets/safe_network_image.dart';
+import 'package:kanairoxo/widgets/moments/comments_bottom_sheet.dart';
+import 'package:kanairoxo/widgets/moments/the_drop_widget.dart';
+import 'package:kanairoxo/widgets/moments/polaroid_stack.dart';
+import 'package:kanairoxo/widgets/moments/constellation_view.dart';
+import 'package:kanairoxo/services/widget_service.dart';
+import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/screens/create_moment_screen.dart';
-import 'package:kanairoxo/screens/singles/moment_viewer_screen.dart';
-import 'package:dio/dio.dart';
-import '../utils/constants.dart';
-import '../widgets/moments/the_drop_widget.dart';
-import '../widgets/moments/polaroid_stack.dart';
-import '../widgets/moments/constellation_view.dart';
-import '../services/widget_service.dart';
+import 'package:kanairoxo/screens/moments/moment_detail_screen.dart';
 
 class MomentsScreen extends StatefulWidget {
   const MomentsScreen({super.key});
@@ -26,7 +27,6 @@ class MomentsScreen extends StatefulWidget {
 
 class _MomentsScreenState extends State<MomentsScreen> {
   final MomentService _momentService = MomentService();
-  final Dio apiClient = Dio(BaseOptions(baseUrl: ApiConstants.baseUrl));
   
   List<Moment> _allMoments = [];
   DropModel? _dropData;
@@ -103,14 +103,15 @@ class _MomentsScreenState extends State<MomentsScreen> {
       });
       WidgetService.refreshAllWidgets(_allMoments, 0, 0); 
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
   Future<void> _loadDropData() async {
     try {
-      final response = await apiClient.get('/api/v1/moments/drop/');
+      final response = await ApiClient.instance.dio.get('/api/v1/moments/drop/');
       if (mounted) {
         setState(() {
           _dropData = DropModel.fromJson(response.data as Map<String, dynamic>);
@@ -148,83 +149,27 @@ class _MomentsScreenState extends State<MomentsScreen> {
   void _openMomentViewer(int index) {
     Navigator.push(
       context,
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        pageBuilder: (_, __, ___) => MomentViewerScreen(
-            moments: _allMoments, initialIndex: index),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
+      MaterialPageRoute(
+        builder: (_) => MomentDetailScreen(
+          moments: _allMoments,
+          initialIndex: index,
+        ),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    try {
-      return _buildScreen();
-    } catch (e) {
-      return Scaffold(
-        backgroundColor: context.bgColor,
-        appBar: _buildAppBar(),
-        body: Center(child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.error_outline,
-              size: 48, color: context.mutedColor),
-            const SizedBox(height: 12),
-            Text('Something went wrong',
-              style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
-            const SizedBox(height: 8),
-            Text(e.toString(),
-              style: AppTypography.caption.copyWith(
-                color: context.mutedColor),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 16),
-            LiquidGlassButton(
-              size: LiquidButtonSize.md,
-              onPressed: () => setState(() {}),
-              child: Text('Retry',
-                style: AppTypography.buttonText)),
-          ])));
-    }
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-        backgroundColor: context.bgColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
-        centerTitle: true,
-        actions: [
-          TextButton.icon(
-              icon: Icon(Icons.add_circle_outline,
-                  size: 16, color: context.primaryColor),
-              label: Text('Create',
-                  style: AppTypography.labelMedium.copyWith(
-                      color: context.primaryColor,
-                      fontWeight: FontWeight.w600)),
-              onPressed: openCreateMoment),
-        ]);
-  }
-
-  Widget _buildScreen() {
     return Scaffold(
       backgroundColor: context.bgColor,
       appBar: _buildAppBar(),
-      body: _isLoading
-        ? Center(child: CircularProgressIndicator(
-            color: context.primaryColor,
-            strokeWidth: 2))
-        : _buildBody());
+      body: _buildBody());
   }
   
   Widget _buildBody() {
     return CustomScrollView(
       physics: const BouncingScrollPhysics(),
       slivers: [
-        
         SliverToBoxAdapter(
           child: _safeTopSection()),
 
@@ -249,7 +194,13 @@ class _MomentsScreenState extends State<MomentsScreen> {
               _selectedTag = tag),
             backgroundColor: context.bgColor)),
         
-        if (filteredMoments.isEmpty)
+        if (_isLoading && _allMoments.isEmpty)
+          SliverToBoxAdapter(
+            child: const Padding(
+              padding: EdgeInsets.only(top: 40),
+              child: Center(child: PulsingGlassPlaceholder(width: 40, height: 40, borderRadius: 20)),
+            ))
+        else if (filteredMoments.isEmpty)
           SliverToBoxAdapter(
             child: _buildTagEmptyState())
         else
@@ -257,14 +208,31 @@ class _MomentsScreenState extends State<MomentsScreen> {
             delegate: SliverChildBuilderDelegate(
               (ctx, i) => _MomentCard(
                 moment: filteredMoments[i],
-                onLike: () => _toggleLike(filteredMoments[i]),
-                onComment: () => _openComments(context, filteredMoments[i]),
                 onImageTap: () => _openMomentViewer(_allMoments.indexOf(filteredMoments[i]))),
               childCount: filteredMoments.length)),
         
         const SliverToBoxAdapter(
           child: SizedBox(height: 80)),
       ]);
+  }
+
+  PreferredSizeWidget _buildAppBar() {
+    return AppBar(
+        backgroundColor: context.bgColor,
+        elevation: 0,
+        automaticallyImplyLeading: false,
+        title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
+        centerTitle: true,
+        actions: [
+          TextButton.icon(
+              icon: Icon(Icons.add_circle_outline,
+                  size: 16, color: context.primaryColor),
+              label: Text('Create',
+                  style: AppTypography.labelMedium.copyWith(
+                      color: context.primaryColor,
+                      fontWeight: FontWeight.w600)),
+              onPressed: openCreateMoment),
+        ]);
   }
 
   Widget _buildViewToggle() {
@@ -398,7 +366,7 @@ class _MomentsScreenState extends State<MomentsScreen> {
     return Padding(
         padding: const EdgeInsets.only(top: 12),
         child: PolaroidStack(
-            moments: _allMoments.take(10).toList(),
+            moments: _allMoments,
             onTap: (m) => _openMomentViewer(_allMoments.indexOf(m))));
   }
 
@@ -427,28 +395,6 @@ class _MomentsScreenState extends State<MomentsScreen> {
                   child: Text('Create Moment', style: AppTypography.buttonText)),
             ])));
   }
-
-  Future<void> _toggleLike(Moment moment) async {
-    try {
-      await _momentService.toggleLike(moment.id);
-      _loadMoments();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not like moment')),
-        );
-      }
-    }
-  }
-
-  void _openComments(BuildContext context, Moment moment) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _MomentCommentsSheet(moment: moment),
-    );
-  }
 }
 
 class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
@@ -474,9 +420,19 @@ class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: backgroundColor,
-      child: _buildTabs(context));
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return Container(
+          color: backgroundColor,
+          child: OverflowBox(
+            minHeight: 52,
+            maxHeight: 52,
+            alignment: Alignment.topCenter,
+            child: _buildTabs(context),
+          ),
+        );
+      }
+    );
   }
 
   Widget _buildTabs(BuildContext context) {
@@ -505,7 +461,8 @@ class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
                             width: 1),
                       ),
                       child: Text(tag,
-                          style: GoogleFonts.dmSans(
+                          style: TextStyle(
+                            fontFamily: 'DMSans',
                             fontSize: 13,
                             color: selectedTag == tag ? Colors.white : context.mutedColor,
                             fontWeight: selectedTag == tag ? FontWeight.w600 : FontWeight.w400)),
@@ -518,18 +475,65 @@ class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _MomentCard extends StatelessWidget {
+class _MomentCard extends StatefulWidget {
   final Moment moment;
-  final VoidCallback onLike;
-  final VoidCallback onComment;
   final VoidCallback onImageTap;
 
   const _MomentCard({
     required this.moment,
-    required this.onLike,
-    required this.onComment,
     required this.onImageTap,
   });
+
+  @override
+  State<_MomentCard> createState() => _MomentCardState();
+}
+
+class _MomentCardState extends State<_MomentCard> {
+  late bool _isLiked;
+  late int _likeCount;
+  late bool _isSaved;
+
+  @override
+  void initState() {
+    super.initState();
+    _isLiked = widget.moment.isLiked;
+    _likeCount = widget.moment.likeCount;
+    _isSaved = widget.moment.isSaved;
+  }
+
+  Future<void> _toggleLike() async {
+    final wasLiked = _isLiked;
+    setState(() {
+      _isLiked = !wasLiked;
+      _likeCount += wasLiked ? -1 : 1;
+    });
+    try {
+      await ApiClient.instance.dio.post('/api/v1/moments/${widget.moment.id}/like/', data: {});
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLiked = wasLiked;
+          _likeCount += wasLiked ? 1 : -1;
+        });
+      }
+    }
+  }
+
+  Future<void> _toggleSave() async {
+    final wasSaved = _isSaved;
+    setState(() {
+      _isSaved = !wasSaved;
+    });
+    try {
+      await ApiClient.instance.dio.post('/api/v1/moments/${widget.moment.id}/save/', data: {});
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isSaved = wasSaved;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -556,33 +560,42 @@ class _MomentCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundImage: (moment.userAvatarUrl != null && moment.userAvatarUrl!.isNotEmpty) 
-                      ? NetworkImage(moment.userAvatarUrl!) 
+                  backgroundImage: (widget.moment.userAvatarUrl != null && widget.moment.userAvatarUrl!.isNotEmpty) 
+                      ? NetworkImage(widget.moment.userAvatarUrl!) 
                       : null,
-                  backgroundColor: AppColors.themePrimaryGlass(context),
-                  child: (moment.userAvatarUrl == null || moment.userAvatarUrl!.isEmpty) 
+                  backgroundColor: context.primaryColor.withOpacity(0.1),
+                  child: (widget.moment.userAvatarUrl == null || widget.moment.userAvatarUrl!.isEmpty) 
                       ? Icon(Icons.person_outline, size: 18, color: context.primaryColor) 
                       : null,
                 ),
                 const SizedBox(width: 10),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(moment.userName,
-                        style: AppTypography.labelMedium
-                            .copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
-                    Text(moment.timeAgo, style: AppTypography.caption.copyWith(color: context.mutedColor)),
-                  ],
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.moment.userName,
+                          style: AppTypography.labelMedium
+                              .copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
+                      if (widget.moment.trackName != null && widget.moment.trackName!.isNotEmpty)
+                        Row(children: [
+                          const Icon(Icons.music_note, size: 10, color: Color(0xFF1DB954)),
+                          const SizedBox(width: 4),
+                          Expanded(child: Text(
+                            '${widget.moment.trackName} — ${widget.moment.trackArtist ?? ''}',
+                            style: AppTypography.caption.copyWith(color: const Color(0xFF1DB954), fontSize: 10),
+                            maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        ]),
+                    ],
+                  ),
                 ),
-                const Spacer(),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.themePrimaryGlass(context),
+                    color: context.primaryColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(999),
                   ),
                   child: Text(
-                    moment.type.name.toUpperCase(),
+                    widget.moment.type.name.toUpperCase(),
                     style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600, fontSize: 10),
                   ),
                 ),
@@ -591,32 +604,30 @@ class _MomentCard extends StatelessWidget {
           ),
 
           GestureDetector(
-            onDoubleTap: onLike,
-            onTap: onImageTap,
+            onDoubleTap: _toggleLike,
+            onTap: widget.onImageTap,
             child: ClipRRect(
               borderRadius: BorderRadius.zero,
-              child: Image.network(
-                moment.photoUrl,
-                fit: BoxFit.cover,
-                width: double.infinity,
-                height: 300,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  color: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey.shade100,
+              child: Hero(
+                tag: 'moment_${widget.moment.id}',
+                child: SafeNetworkImage(
+                  url: widget.moment.photoUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
                   height: 300,
-                  child: Center(child: Icon(Icons.broken_image_outlined, color: context.mutedColor)),
                 ),
               ),
             ),
           ),
 
-          if (moment.location != null)
+          if (widget.moment.location != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
               child: Row(
                 children: [
                   Icon(Icons.location_on_outlined, size: 13, color: context.mutedColor),
                   const SizedBox(width: 3),
-                  Text(moment.location!, style: AppTypography.caption.copyWith(color: context.mutedColor)),
+                  Text(widget.moment.location!, style: AppTypography.caption.copyWith(color: context.mutedColor)),
                 ],
               ),
             ),
@@ -624,7 +635,7 @@ class _MomentCard extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
             child: Text(
-              moment.caption,
+              widget.moment.caption,
               style: AppTypography.bodyMedium.copyWith(color: context.textColor),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -636,23 +647,27 @@ class _MomentCard extends StatelessWidget {
             child: Row(
               children: [
                 _MomentAction(
-                  icon: moment.isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: moment.isLiked ? context.primaryColor : context.mutedColor,
-                  label: '${moment.likeCount}',
-                  onTap: onLike,
+                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
+                  color: _isLiked ? context.primaryColor : context.mutedColor,
+                  label: '$_likeCount',
+                  onTap: _toggleLike,
                 ),
                 const SizedBox(width: 4),
                 _MomentAction(
                   icon: Icons.chat_bubble_outline,
-                  label: '${moment.commentCount}',
-                  onTap: onComment,
+                  label: '${widget.moment.commentCount}',
+                  onTap: () => showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => CommentsBottomSheet(momentId: widget.moment.id)),
                 ),
                 const Spacer(),
                 _MomentAction(
-                  icon: moment.isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  color: moment.isSaved ? context.primaryColor : context.mutedColor,
+                  icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  color: _isSaved ? context.primaryColor : context.mutedColor,
                   label: '',
-                  onTap: () {},
+                  onTap: _toggleSave,
                 ),
               ],
             ),
@@ -687,120 +702,6 @@ class _MomentAction extends StatelessWidget {
         minimumSize: Size.zero,
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       ),
-    );
-  }
-}
-
-class _MomentCommentsSheet extends StatefulWidget {
-  final Moment moment;
-  const _MomentCommentsSheet({required this.moment});
-
-  @override
-  State<_MomentCommentsSheet> createState() => _MomentCommentsSheetState();
-}
-
-class _MomentCommentsSheetState extends State<_MomentCommentsSheet> {
-  final MomentService _momentService = MomentService();
-  final TextEditingController _commentController = TextEditingController();
-  List<dynamic> _comments = [];
-  bool _isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadComments();
-  }
-
-  Future<void> _loadComments() async {
-    try {
-      final comments = await _momentService.getComments(widget.moment.id);
-      setState(() {
-        _comments = comments;
-        _isLoading = false;
-      });
-    } catch (e) {
-      setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _addComment() async {
-    if (_commentController.text.isEmpty) return;
-    try {
-      await _momentService.addComment(widget.moment.id, _commentController.text);
-      _commentController.clear();
-      _loadComments();
-    } catch (e) {
-      // Error
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return DraggableScrollableSheet(
-      initialChildSize: 0.6,
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: context.surfaceColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(width: 40, height: 4, decoration: BoxDecoration(color: context.borderColor, borderRadius: BorderRadius.circular(2))),
-              const SizedBox(height: 12),
-              Text('Comments', style: AppTypography.displayMedium.copyWith(color: context.textColor)),
-              Expanded(
-                child: _isLoading 
-                  ? Center(child: CircularProgressIndicator(color: context.primaryColor))
-                  : ListView.builder(
-                      controller: scrollController,
-                      itemCount: _comments.length,
-                      itemBuilder: (context, index) {
-                        final comment = _comments[index];
-                        return ListTile(
-                          leading: CircleAvatar(
-                            radius: 14,
-                            backgroundImage: comment['user_avatar'] != null ? NetworkImage(comment['user_avatar']) : null,
-                            child: comment['user_avatar'] == null ? const Icon(Icons.person, size: 14) : null,
-                          ),
-                          title: Text(comment['user_name'] ?? 'User', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold, color: context.textColor)),
-                          subtitle: Text(comment['text'] ?? '', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
-                        );
-                      },
-                    ),
-              ),
-              Padding(
-                padding: EdgeInsets.fromLTRB(16, 8, 16, MediaQuery.of(context).viewInsets.bottom + 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: _commentController,
-                        style: TextStyle(color: context.textColor),
-                        decoration: InputDecoration(
-                          hintText: 'Add a comment...',
-                          hintStyle: AppTypography.caption.copyWith(color: context.mutedColor),
-                          filled: true,
-                          fillColor: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey[100],
-                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
-                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.send, color: context.primaryColor),
-                      onPressed: _addComment,
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        );
-      },
     );
   }
 }

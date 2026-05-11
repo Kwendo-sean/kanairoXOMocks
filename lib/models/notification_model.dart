@@ -12,6 +12,8 @@ enum NotificationType {
   paymentFailed,
   newComment,
   newLike,
+  momentLike,
+  momentComment,
   profileView,
   systemAlert,
   communityUpdate,
@@ -19,14 +21,46 @@ enum NotificationType {
 
 extension NotificationTypeExtension on NotificationType {
   String get value {
-    return toString().split('.').last;
+    return switch (this) {
+      NotificationType.momentLike => 'moment_like',
+      NotificationType.momentComment => 'moment_comment',
+      NotificationType.connectionRequest => 'connection_request',
+      NotificationType.connectionAccepted => 'connection_accepted',
+      NotificationType.connectionRejected => 'connection_rejected',
+      NotificationType.newMessage => 'new_message',
+      NotificationType.eventInvitation => 'event_invitation',
+      NotificationType.eventReminder => 'event_reminder',
+      NotificationType.ticketReady => 'ticket_ready',
+      NotificationType.paymentSuccess => 'payment_success',
+      NotificationType.paymentFailed => 'payment_failed',
+      NotificationType.newComment => 'new_comment',
+      NotificationType.newLike => 'new_like',
+      NotificationType.profileView => 'profile_view',
+      NotificationType.systemAlert => 'system_alert',
+      NotificationType.communityUpdate => 'community_update',
+    };
   }
 
   static NotificationType fromString(String value) {
-    return NotificationType.values.firstWhere(
-      (type) => type.value == value,
-      orElse: () => NotificationType.systemAlert,
-    );
+    return switch (value) {
+      'moment_like' => NotificationType.momentLike,
+      'moment_comment' => NotificationType.momentComment,
+      'connection_request' => NotificationType.connectionRequest,
+      'connection_accepted' => NotificationType.connectionAccepted,
+      'connection_rejected' => NotificationType.connectionRejected,
+      'new_message' => NotificationType.newMessage,
+      'event_invitation' => NotificationType.eventInvitation,
+      'event_reminder' => NotificationType.eventReminder,
+      'ticket_ready' => NotificationType.ticketReady,
+      'payment_success' => NotificationType.paymentSuccess,
+      'payment_failed' => NotificationType.paymentFailed,
+      'new_comment' => NotificationType.newComment,
+      'new_like' => NotificationType.newLike,
+      'profile_view' => NotificationType.profileView,
+      'system_alert' => NotificationType.systemAlert,
+      'community_update' => NotificationType.communityUpdate,
+      _ => NotificationType.systemAlert,
+    };
   }
 }
 
@@ -39,15 +73,11 @@ class Notification {
   final String body;
   final String? icon;
   final String? imageUrl;
-  final String? actionUrl;
-  final String? actionText;
   final Map<String, dynamic> data;
   final DateTime timestamp;
+  final String timeAgo; // Added as per API requirement
   final bool isRead;
-  final bool isSeen;
-  final bool isActionTaken;
   final Map<String, dynamic>? sender;
-  final Map<String, dynamic>? event;
 
   const Notification({
     required this.id,
@@ -57,55 +87,28 @@ class Notification {
     required this.body,
     this.icon,
     this.imageUrl,
-    this.actionUrl,
-    this.actionText,
     this.data = const {},
     required this.timestamp,
+    required this.timeAgo,
     this.isRead = false,
-    this.isSeen = false,
-    this.isActionTaken = false,
     this.sender,
-    this.event,
   });
 
   factory Notification.fromJson(Map<String, dynamic> json) {
     return Notification(
-      id: json['id'] ?? '',
+      id: json['id']?.toString() ?? '',
       userId: json['user']?.toString() ?? '',
       type: NotificationTypeExtension.fromString(json['type'] ?? ''),
       title: json['title'] ?? '',
       body: json['body'] ?? '',
       icon: json['icon'],
       imageUrl: json['image_url'],
-      actionUrl: json['action_url'],
-      actionText: json['action_text'],
       data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : {},
-      timestamp: DateTime.parse(json['created_at']),
+      timestamp: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      timeAgo: json['time_ago'] ?? '',
       isRead: json['is_read'] ?? false,
-      isSeen: json['is_seen'] ?? false,
-      isActionTaken: json['is_action_taken'] ?? false,
       sender: json['sender'] is Map ? Map<String, dynamic>.from(json['sender']) : null,
-      event: json['event'] is Map ? Map<String, dynamic>.from(json['event']) : null,
     );
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'user': userId,
-      'type': type.value,
-      'title': title,
-      'body': body,
-      'icon': icon,
-      'image_url': imageUrl,
-      'action_url': actionUrl,
-      'action_text': actionText,
-      'data': data,
-      'created_at': timestamp.toIso8601String(),
-      'is_read': isRead,
-      'is_seen': isSeen,
-      'is_action_taken': isActionTaken,
-    };
   }
 
   Notification copyWith({
@@ -116,15 +119,11 @@ class Notification {
     String? body,
     String? icon,
     String? imageUrl,
-    String? actionUrl,
-    String? actionText,
     Map<String, dynamic>? data,
     DateTime? timestamp,
+    String? timeAgo,
     bool? isRead,
-    bool? isSeen,
-    bool? isActionTaken,
     Map<String, dynamic>? sender,
-    Map<String, dynamic>? event,
   }) {
     return Notification(
       id: id ?? this.id,
@@ -134,15 +133,11 @@ class Notification {
       body: body ?? this.body,
       icon: icon ?? this.icon,
       imageUrl: imageUrl ?? this.imageUrl,
-      actionUrl: actionUrl ?? this.actionUrl,
-      actionText: actionText ?? this.actionText,
       data: data ?? this.data,
       timestamp: timestamp ?? this.timestamp,
+      timeAgo: timeAgo ?? this.timeAgo,
       isRead: isRead ?? this.isRead,
-      isSeen: isSeen ?? this.isSeen,
-      isActionTaken: isActionTaken ?? this.isActionTaken,
       sender: sender ?? this.sender,
-      event: event ?? this.event,
     );
   }
 }

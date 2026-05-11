@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/utils/constants.dart';
-import 'package:kanairoxo/widgets/messages/chat_header.dart';
 import 'package:kanairoxo/models/message_model.dart';
+import 'package:kanairoxo/utils/constants.dart';
 import 'chat_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
@@ -64,8 +62,19 @@ class _MessagesScreenState extends State<MessagesScreen> {
         itemCount: _chats.length,
         itemBuilder: (context, index) {
           final chat = _chats[index];
-          return ChatHeader(
-            chat: chat,
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: AssetImage(chat.userImage),
+            ),
+            title: Text(chat.userName),
+            subtitle: Text(chat.lastMessage, maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: chat.unreadCount > 0
+                ? CircleAvatar(
+                    radius: 10,
+                    backgroundColor: AppConstants.primaryRed,
+                    child: Text('${chat.unreadCount}', style: const TextStyle(color: Colors.white, fontSize: 11)),
+                  )
+                : null,
             onTap: () => _navigateToChat(chat),
           );
         },

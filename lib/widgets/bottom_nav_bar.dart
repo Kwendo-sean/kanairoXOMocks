@@ -20,7 +20,6 @@ class BottomNavBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final bool isDark = Theme.of(context).brightness == Brightness.dark;
     
-    // Theme-aware colors
     final Color activeColor = isDark 
         ? const Color(0xFFC0394B) 
         : AppColors.primary;
@@ -65,7 +64,8 @@ class BottomNavBar extends StatelessWidget {
                   _buildNavItem(context, 0, PhosphorIcons.compass(PhosphorIconsStyle.regular), 'Discover', activeColor, inactiveColor),
                   _buildNavItem(context, 1, PhosphorIcons.calendar(PhosphorIconsStyle.regular), 'Events', activeColor, inactiveColor),
                   _buildNavItem(context, 2, PhosphorIcons.sparkle(PhosphorIconsStyle.regular), 'Moments', activeColor, inactiveColor),
-                  _buildNavItem(context, 3, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile', activeColor, inactiveColor),
+                  _buildNavItem(context, 3, PhosphorIcons.chatsCircle(PhosphorIconsStyle.regular), 'Messages', activeColor, inactiveColor),
+                  _buildNavItem(context, 4, PhosphorIcons.user(PhosphorIconsStyle.regular), 'Profile', activeColor, inactiveColor),
                 ],
               ),
             ),
@@ -80,10 +80,10 @@ class BottomNavBar extends StatelessWidget {
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => onTap(index),
-      onLongPress: index == 3 ? onSettingsLongPress : null,
+      onLongPress: index == 4 ? onSettingsLongPress : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -98,6 +98,7 @@ class BottomNavBar extends StatelessWidget {
               style: AppTypography.caption.copyWith(
                 color: isActive ? activeColor : inactiveColor,
                 fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                fontSize: 10,
               ),
             ),
           ],

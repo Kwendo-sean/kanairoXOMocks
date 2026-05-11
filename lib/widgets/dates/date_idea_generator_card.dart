@@ -31,7 +31,7 @@ class DateIdeaGeneratorCard extends StatelessWidget {
             const SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: () {},
-              icon: const PhosphorIcon(PhosphorIcons.shuffle, color: Colors.white),
+              icon: PhosphorIcon(PhosphorIcons.shuffle(PhosphorIconsStyle.regular), color: Colors.white),
               label: const Text(
                 'Generate Date Idea',
                 style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),

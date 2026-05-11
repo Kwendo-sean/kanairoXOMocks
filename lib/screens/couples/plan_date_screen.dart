@@ -73,12 +73,12 @@ class _PlanDateScreenState extends State<PlanDateScreen> {
               ElevatedButton(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {
-                    DateService().createDate(
-                      _titleController.text,
-                      _selectedDate,
-                      location: _locationController.text,
-                      description: _descriptionController.text,
-                    );
+                    DateService().addDateIdea({
+                      'title': _titleController.text,
+                      'date': _selectedDate.toIso8601String(),
+                      'location': _locationController.text,
+                      'description': _descriptionController.text,
+                    });
                     Navigator.pop(context);
                   }
                 },

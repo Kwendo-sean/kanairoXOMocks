@@ -115,12 +115,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       pinned: true,
                       automaticallyImplyLeading: false,
                       flexibleSpace: FlexibleSpaceBar(
-                        background: _experience!.coverImage != null
-                            ? Image.network(
-                                _experience!.coverImage!,
-                                fit: BoxFit.cover,
-                              )
-                            : Container(
+                        background: Container(
                                 color: Theme.of(context).primaryColor,
                               ),
                         title: Text(_experience!.title),

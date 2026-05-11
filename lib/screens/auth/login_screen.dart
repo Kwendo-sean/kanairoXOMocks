@@ -1,13 +1,14 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:provider/provider.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:kanairoxo/services/notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -29,6 +30,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
 
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: ['email', 'profile'],
+    serverClientId: '512106408043-tm9m4edr0p1qn5vdmnu1ut0m0ktoiroq.apps.googleusercontent.com',
+  );
+
   Future<void> _handleLogin(AuthProvider auth) async {
     if (!_formKey.currentState!.validate()) return;
     try {
@@ -42,10 +48,45 @@ class _LoginScreenState extends State<LoginScreen> {
       }
       await auth.login(phoneNumber, _passwordController.text);
       
+      // Register device token for push notifications
+      await NotificationService().registerDeviceToken();
+      
       // Call the success callback to trigger navigation defined in app.dart
       widget.onLoginSuccess();
     } catch (e) {
       // Error handled by provider
+    }
+  }
+
+  Future<void> _handleGoogleSignIn(AuthProvider auth) async {
+    try {
+      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return;
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken != null) {
+        final bool isNewUser = await auth.googleLogin(idToken);
+        
+        // Register device token for push notifications
+        await NotificationService().registerDeviceToken();
+
+        if (isNewUser) {
+          if (mounted) {
+            Navigator.of(context).pushReplacementNamed('/profile_editor');
+          }
+        } else {
+          widget.onLoginSuccess();
+        }
+      }
+    } catch (e) {
+      debugPrint('Google Sign-In Error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Google Sign-In failed: $e'), backgroundColor: Colors.red),
+        );
+      }
     }
   }
 
@@ -154,7 +195,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildSocialButton(PhosphorIcons.googleLogo(), () {}),
+                    _buildSocialButton(PhosphorIcons.googleLogo(), () => _handleGoogleSignIn(auth)),
                     const SizedBox(width: 16),
                     _buildSocialButton(PhosphorIcons.appleLogo(), () {}),
                   ],

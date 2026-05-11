@@ -25,7 +25,6 @@ class SignupScreen extends StatefulWidget {
 class _SignupScreenState extends State<SignupScreen> {
   final _formKey = GlobalKey<FormState>();
   
-  // Existing controllers
   final _firstNameController = TextEditingController();
   final _lastNameController = TextEditingController();
   final _emailController = TextEditingController();
@@ -37,14 +36,13 @@ class _SignupScreenState extends State<SignupScreen> {
   final _partnerLastNameController = TextEditingController();
   final _partnerEmailController = TextEditingController();
 
-  // Existing state
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   String _signupType = 'single';
   bool _agreeTerms = false;
   bool _agreePrivacy = false;
-  String? _selectedGender;
+  String? _selectedGender; // 'male', 'female', 'other'
   DateTime? _selectedDate;
   String? _errorMessage;
 
@@ -62,7 +60,6 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  // Existing logic preserved
   Future<void> _handleSignup() async {
     if (!_formKey.currentState!.validate()) return;
     
@@ -84,12 +81,6 @@ class _SignupScreenState extends State<SignupScreen> {
     try {
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       
-      String? djangoGender;
-      switch (_selectedGender) {
-        case 'Male': djangoGender = 'male'; break;
-        case 'Female': djangoGender = 'female'; break;
-      }
-
       final data = {
         'phoneNumber': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
@@ -100,7 +91,7 @@ class _SignupScreenState extends State<SignupScreen> {
         'termsAccepted': _agreeTerms,
         'privacyPolicyAccepted': _agreePrivacy,
         'accountType': _signupType,
-        'gender': djangoGender,
+        'gender': _selectedGender,
         'dateOfBirth': _selectedDate?.toIso8601String(),
         'partnerFirstName': _signupType == 'couple' ? _partnerFirstNameController.text.trim() : null,
         'partnerLastName': _signupType == 'couple' ? _partnerLastNameController.text.trim() : null,
@@ -117,12 +108,8 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Future<void> _selectDate(BuildContext context) async {
-    // Dismiss keyboard first if open
     FocusScope.of(context).unfocus();
-    
-    // Small delay to let keyboard close
     await Future.delayed(const Duration(milliseconds: 100));
-    
     if (!mounted) return;
     
     final now = DateTime.now();
@@ -166,7 +153,6 @@ class _SignupScreenState extends State<SignupScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 1. Header Section
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 8),
                     child: Column(
@@ -187,7 +173,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // Error Message
                   if (_errorMessage != null)
                     Padding(
                       padding: const EdgeInsets.only(bottom: 16),
@@ -195,7 +180,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         style: AppTypography.caption.copyWith(color: Colors.red.shade400)),
                     ),
 
-                  // 2. Single / Couple Toggle
                   Container(
                     padding: const EdgeInsets.all(4),
                     decoration: BoxDecoration(
@@ -220,7 +204,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ])),
                   const SizedBox(height: 24),
 
-                  // 5. Your Details Section
                   _SectionLabel(label: 'Your Details', color: context.textColor),
                   const SizedBox(height: 10),
                   Container(
@@ -248,17 +231,43 @@ class _SignupScreenState extends State<SignupScreen> {
                         icon: Icons.phone_outlined,
                         keyboardType: TextInputType.phone),
                       _FieldDivider(color: context.borderColor),
-                      _GenderDropdown(
-                        value: _selectedGender,
-                        onChanged: (val) => setState(() => _selectedGender = val)),
-                      _FieldDivider(color: context.borderColor),
                       _DateOfBirthField(
                         date: _selectedDate,
                         onTap: () => _selectDate(context)),
                     ])),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
 
-                  // 6. Password Section
+                  _SectionLabel(label: 'Gender', color: context.textColor),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      _GenderCard(
+                        label: 'Man',
+                        value: 'male',
+                        icon: Icons.male,
+                        isSelected: _selectedGender == 'male',
+                        onTap: () => setState(() => _selectedGender = 'male'),
+                      ),
+                      const SizedBox(width: 8),
+                      _GenderCard(
+                        label: 'Woman',
+                        value: 'female',
+                        icon: Icons.female,
+                        isSelected: _selectedGender == 'female',
+                        onTap: () => setState(() => _selectedGender = 'female'),
+                      ),
+                      const SizedBox(width: 8),
+                      _GenderCard(
+                        label: 'Other',
+                        value: 'other',
+                        icon: Icons.person_outline,
+                        isSelected: _selectedGender == 'other',
+                        onTap: () => setState(() => _selectedGender = 'other'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
                   _SectionLabel(label: 'Set Password', color: context.textColor),
                   const SizedBox(height: 10),
                   Container(
@@ -289,7 +298,6 @@ class _SignupScreenState extends State<SignupScreen> {
                           onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm))),
                     ])),
                   
-                  // 7. Partner Details Mode
                   if (_signupType == 'couple') ...[
                     const SizedBox(height: 24),
                     Row(children: [
@@ -330,7 +338,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ],
                   const SizedBox(height: 20),
 
-                  // 8. Terms & Conditions
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -384,7 +391,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     ])),
                   const SizedBox(height: 20),
 
-                  // 9. Create Account Button
                   SizedBox(
                     width: double.infinity,
                     child: LiquidGlassButton(
@@ -395,7 +401,6 @@ class _SignupScreenState extends State<SignupScreen> {
                         : Text('Create Account', style: AppTypography.buttonText))),
                   const SizedBox(height: 20),
 
-                  // 10. Social Login
                   Row(children: [
                     Expanded(child: Divider(color: context.borderColor)),
                     Padding(
@@ -415,7 +420,6 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   const SizedBox(height: 24),
 
-                  // 11. Login Redirect
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -445,6 +449,53 @@ class _SignupScreenState extends State<SignupScreen> {
         color: Colors.black.withOpacity(0.04),
         blurRadius: 8,
         offset: const Offset(0, 2))]);
+  }
+}
+
+class _GenderCard extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  const _GenderCard({
+    required this.label,
+    required this.value,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = context.primaryColor;
+    final primaryGlass = context.isDark ? primaryColor.withOpacity(0.15) : AppColors.primaryGlass;
+
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          decoration: BoxDecoration(
+            color: isSelected ? primaryGlass : context.surfaceColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: isSelected ? primaryColor : context.borderColor, width: isSelected ? 1.5 : 1),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, color: isSelected ? primaryColor : context.mutedColor, size: 24),
+              const SizedBox(height: 8),
+              Text(label, style: AppTypography.caption.copyWith(
+                color: isSelected ? primaryColor : context.textColor,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+              )),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -541,36 +592,6 @@ class _FieldDivider extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(height: 1, margin: const EdgeInsets.symmetric(horizontal: 16), color: color);
-  }
-}
-
-class _GenderDropdown extends StatelessWidget {
-  final String? value;
-  final ValueChanged<String?> onChanged;
-
-  const _GenderDropdown({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      value: value,
-      hint: Text('Gender', style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
-      icon: Icon(Icons.keyboard_arrow_down, size: 18, color: context.mutedColor),
-      dropdownColor: context.surfaceColor,
-      decoration: InputDecoration(
-        prefixIcon: Icon(Icons.wc_outlined, size: 18, color: context.mutedColor),
-        filled: true,
-        fillColor: Colors.transparent,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        border: InputBorder.none,
-        enabledBorder: InputBorder.none,
-        focusedBorder: UnderlineInputBorder(
-          borderSide: BorderSide(color: context.primaryColor.withOpacity(0.3), width: 1))),
-      items: [
-        DropdownMenuItem(value: 'Male', child: Text('Male', style: TextStyle(color: context.textColor))),
-        DropdownMenuItem(value: 'Female', child: Text('Female', style: TextStyle(color: context.textColor))),
-      ],
-      onChanged: onChanged);
   }
 }
 

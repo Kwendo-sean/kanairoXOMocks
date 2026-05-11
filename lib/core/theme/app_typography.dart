@@ -1,55 +1,68 @@
-import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/material.dart';
+import 'app_colors.dart';
 
 class AppTypography {
-  static TextStyle displayLarge = GoogleFonts.dmSans(
-    fontSize: 22,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.3,
+  // Colors are intentionally omitted — text inherits from the active theme's
+  // DefaultTextStyle so dark/light mode color switching works automatically.
+  // Override color with .copyWith(color: ...) at the call site when needed.
+
+  static const TextStyle screenTitle = TextStyle(
+    fontFamily: 'DMSans',
+    fontSize: 20,
+    fontWeight: FontWeight.w600,
+    letterSpacing: -0.2,
   );
 
-  static TextStyle displayMedium = GoogleFonts.dmSans(
+  static const TextStyle displayLarge = TextStyle(
+    fontFamily: 'CormorantGaramond',
+    fontSize: 48,
+    fontWeight: FontWeight.w700,
+  );
+
+  static const TextStyle displayMedium = TextStyle(
+    fontFamily: 'DMSans',
     fontSize: 18,
     fontWeight: FontWeight.w600,
     letterSpacing: -0.2,
   );
 
-  static TextStyle screenTitle = GoogleFonts.dmSans(
-    fontSize: 17,
+  static const TextStyle displaySmall = TextStyle(
+    fontFamily: 'DMSans',
+    fontSize: 16,
     fontWeight: FontWeight.w600,
-    letterSpacing: -0.3,
   );
 
-  static TextStyle bodyLarge = GoogleFonts.dmSans(
+  static const TextStyle bodyLarge = TextStyle(
+    fontFamily: 'DMSans',
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+  );
+
+  static const TextStyle bodyMedium = TextStyle(
+    fontFamily: 'DMSans',
     fontSize: 14,
     fontWeight: FontWeight.w400,
-    letterSpacing: 0,
-    height: 1.5,
   );
 
-  static TextStyle bodyMedium = GoogleFonts.dmSans(
+  static const TextStyle labelMedium = TextStyle(
+    fontFamily: 'DMSans',
     fontSize: 13,
-    fontWeight: FontWeight.w400,
-    letterSpacing: 0,
-    height: 1.5,
+    fontWeight: FontWeight.w600,
   );
 
-  static TextStyle labelMedium = GoogleFonts.dmSans(
+  // Caption uses muted color — kept as-is; callers can override for dark mode
+  // via .copyWith(color: context.mutedColor) if needed
+  static const TextStyle caption = TextStyle(
+    fontFamily: 'DMSans',
     fontSize: 12,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
+    fontWeight: FontWeight.w400,
+    color: AppColors.textMuted,
   );
 
-  static TextStyle buttonText = GoogleFonts.dmSans(
+  static const TextStyle buttonText = TextStyle(
+    fontFamily: 'DMSans',
     fontSize: 14,
     fontWeight: FontWeight.w600,
-    letterSpacing: 0,
     color: Colors.white,
-  );
-
-  static TextStyle caption = GoogleFonts.dmSans(
-    fontSize: 10,
-    fontWeight: FontWeight.w500,
-    letterSpacing: 0.1,
   );
 }

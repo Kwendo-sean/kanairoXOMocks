@@ -3,7 +3,9 @@ import 'package:flutter/foundation.dart';
 import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/models/couple_model.dart';
 import 'package:kanairoxo/services/auth_service.dart';
+import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/notification_service.dart';
+import 'package:kanairoxo/utils/auth_storage.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -15,6 +17,7 @@ class AuthProvider with ChangeNotifier {
   User? _selectedPartner;
   bool _isLoading = false;
   String? _error;
+  bool _initialized = false;
 
   final StreamController<User?> _userController =
   StreamController<User?>.broadcast();
@@ -29,6 +32,7 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _user != null;
   bool get isLoading => _isLoading;
   String? get error => _error;
+  bool get initialized => _initialized;
 
   // Routing helpers — use these in AuthGate / GoRouter redirect
   String get accountType => _user?.accountType ?? 'single';
@@ -44,7 +48,22 @@ class AuthProvider with ChangeNotifier {
   // ── Constructor ───────────────────────────────────────────────────────────
 
   AuthProvider() {
-    _checkLoginStatus();
+    _init();
+  }
+
+  Future<void> _init() async {
+    // 1. Load from cache immediately for fast UI response
+    final cachedUser = await AuthStorage.getCachedUser();
+    if (cachedUser != null) {
+      _user = cachedUser;
+      _userController.add(cachedUser);
+      notifyListeners();
+    }
+    
+    // 2. Verify with server in background
+    await _checkLoginStatus();
+    _initialized = true;
+    notifyListeners();
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────
@@ -53,7 +72,12 @@ class AuthProvider with ChangeNotifier {
     _user = user;
     _userController.add(user);
     if (user != null) {
+      AuthStorage.setCachedUserId(user.id);
+      AuthStorage.saveUser(user); // Persist to storage
       _notificationService.registerFCMToken();
+    } else {
+      AuthStorage.setCachedUserId('');
+      AuthStorage.clearAll(); // This will clear cached user too
     }
     notifyListeners();
   }
@@ -66,53 +90,62 @@ class AuthProvider with ChangeNotifier {
   void setCoupleUser(User user) {
     _selectedPartner = user;
     _user = user;
+    AuthStorage.setCachedUserId(user.id);
+    AuthStorage.saveUser(user);
     notifyListeners();
   }
 
   // ── Auth flow ─────────────────────────────────────────────────────────────
 
   Future<void> _checkLoginStatus() async {
-    _setLoading(true);
+    // Only set loading if we don't already have a cached user to show
+    if (_user == null) _setLoading(true);
+    
     try {
       final isLoggedIn = await _authService.isLoggedIn();
       if (isLoggedIn) {
-        final profile = await _authService.getProfile();
-
         try {
-          // Attempt to fetch couple status to determine the correct account type.
-          _coupleUsers = await _authService.getCoupleUsers();
+          final profile = await _authService.getProfile();
 
-          // If successful, the user is part of a couple. Re-create the user
-          // object with the correct account_type to ensure UI consistency.
-          final correctedUser = User(
-            id: profile.id,
-            phoneNumber: profile.phoneNumber,
-            email: profile.email,
-            firstName: profile.firstName,
-            lastName: profile.lastName,
-            displayName: profile.displayName,
-            role: profile.role,
-            accountType: 'couple', // Manually correct the account type.
-            isVerified: profile.isVerified,
-            dateJoined: profile.dateJoined,
-            lastActive: profile.lastActive,
-            profile: profile.profile,
-          );
-          _setUser(correctedUser);
+          try {
+            _coupleUsers = await _authService.getCoupleUsers();
+            final correctedUser = User(
+              id: profile.id,
+              phoneNumber: profile.phoneNumber,
+              email: profile.email,
+              firstName: profile.firstName,
+              lastName: profile.lastName,
+              displayName: profile.displayName,
+              role: profile.role,
+              accountType: 'couple',
+              isVerified: profile.isVerified,
+              dateJoined: profile.dateJoined,
+              lastActive: profile.lastActive,
+              profile: profile.profile,
+              gender: profile.gender,
+              dateOfBirth: profile.dateOfBirth,
+            );
+            _setUser(correctedUser);
+          } catch (e) {
+            _coupleStatus = null;
+            _setUser(profile);
+          }
         } catch (e) {
-          // If fetching couple status fails, it's likely a single user.
-          _coupleStatus = null;
-          _setUser(profile);
+          // If profile fetch fails (e.g. timeout/offline), keep using cached user
+          // if we have one. Don't logout unless it's a definitive auth failure.
+          if (e.toString().contains('401') || e.toString().contains('Unauthorized')) {
+             await logout();
+          }
         }
-
-        notifyListeners();
       } else {
+        // No tokens found at all
         _setUser(null);
       }
     } catch (e) {
-      // Token expired or network error — treat as logged out.
-      await _authService.logout();
-      _setUser(null);
+      // General error, don't logout unless it's an AuthException
+      if (e is AuthException) {
+        await logout();
+      }
     } finally {
       _setLoading(false);
     }
@@ -126,7 +159,23 @@ class AuthProvider with ChangeNotifier {
         phoneNumber: phoneNumber,
         password: password,
       );
-      await _checkLoginStatus(); // Fetch full profile after login
+      await _checkLoginStatus();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+      rethrow;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> googleLogin(String idToken) async {
+    _setLoading(true);
+    _error = null;
+    try {
+      final response = await _authService.googleLogin(idToken);
+      await _checkLoginStatus();
+      return response.isNewUser;
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -161,9 +210,7 @@ class AuthProvider with ChangeNotifier {
         partnerEmail: data['partnerEmail'],
       );
 
-      // After registration, immediately fetch the complete user profile.
       await _checkLoginStatus();
-
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -190,6 +237,8 @@ class AuthProvider with ChangeNotifier {
         dateJoined: _user!.dateJoined,
         lastActive: profileData.lastActive,
         profile: profileData.profile,
+        gender: profileData.gender,
+        dateOfBirth: profileData.dateOfBirth,
       );
       _setUser(updatedUser);
 

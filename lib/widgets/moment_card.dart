@@ -12,9 +12,8 @@ class MomentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get the image URL safely
     final imageUrl = moment.photoUrl;
-    final hasValidImage = imageUrl.isNotEmpty && imageUrl.startsWith('http');
+    final hasValidImage = imageUrl.isNotEmpty && (imageUrl.startsWith('http') || imageUrl.startsWith('https'));
 
     return Card(
       shape: RoundedRectangleBorder(
@@ -24,7 +23,7 @@ class MomentCard extends StatelessWidget {
       shadowColor: Colors.black.withOpacity(0.1),
       clipBehavior: Clip.antiAlias,
       child: AspectRatio(
-        aspectRatio: 3 / 4, // Gives the card a consistent height
+        aspectRatio: 3 / 4,
         child: Stack(
           children: [
             // Background Image
@@ -33,19 +32,7 @@ class MomentCard extends StatelessWidget {
                   ? CachedNetworkImage(
                       imageUrl: imageUrl,
                       fit: BoxFit.cover,
-                      errorWidget: (context, url, error) {
-                        debugPrint('Moment image failed: $url | $error');
-                        return Container(
-                          color: Colors.grey.shade100,
-                          child: const Center(
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              color: AppColors.textMuted,
-                              size: 32,
-                            ),
-                          ),
-                        );
-                      },
+                      errorWidget: (context, url, error) => _buildErrorWidget(),
                       placeholder: (context, url) => Container(
                         color: Colors.grey.shade50,
                         child: const Center(
@@ -56,12 +43,7 @@ class MomentCard extends StatelessWidget {
                         ),
                       ),
                     )
-                  : Container(
-                      color: AppConstants.lightGray,
-                      child: const Center(
-                        child: Icon(Icons.photo, color: AppConstants.secondaryGray),
-                      ),
-                    ),
+                  : _buildErrorWidget(),
             ),
             // Top Gradient
             Positioned.fill(
@@ -94,7 +76,6 @@ class MomentCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Event Name (Top)
                     if (moment.eventName != null)
                       Text(
                         moment.eventName!,
@@ -104,7 +85,6 @@ class MomentCard extends StatelessWidget {
                             ),
                       ),
                     const Spacer(),
-                    // Date and Badge (Bottom)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.end,
@@ -121,6 +101,19 @@ class MomentCard extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildErrorWidget() {
+    return Container(
+      color: Colors.grey.shade100,
+      child: const Center(
+        child: Icon(
+          Icons.image_outlined,
+          color: AppColors.textMuted,
+          size: 32,
         ),
       ),
     );

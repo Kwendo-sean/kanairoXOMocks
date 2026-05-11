@@ -30,6 +30,14 @@ class AuthService {
     return LoginResponse.fromJson(response);
   }
 
+  Future<GoogleLoginResponse> googleLogin(String idToken) async {
+    final response = await _api.post('api/v1/auth/google/', {
+      'id_token': idToken,
+    });
+    await _api.saveTokens(response['access'], response['refresh']);
+    return GoogleLoginResponse.fromJson(response);
+  }
+
   Future<RegisterResponse> register({
     required String phoneNumber,
     required String email,
@@ -157,6 +165,29 @@ class LoginResponse {
       user: User.fromJson(json['user']),
       access: json['access'],
       refresh: json['refresh'],
+    );
+  }
+}
+
+class GoogleLoginResponse {
+  final User user;
+  final String access;
+  final String refresh;
+  final bool isNewUser;
+
+  GoogleLoginResponse({
+    required this.user,
+    required this.access,
+    required this.refresh,
+    required this.isNewUser,
+  });
+
+  factory GoogleLoginResponse.fromJson(Map<String, dynamic> json) {
+    return GoogleLoginResponse(
+      user: User.fromJson(json['user']),
+      access: json['access'],
+      refresh: json['refresh'],
+      isNewUser: json['is_new_user'] ?? false,
     );
   }
 }

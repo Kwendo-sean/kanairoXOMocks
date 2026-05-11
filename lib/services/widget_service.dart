@@ -7,60 +7,53 @@ import 'package:image/image.dart' as img;
 import '../models/moment.dart';
 
 class WidgetService {
-  static const _appGroupId = 'com.kanairoXO.app';
-
   static Future<void> updateMomentsWidget(List<Moment> moments) async {
     try {
       final withPhotos = moments
           .where((m) =>
               m.photoUrl.isNotEmpty &&
               m.photoUrl.startsWith('http'))
-          .take(4)
           .toList();
 
-      await HomeWidget.saveWidgetData<int>('moments_count', withPhotos.length);
+      if (withPhotos.isNotEmpty) {
+        final latest = withPhotos.first;
+        final url = latest.photoUrl;
 
-      for (int i = 0; i < 4; i++) {
-        if (i < withPhotos.length) {
-          final url = withPhotos[i].photoUrl;
+        try {
+          final response = await http.get(Uri.parse(url));
 
-          try {
-            final response = await http.get(Uri.parse(url));
+          if (response.statusCode == 200) {
+            final decoded = img.decodeImage(response.bodyBytes);
+            if (decoded != null) {
+              final resized = img.copyResize(
+                decoded,
+                width: 600,
+                height: 600,
+                interpolation: img.Interpolation.linear);
+              
+              final compressed = img.encodeJpg(resized, quality: 85);
+              
+              final dir = await getApplicationDocumentsDirectory();
+              final file = File('${dir.path}/widget_moment_0.jpg');
+              await file.writeAsBytes(compressed);
 
-            if (response.statusCode == 200) {
-              final decoded = img.decodeImage(response.bodyBytes);
-              if (decoded != null) {
-                final resized = img.copyResize(
-                  decoded,
-                  width: 300,
-                  height: 300,
-                  interpolation: img.Interpolation.linear);
-                
-                final compressed = img.encodeJpg(resized, quality: 80);
-                
-                final dir = await getApplicationDocumentsDirectory();
-                final file = File('${dir.path}/widget_photo_$i.jpg');
-                await file.writeAsBytes(compressed);
-
-                await HomeWidget.saveWidgetData<String>('photo_path_$i', file.path);
-                
-                final moment = withPhotos[i];
-                final phrase = moment.caption.isNotEmpty
-                    ? moment.caption
-                    : moment.type.name.isNotEmpty
-                        ? moment.type.name
-                        : 'Untitled';
-                await HomeWidget.saveWidgetData<String>('swahili_$i', phrase);
-              }
+              await HomeWidget.saveWidgetData<String>('moment_photo_0', file.path);
+              
+              final caption = latest.caption.isNotEmpty
+                  ? latest.caption
+                  : latest.type.name.isNotEmpty
+                      ? latest.type.name
+                      : 'Moment';
+              await HomeWidget.saveWidgetData<String>('moment_caption_0', caption);
             }
-          } catch (e) {
-            debugPrint('Widget photo $i error: $e');
-            await HomeWidget.saveWidgetData<String>('photo_path_$i', '');
           }
-        } else {
-          await HomeWidget.saveWidgetData<String>('photo_path_$i', '');
-          await HomeWidget.saveWidgetData<String>('swahili_$i', '');
+        } catch (e) {
+          debugPrint('Widget photo error: $e');
+          await HomeWidget.saveWidgetData<String>('moment_photo_0', '');
         }
+      } else {
+        await HomeWidget.saveWidgetData<String>('moment_photo_0', '');
+        await HomeWidget.saveWidgetData<String>('moment_caption_0', '');
       }
 
       await HomeWidget.updateWidget(

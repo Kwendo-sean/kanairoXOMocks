@@ -1,6 +1,5 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import '../core/theme/app_colors.dart';
 import '../core/theme/app_radius.dart';
 
@@ -59,71 +58,70 @@ class _LiquidGlassButtonState extends State<LiquidGlassButton> {
 
   @override
   Widget build(BuildContext context) {
-    final Color baseColor = widget.color ?? AppColors.primary;
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final Color baseColor = widget.color ?? AppColors.themePrimary(context);
+    final bool isEnabled = widget.onPressed != null;
     
     final backgroundColor = switch (widget.variant) {
-      LiquidButtonVariant.primary => baseColor.withOpacity(0.9),
+      LiquidButtonVariant.primary => isEnabled ? baseColor.withOpacity(0.9) : baseColor.withOpacity(0.4),
       LiquidButtonVariant.ghost => Colors.transparent,
-      LiquidButtonVariant.outline => Colors.white.withOpacity(0.15),
+      LiquidButtonVariant.outline => isDark ? Colors.white.withOpacity(0.05) : Colors.white.withOpacity(0.15),
     };
 
     final borderColor = switch (widget.variant) {
-      LiquidButtonVariant.primary => Colors.white.withOpacity(0.25),
+      LiquidButtonVariant.primary => isDark ? Colors.white.withOpacity(0.1) : Colors.white.withOpacity(0.25),
       LiquidButtonVariant.ghost => Colors.transparent,
-      LiquidButtonVariant.outline => Colors.white.withOpacity(0.4),
+      LiquidButtonVariant.outline => isDark ? Colors.white.withOpacity(0.2) : Colors.white.withOpacity(0.4),
     };
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
-        setState(() => _isPressed = false);
-        widget.onPressed?.call();
-      },
-      onTapCancel: () => setState(() => _isPressed = false),
+      onTap: widget.onPressed,
+      onTapDown: isEnabled ? (_) => setState(() => _isPressed = true) : null,
+      onTapUp: isEnabled ? (_) => setState(() => _isPressed = false) : null,
+      onTapCancel: isEnabled ? () => setState(() => _isPressed = false) : null,
       child: AnimatedScale(
-        scale: _isPressed ? 0.96 : 1.0,
+        scale: isEnabled && _isPressed ? 0.96 : 1.0,
         duration: const Duration(milliseconds: 100),
-        child: SizedBox(
-          width: widget.width,
-          child: ClipRRect(
-            borderRadius: AppRadius.full,
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 150),
-                constraints: BoxConstraints(minHeight: _minHeight),
-                padding: _padding,
-                decoration: BoxDecoration(
-                  color: backgroundColor,
-                  borderRadius: AppRadius.full,
-                  border: Border.all(
-                    color: borderColor,
-                    width: 1.0,
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.6,
+          child: SizedBox(
+            width: widget.width,
+            child: ClipRRect(
+              borderRadius: AppRadius.xl,
+              child: BackdropFilter(
+                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  constraints: BoxConstraints(minHeight: _minHeight),
+                  padding: _padding,
+                  decoration: BoxDecoration(
+                    color: backgroundColor,
+                    borderRadius: AppRadius.xl,
+                    border: Border.all(
+                      color: borderColor,
+                      width: 1.0,
+                    ),
+                    boxShadow: isEnabled ? [
+                      BoxShadow(
+                        color: baseColor.withOpacity(_isPressed ? 0.1 : 0.25),
+                        blurRadius: _isPressed ? 8 : 20,
+                        offset: Offset(0, _isPressed ? 2 : 6),
+                      ),
+                    ] : [],
+                    gradient: widget.variant == LiquidButtonVariant.primary && isEnabled
+                      ? LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            baseColor.withOpacity(0.95),
+                            baseColor.withOpacity(0.80),
+                          ],
+                        )
+                      : null,
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: baseColor.withOpacity(_isPressed ? 0.1 : 0.25),
-                      blurRadius: _isPressed ? 8 : 20,
-                      offset: Offset(0, _isPressed ? 2 : 6),
-                    ),
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.15),
-                      blurRadius: 1,
-                      offset: const Offset(0, 1),
-                    ),
-                  ],
-                  gradient: widget.variant == LiquidButtonVariant.primary
-                    ? LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          baseColor.withOpacity(0.95),
-                          baseColor.withOpacity(0.80),
-                        ],
-                      )
-                    : null,
+                  child: Center(child: widget.child),
                 ),
-                child: Center(child: widget.child),
               ),
             ),
           ),

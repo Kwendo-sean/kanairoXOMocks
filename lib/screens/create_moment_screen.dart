@@ -2,12 +2,14 @@ import 'dart:io';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:kanairoxo/models/moment.dart';
+import 'package:kanairoxo/models/music/spotify_models.dart';
 import 'package:kanairoxo/services/moment_service.dart';
+import 'package:kanairoxo/services/spotify_service.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
+import 'package:kanairoxo/utils/constants.dart';
 
 class CreateMomentScreen extends StatefulWidget {
   const CreateMomentScreen({super.key});
@@ -22,13 +24,27 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
   File? _selectedImage;
   String _selectedType = 'vibe';
   bool _isSubmitting = false;
+  TrackModel? _attachedTrack;
+  
+  List<LinkedEvent> _linkableEvents = [];
+  bool _loadingEvents = true;
+  int? _selectedEventId;
 
-  final List<Map<String, String>> _momentTypes = [
-    {'value': 'vibe', 'label': 'Vibe'},
-    {'value': 'event', 'label': 'Event'},
-    {'value': 'meetup', 'label': 'Meetup'},
-    {'value': 'date', 'label': 'Date'},
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _fetchEvents();
+  }
+
+  Future<void> _fetchEvents() async {
+    final events = await _momentService.getLinkableEvents();
+    if (mounted) {
+      setState(() {
+        _linkableEvents = events;
+        _loadingEvents = false;
+      });
+    }
+  }
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
@@ -39,6 +55,17 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
 
     if (pickedFile != null) {
       setState(() => _selectedImage = File(pickedFile.path));
+    }
+  }
+
+  Future<void> _attachCurrentSong() async {
+    final track = await SpotifyService().getNowPlaying();
+    if (track != null && mounted) {
+      setState(() => _attachedTrack = track);
+    } else if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Nothing playing on Spotify'),
+          behavior: SnackBarBehavior.floating));
     }
   }
 
@@ -60,21 +87,34 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
     setState(() => _isSubmitting = true);
 
     try {
+      Map<String, String>? trackData;
+      if (_attachedTrack != null) {
+        trackData = {
+          'name': _attachedTrack!.name,
+          'artist': _attachedTrack!.artist,
+          'image_url': _attachedTrack!.imageUrl ?? '',
+          'preview_url': _attachedTrack!.previewUrl ?? '',
+        };
+      }
+
       await _momentService.createMoment(
         caption: _captionController.text,
         type: _selectedType,
         photo: _selectedImage!,
+        linkedEventId: _selectedEventId,
+        trackData: trackData,
       );
+      
       if (mounted) {
         Navigator.pop(context, true);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Moment shared successfully!'), backgroundColor: Colors.green),
+          const SnackBar(content: Text('Moment shared successfully'), backgroundColor: Color(0xFF9B111E)),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFF9B111E)),
         );
       }
     } finally {
@@ -84,136 +124,259 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
-    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
-    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
-    final mutedColor = isDark ? const Color(0xFF9A8F85) : const Color(0xFFA0A0A0);
-    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
-    final primaryColor = isDark ? const Color(0xFFC0394B) : const Color(0xFF8B1A1A);
+    const primaryRed = Color(0xFF9B111E);
+    const nearBlack = Color(0xFF1A1A1A);
 
     return Scaffold(
-      backgroundColor: bgColor,
+      backgroundColor: const Color(0xFFFAF7F4),
       appBar: AppBar(
-        backgroundColor: bgColor,
+        backgroundColor: const Color(0xFFFAF7F4),
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor, size: 22),
+          icon: const Icon(Icons.arrow_back, color: nearBlack, size: 22),
           onPressed: () => Navigator.pop(context)),
-        title: Text('Create Moment', style: AppTypography.screenTitle.copyWith(color: textColor)),
+        title: const Text('Create Moment', 
+          style: TextStyle(
+            fontFamily: 'CormorantGaramond',
+            color: nearBlack, 
+            fontSize: 22, 
+            fontWeight: FontWeight.w600
+          )
+        ),
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. IMAGE SELECTOR
+            // Polaroid-style Photo picker area
             GestureDetector(
               onTap: _pickImage,
               child: Container(
-                height: 300,
                 width: double.infinity,
+                height: 220,
                 decoration: BoxDecoration(
-                  color: surfaceColor,
-                  borderRadius: AppRadius.lg,
-                  border: Border.all(color: borderColor),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE8E0D0), width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.06),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    )
+                  ],
                 ),
                 child: _selectedImage != null
                     ? ClipRRect(
-                        borderRadius: AppRadius.lg,
+                        borderRadius: BorderRadius.circular(12),
                         child: Image.file(_selectedImage!, fit: BoxFit.cover),
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_a_photo_outlined, size: 48, color: mutedColor),
-                          const SizedBox(height: 12),
-                          Text('Select a Photo', style: AppTypography.bodyLarge.copyWith(color: textColor)),
+                          const Icon(Icons.add_a_photo_outlined, color: Color(0xFFBBAA99), size: 32),
+                          const SizedBox(height: 8),
+                          const Text(
+                            "Select a Photo",
+                            style: TextStyle(
+                              fontFamily: 'DMSans',
+                              color: Color(0xFFBBAA99),
+                              fontSize: 14,
+                            ),
+                          ),
                         ],
                       ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // 2. CAPTION INPUT
-            _buildSectionTitle('What\'s happening?', textColor),
-            ClipRRect(
-              borderRadius: AppRadius.md,
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                child: TextField(
-                  controller: _captionController,
-                  maxLines: 4,
-                  style: AppTypography.bodyLarge.copyWith(color: textColor),
-                  decoration: InputDecoration(
-                    hintText: 'Share the vibe...',
-                    hintStyle: AppTypography.bodyLarge.copyWith(color: mutedColor),
-                    filled: true,
-                    fillColor: surfaceColor,
-                    border: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: borderColor)),
-                    enabledBorder: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: borderColor)),
-                    focusedBorder: OutlineInputBorder(borderRadius: AppRadius.md, borderSide: BorderSide(color: primaryColor, width: 1.5)),
-                    contentPadding: const EdgeInsets.all(16),
-                  ),
+            // Caption Section
+            _buildLabel("What's happening?"),
+            TextField(
+              controller: _captionController,
+              maxLines: 4,
+              style: const TextStyle(fontFamily: 'DMSans', color: nearBlack, fontSize: 14),
+              decoration: InputDecoration(
+                hintText: 'Share the vibe...',
+                hintStyle: const TextStyle(fontFamily: 'DMSans', color: Color(0xFFA09080), fontSize: 14),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.all(16),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8E0D0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: Color(0xFFE8E0D0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: const BorderSide(color: primaryRed, width: 1.2),
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
 
-            // 3. MOMENT TYPE
-            _buildSectionTitle('Tag the Moment', textColor),
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: _momentTypes.map((type) {
-                  final isSelected = _selectedType == type['value'];
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedType = type['value']!),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                        decoration: BoxDecoration(
-                          color: isSelected ? primaryColor : surfaceColor,
-                          borderRadius: AppRadius.full,
-                          border: Border.all(color: isSelected ? primaryColor : borderColor),
-                        ),
-                        child: Text(
-                          type['label']!,
-                          style: AppTypography.labelMedium.copyWith(
-                            color: isSelected ? Colors.white : textColor,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            // Event linking row
+            if (_loadingEvents || _linkableEvents.isNotEmpty) ...[
+              _buildLabel("At an event?"),
+              if (_loadingEvents)
+                _buildEventShimmer()
+              else
+                SizedBox(
+                  height: 38,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _linkableEvents.length,
+                    itemBuilder: (context, index) {
+                      final event = _linkableEvents[index];
+                      final isSelected = _selectedEventId == event.id;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8),
+                        child: GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              if (isSelected) {
+                                _selectedEventId = null;
+                              } else {
+                                _selectedEventId = event.id;
+                              }
+                            });
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: isSelected ? primaryRed : const Color(0xFFDDD5C8)),
+                              borderRadius: BorderRadius.circular(20),
+                              color: isSelected ? primaryRed : Colors.white,
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircleAvatar(
+                                  radius: 10,
+                                  backgroundColor: Colors.grey.shade200,
+                                  backgroundImage: event.coverImageUrl != null 
+                                    ? NetworkImage(ApiConstants.fixMediaUrl(event.coverImageUrl)) 
+                                    : null,
+                                ),
+                                const SizedBox(width: 6),
+                                Text(
+                                  event.title,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontFamily: 'DMSans',
+                                    color: isSelected ? Colors.white : nearBlack,
+                                    fontSize: 13,
+                                    fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
                         ),
-                      ),
-                    ),
-                  );
-                }).toList(),
+                      );
+                    },
+                  ),
+                ),
+              const SizedBox(height: 16),
+            ],
+
+            // Music Attachment
+            _buildLabel("Attach a song?"),
+            GestureDetector(
+              onTap: _attachCurrentSong,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: const Color(0xFFDDD5C8))),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.music_note_rounded, size: 14, color: primaryRed),
+                    const SizedBox(width: 6),
+                    Text(
+                      _attachedTrack != null ? "${_attachedTrack!.name} · ${_attachedTrack!.artist}" : 'Select current track',
+                      style: const TextStyle(
+                        fontFamily: 'DMSans',
+                        color: nearBlack,
+                        fontSize: 13,
+                      )),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
 
-            // 4. SUBMIT BUTTON
+            // Submit Button
             LiquidGlassButton(
               size: LiquidButtonSize.xl,
               width: double.infinity,
               onPressed: _isSubmitting ? null : _handleSubmit,
               child: _isSubmitting
-                  ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                  : Text('Share Moment', style: AppTypography.buttonText),
+                  ? const SizedBox(
+                      height: 20, 
+                      width: 20, 
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
+                    )
+                  : const Text('Post Moment', 
+                      style: TextStyle(
+                        fontFamily: 'DMSans',
+                        color: Colors.white, 
+                        fontWeight: FontWeight.w600,
+                        fontSize: 16,
+                      )
+                    ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 32),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildSectionTitle(String title, Color textColor) {
+  Widget _buildLabel(String text) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 12, left: 4),
-      child: Text(title, style: AppTypography.displayMedium.copyWith(fontSize: 16, color: textColor)),
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontFamily: 'DMSans',
+          color: Color(0xFF666666),
+          fontSize: 13,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEventShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey.shade200,
+      highlightColor: Colors.white,
+      child: SizedBox(
+        height: 38,
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: 3,
+          itemBuilder: (_, __) => Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Container(
+              width: 120,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -1,30 +1,29 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:kanairoxo/services/api_client.dart';
-import 'package:kanairoxo/utils/auth_storage.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/screens/notification_screen.dart';
+import 'package:kanairoxo/screens/moments_screen.dart';
+import 'package:kanairoxo/screens/messaging/conversations_screen.dart';
+import 'package:kanairoxo/screens/messages/date_requests_screen.dart';
+import 'package:kanairoxo/models/notification_model.dart' as model;
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
   factory NotificationService() => _instance;
   NotificationService._internal();
 
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   final ApiClient _apiClient = ApiClient();
-  
+  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+
+  static final newMessageNotifier = ValueNotifier<String?>(null);
+
   GlobalKey<NavigatorState>? _navigatorKey;
-  Function? _onUnreadCountChanged;
 
   void setNavigatorKey(GlobalKey<NavigatorState> key) {
     _navigatorKey = key;
-  }
-
-  void setUnreadCountCallback(Function callback) {
-    _onUnreadCountChanged = callback;
   }
 
   Future<void> init() async {
@@ -37,9 +36,164 @@ class NotificationService {
     await _localNotifications.initialize(
       initializationSettings,
       onDidReceiveNotificationResponse: (details) {
-        // Handle local notification tap if needed
+        if (details.payload != null) {
+          // Handle notification tap logic
+        }
       },
     );
+
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      final type = message.data['type'] ?? '';
+      
+      // Date Planning Routing
+      if (message.data.containsKey('date_request_id')) {
+        _navigatorKey?.currentState?.push(
+          MaterialPageRoute(builder: (_) => const DateRequestsScreen()));
+        return;
+      }
+
+      switch (type) {
+        case 'new_message':
+          _navigatorKey?.currentState?.push(
+            MaterialPageRoute(builder: (_) => const ConversationsScreen()));
+          break;
+        case 'connection_request':
+        case 'connection_accepted':
+        case 'moment_like':
+        case 'moment_comment':
+        case 'moment_save':
+          _navigatorKey?.currentState?.push(
+            MaterialPageRoute(builder: (_) => const NotificationScreen()));
+          break;
+        case 'drop_reminder':
+          _navigatorKey?.currentState?.push(
+            MaterialPageRoute(builder: (_) => const MomentsScreen()));
+          break;
+      }
+    });
+
+    // Request permission (required on Android 13+ and iOS)
+    await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final type = message.data['type'] ?? '';
+
+      // Update conversation notifier for in-app handling
+      if (type == 'new_message') {
+        newMessageNotifier.value = message.data['conversation_id'];
+        newMessageNotifier.value = null;
+      }
+
+      // Show visible banner for every notification while app is open
+      final title = message.notification?.title ?? message.data['title'] ?? 'KanairoXO';
+      final body = message.notification?.body ?? message.data['body'] ?? '';
+      if (title.isNotEmpty || body.isNotEmpty) {
+        showNotification(title, body);
+      }
+    });
+
+    // Check for initial message (when app is opened from a terminated state)
+    FirebaseMessaging.instance.getInitialMessage().then((message) {
+      if (message != null) {
+        if (message.data.containsKey('date_request_id')) {
+          _navigatorKey?.currentState?.push(
+            MaterialPageRoute(builder: (_) => const DateRequestsScreen()));
+        }
+      }
+    });
+  }
+
+  Future<List<model.Notification>> getNotifications({String? type}) async {
+    try {
+      final queryParams = type != null ? {'type': type} : null;
+      final response = await _apiClient.get('api/v1/notifications/', queryParameters: queryParams);
+      
+      final List<dynamic> list;
+      if (response is List) {
+        list = response;
+      } else if (response['results'] != null) {
+        list = response['results'] as List;
+      } else {
+        list = response['notifications'] as List? ?? [];
+      }
+      
+      return list.map((n) => model.Notification.fromJson(n)).toList();
+    } catch (e) {
+      debugPrint('Error fetching notifications: $e');
+      return [];
+    }
+  }
+
+  Future<void> markAsRead(String notificationId) async {
+    try {
+      await _apiClient.post('api/v1/notifications/$notificationId/read/', {});
+    } catch (e) {
+      debugPrint('Error marking notification as read: $e');
+    }
+  }
+
+  Future<void> markAllAsRead() async {
+    try {
+      await _apiClient.post('api/v1/notifications/mark-all-read/', {});
+    } catch (e) {
+      debugPrint('Error marking all as read: $e');
+    }
+  }
+
+  Future<int> getUnreadCount() async {
+    try {
+      final response = await _apiClient.get('api/v1/notifications/unread-count/');
+      return response['unread_count'] ?? 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  Future<void> registerFCMToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await _apiClient.post('api/v1/auth/device/register/', {
+          'fcm_token': token,
+          'platform': Platform.isAndroid ? 'android' : 'ios',
+        });
+      }
+    } catch (e) {
+      debugPrint('FCM Token reg error: $e');
+    }
+  }
+
+  Future<void> registerDeviceToken() async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token == null) return;
+      await _sendTokenToBackend(token);
+      FirebaseMessaging.instance.onTokenRefresh.listen(_sendTokenToBackend);
+    } catch (e) {
+      debugPrint('Token reg error: $e');
+    }
+  }
+
+  Future<void> _sendTokenToBackend(String token) async {
+    try {
+      // Use a stable device ID based on the token itself
+      final deviceId = 'device_${token.hashCode.abs()}';
+      await ApiClient.instance.dio.post(
+        'api/v1/auth/device/register/',
+        data: {
+          'device_id': deviceId,
+          'fcm_token': token,
+          'device_type': Platform.isIOS ? 'ios' : 'android',
+        },
+      );
+      debugPrint('FCM token registered: ${token.substring(0, 20)}...');
+    } catch (e) {
+      debugPrint('Token send error: $e');
+    }
   }
 
   Future<void> showNotification(String title, String body) async {
@@ -57,152 +211,6 @@ class NotificationService {
       title,
       body,
       platformChannelSpecifics,
-    );
-  }
-
-  Future<void> registerFCMToken() async {
-    try {
-      // Mock token for now
-      String? fcmToken = "mock_token"; 
-      
-      final deviceId = await AuthStorage.getOrCreateDeviceId();
-
-      await _apiClient.post('api/v1/accounts/device/register/', {
-        'fcm_token': fcmToken,
-        'device_id': deviceId,
-        'platform': Platform.isIOS ? 'ios' : 'android',
-      });
-
-      debugPrint('FCM token registered');
-    } catch (e) {
-      // Non-critical — app works without this
-      debugPrint('FCM register skipped: $e');
-    }
-  }
-
-  void _navigateToNotifications({String? tab}) {
-    _navigatorKey?.currentState?.pushNamed('/notifications', arguments: {'tab': tab});
-  }
-
-  void _showInAppBanner({
-    required String title,
-    required String body,
-    required VoidCallback onTap,
-  }) {
-    final context = _navigatorKey?.currentContext;
-    if (context == null) return;
-
-    final overlay = Overlay.of(context);
-    late OverlayEntry entry;
-
-    entry = OverlayEntry(
-      builder: (_) => Positioned(
-        top: MediaQuery.of(context).padding.top + 8,
-        left: 16,
-        right: 16,
-        child: _NotificationBanner(
-          title: title,
-          body: body,
-          onTap: () {
-            entry.remove();
-            onTap();
-          },
-          onDismiss: () => entry.remove(),
-        ),
-      ),
-    );
-
-    overlay.insert(entry);
-
-    Future.delayed(const Duration(seconds: 4), () {
-      if (entry.mounted) entry.remove();
-    });
-  }
-}
-
-class _NotificationBanner extends StatelessWidget {
-  final String title;
-  final String body;
-  final VoidCallback onTap;
-  final VoidCallback onDismiss;
-
-  const _NotificationBanner({
-    required this.title,
-    required this.body,
-    required this.onTap,
-    required this.onDismiss,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: GestureDetector(
-        onTap: onTap,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-            child: Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.92),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.5)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 20,
-                    offset: const Offset(0, 4),
-                  )
-                ],
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 36,
-                    height: 36,
-                    decoration: const BoxDecoration(
-                      color: AppColors.primaryGlass,
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.notifications_outlined,
-                      color: AppColors.primary,
-                      size: 18,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          title,
-                          style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(
-                          body,
-                          style: AppTypography.caption.copyWith(color: AppColors.textMuted),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 16, color: AppColors.textMuted),
-                    onPressed: onDismiss,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }

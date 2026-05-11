@@ -1,97 +1,149 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/utils/constants.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
+import '../../widgets/safe_network_image.dart';
 
 class PartnerStatusHeader extends StatelessWidget {
-  const PartnerStatusHeader({super.key});
+  final String partnerName;
+  final String? partnerPhoto;
+  final String mood;
+  final String moodEmoji;
+  final String statusText;
+  final bool isOnline;
+
+  const PartnerStatusHeader({
+    super.key,
+    required this.partnerName,
+    this.partnerPhoto,
+    required this.mood,
+    required this.moodEmoji,
+    required this.statusText,
+    this.isOnline = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          _buildPartnerStatus(
-            name: 'You',
-            avatarUrl: 'https://via.placeholder.com/150', // Placeholder
-            isOnline: true,
-            moodEmoji: '😊',
+          Stack(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                    color: AppColors.primary.withOpacity(0.2),
+                    width: 2,
+                  ),
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(30),
+                  child: SafeNetworkImage(
+                    url: partnerPhoto,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              if (isOnline)
+                Positioned(
+                  right: 2,
+                  bottom: 2,
+                  child: Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: surfaceColor, width: 2),
+                    ),
+                  ),
+                ),
+            ],
           ),
-          PhosphorIcon(
-            PhosphorIcons.heart(PhosphorIconsStyle.fill),
-            color: AppConstants.primaryRed,
-            size: 32,
-          ),
-          _buildPartnerStatus(
-            name: 'Jane Doe', // Placeholder
-            avatarUrl: 'https://via.placeholder.com/150', // Placeholder
-            isOnline: false,
-            moodEmoji: '😴',
-            lastActive: '2h ago',
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      partnerName,
+                      style: AppTypography.displayMedium.copyWith(fontSize: 18),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            mood,
+                            style: AppTypography.caption.copyWith(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  statusText,
+                  style: AppTypography.bodyMedium.copyWith(
+                    color: isDark ? const Color(0xFF9A8F85) : Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPartnerStatus({
-    required String name,
-    required String avatarUrl,
-    required bool isOnline,
-    required String moodEmoji,
-    String? lastActive,
-  }) {
-    return Column(
-      children: [
-        Stack(
-          clipBehavior: Clip.none,
-          children: [
-            const CircleAvatar(
-              radius: 35,
-              backgroundColor: AppConstants.lightGray,
-              // backgroundImage: NetworkImage(avatarUrl),
-            ),
-            Positioned(
-              bottom: -5,
-              right: -5,
-              child: Container(
-                padding: const EdgeInsets.all(4),
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-                child: Text(moodEmoji, style: const TextStyle(fontSize: 16)),
-              ),
-            ),
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Container(
-                width: 12,
-                height: 12,
-                decoration: BoxDecoration(
-                  color: isOnline ? Colors.green : Colors.grey,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 2),
-                ),
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 8),
-        Text(
-          name,
-          style: const TextStyle(fontWeight: FontWeight.w600),
-        ),
-        if (lastActive != null) ...[
-          const SizedBox(height: 2),
-          Text(
-            lastActive,
-            style: const TextStyle(fontSize: 12, color: AppConstants.secondaryGray),
-          ),
-        ]
-      ],
+  static PartnerStatusHeader sample(BuildContext context) {
+    return const PartnerStatusHeader(
+      partnerName: 'Sarah',
+      mood: 'Happy',
+      moodEmoji: '',
+      statusText: 'At GTC Mall • 20m ago',
+      isOnline: true,
+    );
+  }
+
+  static PartnerStatusHeader sampleOffline(BuildContext context) {
+    return const PartnerStatusHeader(
+      partnerName: 'Sarah',
+      mood: 'Resting',
+      moodEmoji: '',
+      statusText: 'Last seen 2h ago',
+      isOnline: false,
     );
   }
 }

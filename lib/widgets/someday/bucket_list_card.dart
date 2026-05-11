@@ -38,7 +38,7 @@ class _BucketListCardState extends State<BucketListCard> {
           children: [
             Row(
               children: [
-                const PhosphorIcon(PhosphorIcons.listChecks, color: AppConstants.primaryRed, size: 28),
+                PhosphorIcon(PhosphorIcons.listChecks(PhosphorIconsStyle.regular), color: AppConstants.primaryRed, size: 28),
                 const SizedBox(width: 12),
                 const Text(
                   'Our Bucket List',

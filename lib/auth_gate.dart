@@ -5,6 +5,9 @@ import 'package:kanairoxo/screens/couples/couple_home_screen.dart';
 import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
+import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
+import 'package:kanairoxo/widgets/safe_network_image.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
 
 class AuthGate extends StatefulWidget {
@@ -45,9 +48,14 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (authProvider.isLoading) {
-      return const Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
+      return Scaffold(
+        backgroundColor: context.bgColor,
+        body: const Center(
+          child: PulsingGlassPlaceholder(
+            width: 120,
+            height: 120,
+            borderRadius: 24,
+          ),
         ),
       );
     }
@@ -56,6 +64,20 @@ class _AuthGateState extends State<AuthGate> {
       return OnboardingScreen(
         onComplete: () {
           Navigator.of(context).pushReplacementNamed('/signup');
+        },
+      );
+    }
+
+    // Only prompt for gender if:
+    // 1. Gender is not set AND
+    // 2. User signed in with Google (phone starts with +2540 placeholder or is empty)
+    final phone = authProvider.user?.phoneNumber ?? '';
+    final gender = authProvider.user?.gender ?? '';
+    final isGoogleUser = phone.isEmpty || phone.startsWith('+2540');
+    if (isGoogleUser && gender.isEmpty) {
+      return ProfileEditorScreen(
+        onClose: () {
+          authProvider.refreshProfile();
         },
       );
     }

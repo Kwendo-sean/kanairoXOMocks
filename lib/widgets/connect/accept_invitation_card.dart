@@ -64,7 +64,7 @@ class AcceptInvitationCard extends StatelessWidget {
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () {},
-              icon: const PhosphorIcon(PhosphorIcons.qrCode, size: 20),
+              icon: PhosphorIcon(PhosphorIcons.qrCode(PhosphorIconsStyle.regular), size: 20),
               label: const Text('Scan QR Code'),
               style: OutlinedButton.styleFrom(
                 minimumSize: const Size(double.infinity, 50),

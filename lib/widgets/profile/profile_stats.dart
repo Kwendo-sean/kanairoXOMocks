@@ -1,91 +1,103 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
-import 'package:kanairoxo/models/user_model.dart';
-import '../glass_card.dart';
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 
 class ProfileStats extends StatelessWidget {
-  final User user;
-  final bool showCompletionBar;
+  final int viewsCount;
+  final int connectionsCount;
+  final int profileComplete;
 
   const ProfileStats({
     super.key,
-    required this.user,
-    this.showCompletionBar = true,
+    required this.viewsCount,
+    required this.connectionsCount,
+    required this.profileComplete,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (showCompletionBar) ...[
-          GlassCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Profile Completion', style: AppTypography.labelMedium),
-                    Text(
-                      '${user.profileCompletionPercentage}%',
-                      style: AppTypography.labelMedium.copyWith(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: AppRadius.full,
-                  child: LinearProgressIndicator(
-                    value: user.profileCompletionPercentage / 100,
-                    backgroundColor: AppColors.primaryGlass,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                    minHeight: 8,
-                  ),
-                ),
-              ],
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1C1612) : Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: _StatItem(
+              value: '$viewsCount',
+              label: 'Views',
+              icon: Icons.visibility_outlined,
             ),
           ),
-          const SizedBox(height: 24),
+          Container(width: 0.5, height: 44, color: borderColor),
+          Expanded(
+            child: _StatItem(
+              value: '$connectionsCount',
+              label: 'Connections',
+              icon: Icons.people_outline,
+            ),
+          ),
+          Container(width: 0.5, height: 44, color: borderColor),
+          Expanded(
+            child: _StatItem(
+              value: '$profileComplete%',
+              label: 'Complete',
+              icon: Icons.person_outline,
+              valueColor: profileComplete >= 80 ? Colors.green.shade600 : AppColors.primary,
+            ),
+          ),
         ],
-
-        GridView.count(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: 2,
-          childAspectRatio: 2.5,
-          crossAxisSpacing: 12,
-          mainAxisSpacing: 12,
-          children: [
-            _buildStatCard('Neighborhood', user.neighborhoodDisplay),
-            _buildStatCard('Life Stage', user.lifeStageDisplay),
-            _buildStatCard('Social Circle', user.socialCircleDisplay),
-            _buildStatCard('Visibility', user.profileVisibility == 'public' ? 'Public' : 'Private'),
-          ],
-        ),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildStatCard(String title, String value) {
-    return GlassCard(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+class _StatItem extends StatelessWidget {
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color? valueColor;
+
+  const _StatItem({
+    required this.value,
+    required this.label,
+    required this.icon,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A0808);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(title, style: AppTypography.caption),
-          const SizedBox(height: 2),
+          Icon(icon, size: 16, color: valueColor ?? AppColors.primary),
+          const SizedBox(height: 4),
           Text(
             value,
-            style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.textPrimary),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            style: AppTypography.labelMedium.copyWith(
+              color: valueColor ?? textColor,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            style: AppTypography.caption.copyWith(
+              color: AppColors.textMuted,
+              fontSize: 10,
+            ),
           ),
         ],
       ),

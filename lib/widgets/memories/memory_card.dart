@@ -1,131 +1,127 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/utils/constants.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-
-enum MemoryType { photo, text, voice, location }
+import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
+import '../../widgets/safe_network_image.dart';
 
 class MemoryCard extends StatelessWidget {
-  final MemoryType type;
+  final String title;
+  final String? imageUrl;
+  final String date;
+  final String description;
+  final List<String> participants;
+  final VoidCallback? onTap;
 
-  const MemoryCard({super.key, required this.type});
+  const MemoryCard({
+    super.key,
+    required this.title,
+    this.imageUrl,
+    required this.date,
+    required this.description,
+    this.participants = const [],
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
-        side: const BorderSide(color: AppConstants.lightGray, width: 1),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildHeader(),
-          _buildContent(context),
-          _buildActions(context),
-        ],
-      ),
-    );
-  }
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final borderColor = isDark ? const Color(0xFF2E2820) : Colors.grey.shade200;
 
-  Widget _buildHeader() {
-    return const Padding(
-      padding: EdgeInsets.all(12.0),
-      child: Row(
-        children: [
-          CircleAvatar(
-            radius: 20,
-            backgroundColor: AppConstants.lightGray,
-          ),
-          SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'Jane & John', // Placeholder
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Shared a memory • 2d ago', // Placeholder
-                style: TextStyle(color: AppConstants.secondaryGray, fontSize: 12),
-              ),
-            ],
-          ),
-          Spacer(),
-          Icon(Icons.more_horiz),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildContent(BuildContext context) {
-    switch (type) {
-      case MemoryType.photo:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 300,
-              color: Colors.grey[200],
-              child: const Center(
-                child: Icon(
-                  Icons.image,
-                  color: AppConstants.secondaryGray,
-                  size: 80,
-                ),
-              ),
-            ),
-            const Padding(
-              padding: EdgeInsets.all(12.0),
-              child: Text('Our first hike of the year! The view was breathtaking. ☀️'),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 16),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
           ],
-        );
-      case MemoryType.text:
-        return const SizedBox(
-          width: double.infinity,
-          child: Padding(
-            padding: EdgeInsets.all(20.0),
-            child: Text(
-              'Just wanted to say how much I appreciate you today. You always know how to make me smile.',
-              style: TextStyle(fontSize: 18, height: 1.5),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (imageUrl != null)
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                child: AspectRatio(
+                  aspectRatio: 16 / 9,
+                  child: SafeNetworkImage(
+                    url: imageUrl,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: AppTypography.displayMedium.copyWith(fontSize: 18),
+                        ),
+                      ),
+                      Text(
+                        date,
+                        style: AppTypography.caption.copyWith(
+                          color: isDark ? const Color(0xFF9A8F85) : Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    description,
+                    style: AppTypography.bodyMedium.copyWith(
+                      color: isDark ? const Color(0xFF9A8F85) : Colors.grey.shade700,
+                    ),
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.people_outline,
+                        size: 16,
+                        color: AppColors.primary,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Shared a memory',
+                        style: AppTypography.caption.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      default:
-        return const SizedBox.shrink();
-    }
+          ],
+        ),
+      ),
+    );
   }
 
-  Widget _buildActions(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              IconButton(
-                onPressed: () {},
-                icon: const PhosphorIcon(PhosphorIcons.heart, size: 22),
-                tooltip: 'React',
-              ),
-              IconButton(
-                onPressed: () {},
-                icon: const PhosphorIcon(PhosphorIcons.chatCircle, size: 22),
-                tooltip: 'Comment',
-              ),
-            ],
-          ),
-          IconButton(
-            onPressed: () {},
-            icon: const PhosphorIcon(PhosphorIcons.bookmarkSimple, size: 22),
-            tooltip: 'Favorite',
-          ),
-        ],
-      ),
+  static MemoryCard sample(BuildContext context) {
+    return MemoryCard(
+      title: 'Coffee at Artcaffe',
+      imageUrl: 'https://images.unsplash.com/photo-1501339847302-ac426a4a7cbb?w=800',
+      date: 'Jan 12, 2024',
+      description: 'Our first hike of the year! The view was breathtaking.',
+      participants: ['Sarah', 'John'],
     );
   }
 }

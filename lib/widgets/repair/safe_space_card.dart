@@ -18,11 +18,11 @@ class SafeSpaceCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 PhosphorIcon(PhosphorIcons.shieldCheck(PhosphorIconsStyle.fill), color: AppConstants.primaryRed, size: 28),
-                SizedBox(width: 12),
-                Text(
+                const SizedBox(width: 12),
+                const Text(
                   'Create a Safe Space',
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),
@@ -63,7 +63,7 @@ class SafeSpaceCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const PhosphorIcon(PhosphorIcons.checkCircle, color: Colors.green, size: 18),
+          PhosphorIcon(PhosphorIcons.checkCircle(PhosphorIconsStyle.regular), color: Colors.green, size: 18),
           const SizedBox(width: 10),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
         ],

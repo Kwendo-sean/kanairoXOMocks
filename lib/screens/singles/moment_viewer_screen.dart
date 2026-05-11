@@ -4,6 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/services/moment_service.dart';
+import 'package:kanairoxo/widgets/moments/comments_bottom_sheet.dart';
+import 'package:provider/provider.dart';
+import 'package:kanairoxo/providers/notification_provider.dart';
 
 class MomentViewerScreen extends StatefulWidget {
   final List<Moment> moments;
@@ -23,18 +27,86 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
   late PageController _pageController;
   late int _currentIndex;
   bool _showInfo = true;
+  final MomentService _momentService = MomentService();
+  
+  // Local state to handle optimistic updates
+  late List<Moment> _localMoments;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
     _pageController = PageController(initialPage: widget.initialIndex);
+    _localMoments = List.from(widget.moments);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     super.dispose();
+  }
+
+  Future<void> _handleLike(int index) async {
+    final moment = _localMoments[index];
+    
+    // Optimistic update
+    setState(() {
+      final isLiked = !moment.isLikedByMe;
+      _localMoments[index] = Moment(
+        id: moment.id,
+        userName: moment.userName,
+        userAvatarUrl: moment.userAvatarUrl,
+        eventName: moment.eventName,
+        date: moment.date,
+        type: moment.type,
+        photoUrl: moment.photoUrl,
+        caption: moment.caption,
+        location: moment.location,
+        likesCount: isLiked ? moment.likesCount + 1 : moment.likesCount - 1,
+        commentsCount: moment.commentsCount,
+        isLikedByMe: isLiked,
+        isSavedByMe: moment.isSavedByMe,
+      );
+    });
+
+    try {
+      await _momentService.toggleLike(moment.id);
+    } catch (e) {
+      // Revert on error
+      setState(() {
+        _localMoments[index] = moment;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to update like'))
+        );
+      }
+    }
+  }
+
+  void _showComments(int index) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => CommentsBottomSheet(momentId: _localMoments[index].id),
+    ).then((_) {
+      // Refresh counts when sheet is closed
+      _refreshMoment(index);
+    });
+  }
+
+  Future<void> _refreshMoment(int index) async {
+    try {
+      final updated = await _momentService.getMomentDetail(_localMoments[index].id);
+      if (mounted) {
+        setState(() {
+          _localMoments[index] = updated;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error refreshing moment: $e');
+    }
   }
 
   @override
@@ -46,7 +118,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
           // Swipeable pages
           PageView.builder(
             controller: _pageController,
-            itemCount: widget.moments.length,
+            itemCount: _localMoments.length,
             onPageChanged: (i) => setState(() => _currentIndex = i),
             itemBuilder: (ctx, i) => GestureDetector(
               onTap: () => setState(() => _showInfo = !_showInfo),
@@ -59,7 +131,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                 minScale: 1.0,
                 maxScale: 4.0,
                 child: CachedNetworkImage(
-                  imageUrl: widget.moments[i].photoUrl,
+                  imageUrl: _localMoments[i].photoUrl,
                   fit: BoxFit.contain,
                   width: double.infinity,
                   height: double.infinity,
@@ -114,7 +186,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text(
-                          '${_currentIndex + 1} of ${widget.moments.length}',
+                          '${_currentIndex + 1} of ${_localMoments.length}',
                           style: AppTypography.caption.copyWith(color: Colors.white),
                         ),
                       ),
@@ -160,19 +232,19 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                           children: [
                             CircleAvatar(
                               radius: 16,
-                              backgroundImage: (widget.moments[_currentIndex].userAvatarUrl != null &&
-                                      widget.moments[_currentIndex].userAvatarUrl!.isNotEmpty)
-                                  ? NetworkImage(widget.moments[_currentIndex].userAvatarUrl!)
+                              backgroundImage: (_localMoments[_currentIndex].userAvatarUrl != null &&
+                                      _localMoments[_currentIndex].userAvatarUrl!.isNotEmpty)
+                                  ? NetworkImage(_localMoments[_currentIndex].userAvatarUrl!)
                                   : null,
                               backgroundColor: AppColors.primaryGlass,
-                              child: (widget.moments[_currentIndex].userAvatarUrl == null ||
-                                      widget.moments[_currentIndex].userAvatarUrl!.isEmpty)
+                              child: (_localMoments[_currentIndex].userAvatarUrl == null ||
+                                      _localMoments[_currentIndex].userAvatarUrl!.isEmpty)
                                   ? const Icon(Icons.person_outline, size: 16, color: Colors.white)
                                   : null,
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              widget.moments[_currentIndex].userName,
+                              _localMoments[_currentIndex].userName,
                               style: AppTypography.labelMedium.copyWith(
                                 color: Colors.white,
                                 fontWeight: FontWeight.w600,
@@ -186,7 +258,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                                 borderRadius: BorderRadius.circular(999),
                               ),
                               child: Text(
-                                widget.moments[_currentIndex].type.name.toUpperCase(),
+                                _localMoments[_currentIndex].type.name.toUpperCase(),
                                 style: AppTypography.caption.copyWith(
                                   color: Colors.white,
                                   fontSize: 10,
@@ -195,16 +267,16 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                             ),
                             const Spacer(),
                             Text(
-                              widget.moments[_currentIndex].timeAgo,
+                              _localMoments[_currentIndex].timeAgo,
                               style: AppTypography.caption.copyWith(color: Colors.white60),
                             ),
                           ],
                         ),
-                        if (widget.moments[_currentIndex].caption.isNotEmpty)
+                        if (_localMoments[_currentIndex].caption.isNotEmpty)
                           Padding(
                             padding: const EdgeInsets.only(top: 8),
                             child: Text(
-                              widget.moments[_currentIndex].caption,
+                              _localMoments[_currentIndex].caption,
                               style: AppTypography.bodyMedium.copyWith(color: Colors.white),
                               maxLines: 3,
                               overflow: TextOverflow.ellipsis,
@@ -215,24 +287,46 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                         Row(
                           children: [
                             _ViewerAction(
-                              icon: widget.moments[_currentIndex].isLiked ? Icons.favorite : Icons.favorite_border,
-                              label: '${widget.moments[_currentIndex].likeCount}',
-                              color: widget.moments[_currentIndex].isLiked ? AppColors.primary : Colors.white,
-                              onTap: () {},
+                              icon: _localMoments[_currentIndex].isLikedByMe ? Icons.favorite : Icons.favorite_border,
+                              label: '${_localMoments[_currentIndex].likesCount}',
+                              color: _localMoments[_currentIndex].isLikedByMe ? AppColors.primary : Colors.white,
+                              onTap: () => _handleLike(_currentIndex),
                             ),
                             const SizedBox(width: 20),
                             _ViewerAction(
                               icon: Icons.chat_bubble_outline,
-                              label: '${widget.moments[_currentIndex].commentCount}',
+                              label: '${_localMoments[_currentIndex].commentsCount}',
                               color: Colors.white,
-                              onTap: () {},
+                              onTap: () => _showComments(_currentIndex),
                             ),
                             const SizedBox(width: 20),
                             _ViewerAction(
-                              icon: widget.moments[_currentIndex].isSaved ? Icons.bookmark : Icons.bookmark_border,
+                              icon: _localMoments[_currentIndex].isSavedByMe ? Icons.bookmark : Icons.bookmark_border,
                               label: '',
-                              color: widget.moments[_currentIndex].isSaved ? AppColors.primary : Colors.white,
-                              onTap: () {},
+                              color: _localMoments[_currentIndex].isSavedByMe ? AppColors.primary : Colors.white,
+                              onTap: () async {
+                                final moment = _localMoments[_currentIndex];
+                                setState(() {
+                                  _localMoments[_currentIndex] = Moment(
+                                    id: moment.id,
+                                    userName: moment.userName,
+                                    userAvatarUrl: moment.userAvatarUrl,
+                                    eventName: moment.eventName,
+                                    date: moment.date,
+                                    type: moment.type,
+                                    photoUrl: moment.photoUrl,
+                                    caption: moment.caption,
+                                    location: moment.location,
+                                    likesCount: moment.likesCount,
+                                    commentsCount: moment.commentsCount,
+                                    isLikedByMe: moment.isLikedByMe,
+                                    isSavedByMe: !moment.isSavedByMe,
+                                  );
+                                });
+                                try {
+                                  await _momentService.toggleSave(moment.id);
+                                } catch (_) {}
+                              },
                             ),
                             const Spacer(),
                             // Share placeholder
@@ -270,7 +364,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: List.generate(
-                widget.moments.length,
+                _localMoments.length,
                 (i) => AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.symmetric(horizontal: 2),

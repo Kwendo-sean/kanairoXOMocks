@@ -17,7 +17,7 @@ class InvitePartnerCard extends StatelessWidget {
         padding: const EdgeInsets.all(24.0),
         child: Column(
           children: [
-            const CircleAvatar(
+            CircleAvatar(
               radius: 40,
               backgroundColor: AppConstants.primaryRed,
               child: PhosphorIcon(

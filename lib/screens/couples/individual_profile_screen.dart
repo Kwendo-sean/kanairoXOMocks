@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/utils/constants.dart';
 
 class IndividualProfileScreen extends StatelessWidget {
   const IndividualProfileScreen({super.key});

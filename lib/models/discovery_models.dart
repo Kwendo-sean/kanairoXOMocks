@@ -1,5 +1,4 @@
 // lib/models/discovery_models.dart
-import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import '../utils/constants.dart';
 

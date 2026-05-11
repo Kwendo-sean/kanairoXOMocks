@@ -38,7 +38,7 @@ class VisionBoardCard extends StatelessWidget {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const PhosphorIcon(PhosphorIcons.mountains, color: Colors.white, size: 32),
+                  PhosphorIcon(PhosphorIcons.mountains(PhosphorIconsStyle.regular), color: Colors.white, size: 32),
                   const SizedBox(height: 8),
                   const Text(
                     'Our Vision Board',

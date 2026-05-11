@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:dio/dio.dart' as dio_lib;
 
 /// Custom exception for authentication errors.
 class AuthException implements Exception {
@@ -20,11 +21,35 @@ class ApiClient {
 
   static final ApiClient _instance = ApiClient._internal();
   factory ApiClient() => _instance;
-  ApiClient._internal();
+  static ApiClient get instance => _instance;
+
+  late final dio_lib.Dio _dio;
+  dio_lib.Dio get dio => _dio;
+
+  ApiClient._internal() {
+    _dio = dio_lib.Dio(dio_lib.BaseOptions(
+      baseUrl: baseUrl.endsWith('/') ? baseUrl : '$baseUrl/',
+      connectTimeout: const Duration(seconds: ApiConstants.timeout),
+      receiveTimeout: const Duration(seconds: ApiConstants.timeout),
+    ));
+
+    _dio.interceptors.add(dio_lib.InterceptorsWrapper(
+      onRequest: (options, handler) async {
+        final token = await getAccessToken();
+        if (token != null) {
+          options.headers['Authorization'] = 'Bearer $token';
+        }
+        return handler.next(options);
+      },
+    ));
+  }
 
   final _secureStorage = const FlutterSecureStorage();
   bool _isRefreshing = false;
   Completer<void>? _refreshCompleter;
+
+  String? _cachedAccessToken;
+  String? _cachedRefreshToken;
 
   Future<Map<String, String>> _getHeaders({bool hasToken = true}) async {
     final headers = {
@@ -133,25 +158,28 @@ class ApiClient {
 
       // Use the full path for token refresh, as it's a specific auth endpoint
       final response = await http.post(
-        Uri.parse('$baseUrl/v1/auth/token/refresh/'),
+        Uri.parse('$baseUrl/api/v1/auth/token/refresh/'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'refresh': refreshToken}),
       );
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        await saveTokens(data['access'], refreshToken); // Keep the same refresh token
-        if (kDebugMode) print('✅ Token refreshed successfully');
+        // Save the NEW refresh token returned by server (rotation is enabled)
+        final newRefresh = data['refresh'] ?? refreshToken;
+        await saveTokens(data['access'], newRefresh);
+        if (kDebugMode) print('Token refreshed successfully');
         return true;
       } else {
-        if (kDebugMode) print('❌ Failed to refresh token, status: ${response.statusCode}');
-        // If refresh fails, clear tokens as they are invalid
-        await clearTokens();
+        if (kDebugMode) print('Failed to refresh token, status: ${response.statusCode}');
+        // Don't clear tokens on refresh failure — keep trying on next request
+        // Only clear if the refresh token is explicitly invalid (401)
+        if (response.statusCode == 401) await clearTokens();
         return false;
       }
     } catch (e) {
-      if (kDebugMode) print('❌ Error during token refresh: $e');
-      await clearTokens();
+      if (kDebugMode) print('Error during token refresh (network): $e');
+      // Network error — don't log out, just fail this request
       return false;
     } finally {
       _isRefreshing = false;
@@ -160,19 +188,25 @@ class ApiClient {
   }
 
   Future<String?> getAccessToken() async {
-    return await _secureStorage.read(key: 'access_token');
+    _cachedAccessToken ??= await _secureStorage.read(key: 'access_token');
+    return _cachedAccessToken;
   }
 
   Future<String?> getRefreshToken() async {
-    return await _secureStorage.read(key: 'refresh_token');
+    _cachedRefreshToken ??= await _secureStorage.read(key: 'refresh_token');
+    return _cachedRefreshToken;
   }
 
   Future<void> saveTokens(String access, String refresh) async {
+    _cachedAccessToken = access;
+    _cachedRefreshToken = refresh;
     await _secureStorage.write(key: 'access_token', value: access);
     await _secureStorage.write(key: 'refresh_token', value: refresh);
   }
 
   Future<void> clearTokens() async {
+    _cachedAccessToken = null;
+    _cachedRefreshToken = null;
     await _secureStorage.delete(key: 'access_token');
     await _secureStorage.delete(key: 'refresh_token');
     if (kDebugMode) print('Cleared auth tokens');

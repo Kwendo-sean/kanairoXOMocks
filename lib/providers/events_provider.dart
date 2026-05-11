@@ -6,43 +6,61 @@ import './auth_provider.dart';
 
 class EventsProvider with ChangeNotifier {
   final EventsApiService _eventsApiService = EventsApiService();
-  AuthProvider? _authProvider;
-
   List<Experience> _experiences = [];
   List<Experience> _featuredExperiences = [];
   List<ExperienceCategory> _categories = [];
   bool _isLoading = false;
   String? _error;
+  bool _hasInitialData = false;
 
   List<Experience> get experiences => _experiences;
   List<Experience> get featuredExperiences => _featuredExperiences;
   List<ExperienceCategory> get categories => _categories;
   bool get isLoading => _isLoading;
+  bool get hasInitialData => _hasInitialData;
   String? get error => _error;
 
   void update(AuthProvider authProvider) {
-    _authProvider = authProvider;
     if (!authProvider.isAuthenticated) {
       _experiences = [];
       _featuredExperiences = [];
       _categories = [];
+      _hasInitialData = false;
+      notifyListeners();
+    } else {
+      // Prefetch data when authenticated if not already loaded
+      if (!_hasInitialData && !_isLoading) {
+        prefetch();
+      }
     }
-    notifyListeners();
   }
 
-  Future<void> fetchExperiences() async {
-    if (_isLoading) return;
+  Future<void> prefetch() async {
+    // Fire and forget individual loads to populate lists in background
+    fetchCategories();
+    fetchExperiences();
+  }
+
+  Future<void> fetchExperiences({bool refresh = false}) async {
+    if (_isLoading && !refresh) return;
 
     _isLoading = true;
-    _error = null;
+    if (refresh) _error = null;
     notifyListeners();
 
     try {
-      _experiences = await _eventsApiService.fetchExperiences();
-      _featuredExperiences = await _eventsApiService.fetchFeaturedExperiences();
+      // Run in parallel for speed
+      final results = await Future.wait([
+        _eventsApiService.fetchExperiences(),
+        _eventsApiService.fetchFeaturedExperiences(),
+      ]);
+      
+      _experiences = results[0];
+      _featuredExperiences = results[1];
+      _hasInitialData = true;
     } catch (e) {
       _error = e.toString();
-      print('Error fetching experiences: $e');
+      debugPrint('Error fetching experiences: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -54,7 +72,7 @@ class EventsProvider with ChangeNotifier {
       _categories = await _eventsApiService.fetchCategories();
       notifyListeners();
     } catch (e) {
-      print('Error fetching categories: $e');
+      debugPrint('Error fetching categories: $e');
     }
   }
 
@@ -67,8 +85,7 @@ class EventsProvider with ChangeNotifier {
   }
 
   Future<bool> loadMoreExperiences() async {
-    // TODO: Implement loadMoreExperiences
-    await Future.delayed(const Duration(seconds: 1));
+    // TODO: Implement pagination
     return false;
   }
 
@@ -102,7 +119,7 @@ class EventsProvider with ChangeNotifier {
         'trust_score': response['trust_score'],
       };
     } catch (e) {
-      print('Error checking hosting eligibility: $e');
+      debugPrint('Error checking hosting eligibility: $e');
       return {
         'eligible': false,
         'requirements': [],
@@ -130,7 +147,7 @@ class EventsProvider with ChangeNotifier {
         'message': 'Event created successfully',
       };
     } catch (e) {
-      print('Error hosting event: $e');
+      debugPrint('Error hosting event: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -142,7 +159,7 @@ class EventsProvider with ChangeNotifier {
     try {
       return await _eventsApiService.getTicketTemplates();
     } catch (e) {
-      print('Error getting ticket templates: $e');
+      debugPrint('Error getting ticket templates: $e');
       return [];
     }
   }

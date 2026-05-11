@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:kanairoxo/utils/constants.dart';
 import '../core/utils/url_helper.dart';
 
 // ---------------------------------------------------------------------------
@@ -21,6 +20,8 @@ class User {
   final DateTime dateJoined;
   final DateTime? lastActive;
   final UserProfile? profile;
+  final String? gender;
+  final DateTime? dateOfBirth;
 
   User({
     required this.id,
@@ -35,6 +36,8 @@ class User {
     required this.dateJoined,
     this.lastActive,
     this.profile,
+    this.gender,
+    this.dateOfBirth,
   });
 
   bool get isCoupleAccount => accountType == 'couple';
@@ -49,6 +52,13 @@ class User {
     if (displayName != null && displayName!.isNotEmpty) return displayName!;
     return phoneNumber;
   }
+
+  // Getters for ProfileStats and others
+  int get profileCompletionPercentage => profile?.profileCompletionPercentage ?? 0;
+  String get neighborhoodDisplay => profile?.neighborhoodDisplay ?? 'Nairobi';
+  String get lifeStageDisplay => profile?.lifeStageDisplay ?? '';
+  String get socialCircleDisplay => profile?.socialCircleDisplay ?? '';
+  String get profileVisibility => profile?.profileVisibility ?? 'public';
 
   factory User.fromJson(Map<String, dynamic> json) {
     if (kDebugMode) {
@@ -75,6 +85,13 @@ class User {
           ? DateTime.parse(json['last_active'])
           : null,
       profile: json['profile'] != null ? UserProfile.fromJson(json['profile'], accountType: accountType) : null,
+      // gender lives in profile on the backend, fall back to top-level for Google users
+      gender: json['gender']?.toString() ?? json['profile']?['gender']?.toString(),
+      dateOfBirth: json['date_of_birth'] != null
+          ? DateTime.parse(json['date_of_birth'])
+          : (json['profile']?['date_of_birth'] != null
+              ? DateTime.parse(json['profile']['date_of_birth'])
+              : null),
     );
   }
 
@@ -92,6 +109,8 @@ class User {
       'date_joined': dateJoined.toIso8601String(),
       'last_active': lastActive?.toIso8601String(),
       'profile': profile?.toJson(),
+      'gender': gender,
+      'date_of_birth': dateOfBirth?.toIso8601String().split('T')[0],
     };
   }
 }
@@ -136,6 +155,9 @@ class UserProfile {
     return mapping[value] ?? value;
   }
 
+  String get lifeStageDisplay => lifeStage ?? '';
+  String get socialCircleDisplay => primarySocialCircle ?? '';
+
   UserProfile({
     this.bio,
     this.headline,
@@ -173,8 +195,8 @@ class UserProfile {
           };
         }).toList();
 
-    String? mainPhotoUrl = UrlHelper.fixMediaUrl(profileData['main_profile_photo'] as String?);
-    if (mainPhotoUrl == null || mainPhotoUrl.isEmpty) {
+    String mainPhotoUrl = UrlHelper.fixMediaUrl(profileData['main_profile_photo'] as String?);
+    if (mainPhotoUrl.isEmpty) {
       try {
         mainPhotoUrl = photos.firstWhere((p) => p['is_main'] == true)['url'];
       } catch (e) {
@@ -201,7 +223,6 @@ class UserProfile {
       profileSavesCount: int.tryParse(profileData['profile_saves_count']?.toString() ?? '0') ?? 0,
       voiceIntro: UrlHelper.fixMediaUrl(profileData['voice_intro'] as String?),
       voiceIntroStatus: profileData['voice_intro_status']?.toString(),
-      // Conditionally parse couple-specific fields
       journalEntry: accountType == 'couple' ? profileData['journal_entry']?.toString() : null,
       specialMessage: accountType == 'couple' ? profileData['special_message']?.toString() : null,
     );

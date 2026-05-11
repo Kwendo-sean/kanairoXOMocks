@@ -1,9 +1,12 @@
-// lib/widgets/connection_request_card.dart
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/models/notification_model.dart';
+import '../models/notification_model.dart' as model;
+import '../models/messaging/conversation_model.dart';
+import '../services/api_client.dart';
+import '../screens/messaging/chat_screen.dart';
+import '../core/theme/app_colors.dart';
 
-class ConnectionRequestCard extends StatelessWidget {
-  final Notification notification;
+class ConnectionRequestCard extends StatefulWidget {
+  final model.Notification notification;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
   final bool isProcessing;
@@ -21,12 +24,39 @@ class ConnectionRequestCard extends StatelessWidget {
   });
 
   @override
+  State<ConnectionRequestCard> createState() => _ConnectionRequestCardState();
+}
+
+class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
+  final ApiClient _apiClient = ApiClient();
+
+  Future<void> _startConversation(String userId) async {
+    try {
+      final response = await _apiClient.post(
+        'api/v1/messaging/start/',
+        {'user_id': userId});
+      
+      final conv = ConversationModel.fromJson(
+        response['conversation']);
+      
+      if (!mounted) return;
+      Navigator.push(context,
+        MaterialPageRoute(
+          builder: (_) => ChatScreen(
+            conversation: conv)));
+    } catch (e) {
+      debugPrint('Start conversation error: $e');
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final senderName = notification.data['sender_name'] ?? 'Someone';
-    final senderPhoto = notification.data['sender_photo'];
-    final requestMessage = notification.data['request_message'];
-    final compatibilityScore = notification.data['compatibility_score'];
-    final mutualInterests = (notification.data['mutual_interests'] as List?)?.cast<String>() ?? [];
+    final senderName = widget.notification.data['sender_name'] ?? 'Someone';
+    final senderPhoto = widget.notification.data['sender_photo'];
+    final requestMessage = widget.notification.data['request_message'];
+    final compatibilityScore = widget.notification.data['compatibility_score'];
+    final mutualInterests = (widget.notification.data['mutual_interests'] as List?)?.cast<String>() ?? [];
+    final senderId = widget.notification.data['sender_id']?.toString();
 
     return Card(
       elevation: 2,
@@ -36,10 +66,8 @@ class ConnectionRequestCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header with sender info
             Row(
               children: [
-                // Profile picture
                 CircleAvatar(
                   radius: 30,
                   backgroundImage: senderPhoto != null
@@ -50,8 +78,6 @@ class ConnectionRequestCard extends StatelessWidget {
                       : null,
                 ),
                 const SizedBox(width: 12),
-
-                // Sender info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -92,16 +118,12 @@ class ConnectionRequestCard extends StatelessWidget {
                     ],
                   ),
                 ),
-
-                // Status indicator
-                if (isAccepted == true)
+                if (widget.isAccepted == true)
                   const Icon(Icons.check_circle, color: Colors.green, size: 24)
-                else if (isDeclined == true)
+                else if (widget.isDeclined == true)
                   const Icon(Icons.cancel, color: Colors.red, size: 24),
               ],
             ),
-
-            // Request message
             if (requestMessage != null && requestMessage.isNotEmpty) ...[
               const SizedBox(height: 12),
               Container(
@@ -112,15 +134,13 @@ class ConnectionRequestCard extends StatelessWidget {
                 ),
                 child: Text(
                   requestMessage,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 14,
                     color: Colors.grey[800],
                   ),
                 ),
               ),
             ],
-
-            // Mutual interests
             if (mutualInterests.isNotEmpty) ...[
               const SizedBox(height: 12),
               Text(
@@ -146,18 +166,15 @@ class ConnectionRequestCard extends StatelessWidget {
                 }).toList(),
               ),
             ],
-
-            // Action buttons
-            if (isAccepted != true && isDeclined != true) ...[
+            if (widget.isAccepted != true && widget.isDeclined != true) ...[
               const SizedBox(height: 16),
-              isProcessing
+              widget.isProcessing
                   ? const Center(child: CircularProgressIndicator())
                   : Row(
                 children: [
-                  // Accept button
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: onAccept,
+                      onPressed: widget.onAccept,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.green,
                         foregroundColor: Colors.white,
@@ -168,11 +185,9 @@ class ConnectionRequestCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 12),
-
-                  // Decline button
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: onDecline,
+                      onPressed: widget.onDecline,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.red,
                         foregroundColor: Colors.white,
@@ -185,20 +200,35 @@ class ConnectionRequestCard extends StatelessWidget {
                 ],
               ),
             ],
-
-            // Status message
-            if (isAccepted == true)
+            if (widget.isAccepted == true) ...[
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(
-                  'You are now connected with $senderName',
-                  style: const TextStyle(
-                    color: Colors.green,
-                    fontWeight: FontWeight.w500,
-                  ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'You are now connected with $senderName',
+                        style: const TextStyle(
+                          color: Colors.green,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    if (senderId != null)
+                      ElevatedButton.icon(
+                        icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                        label: const Text('Message'),
+                        onPressed: () => _startConversation(senderId),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                        )),
+                  ],
                 ),
-              )
-            else if (isDeclined == true)
+              ),
+            ]
+            else if (widget.isDeclined == true)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
                 child: Text(

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/models/data_models.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/utils/constants.dart';
@@ -20,7 +21,6 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   final ApiClient apiClient = ApiClient();
   int _quantity = 1;
   bool _isLoading = false;
-  String? _checkoutId;
   String? _ticketId;
   String _paymentStatus = 'idle'; // idle, processing, polling, success, failed
   
@@ -68,7 +68,6 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
       } else {
         // Paid — start polling
         setState(() {
-          _checkoutId = response['checkout_request_id']?.toString();
           _ticketId = response['ticket_id']?.toString();
           _paymentStatus = 'polling';
           _isLoading = false;
@@ -129,9 +128,9 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: context.bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.bgColor,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
@@ -310,11 +309,11 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
             child: LiquidGlassButton(
               size: LiquidButtonSize.lg,
               onPressed: _downloadTicket,
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.download_outlined, color: Colors.white, size: 18),
-                  SizedBox(width: 8),
+                  const Icon(Icons.download_outlined, color: Colors.white, size: 18),
+                  const SizedBox(width: 8),
                   Text('Download Ticket', style: AppTypography.buttonText),
                 ]))),
           const SizedBox(height: 12),
@@ -342,7 +341,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         LiquidGlassButton(
           size: LiquidButtonSize.md,
           onPressed: () => setState(() => _paymentStatus = 'idle'),
-          child: const Text('Try Again', style: AppTypography.buttonText)),
+          child: Text('Try Again', style: AppTypography.buttonText)),
       ]));
   }
 }

@@ -76,7 +76,7 @@ class _AddAspirationScreenState extends State<AddAspirationScreen> {
             const Divider(),
             const SizedBox(height: 16),
             ListTile(
-              leading: const PhosphorIcon(PhosphorIcons.tag, color: AppConstants.secondaryGray),
+              leading: PhosphorIcon(PhosphorIcons.tag(), color: AppConstants.secondaryGray),
               title: const Text('Category'),
               trailing: const Row(
                 mainAxisSize: MainAxisSize.min,
@@ -89,7 +89,7 @@ class _AddAspirationScreenState extends State<AddAspirationScreen> {
               onTap: () {},
             ),
             ListTile(
-              leading: const PhosphorIcon(PhosphorIcons.calendar, color: AppConstants.secondaryGray),
+              leading: PhosphorIcon(PhosphorIcons.calendar(), color: AppConstants.secondaryGray),
               title: const Text('Target Date'),
               trailing: const Row(
                 mainAxisSize: MainAxisSize.min,

@@ -13,6 +13,9 @@ import 'package:kanairoxo/screens/notification_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/settings/settings_screen.dart';
+import 'package:kanairoxo/screens/messages/date_requests_screen.dart';
+import 'package:kanairoxo/screens/messages/date_payment_screen.dart';
+import 'package:kanairoxo/models/date_request_model.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:provider/provider.dart';
 
@@ -29,6 +32,15 @@ class KanairoXOApp extends StatelessWidget {
       themeMode: themeProvider.themeMode,
       debugShowCheckedModeBanner: false,
       home: const AuthGate(),
+      onGenerateRoute: (settings) {
+        if (settings.name == '/date-payment') {
+          final request = settings.arguments as DateRequestModel;
+          return MaterialPageRoute(
+            builder: (context) => DatePaymentScreen(request: request),
+          );
+        }
+        return null;
+      },
       routes: {
         '/onboarding': (context) => OnboardingScreen(onComplete: () => Navigator.pushReplacementNamed(context, '/signup')),
         '/login': (context) => LoginScreen(
@@ -57,6 +69,7 @@ class KanairoXOApp extends StatelessWidget {
         '/notifications': (context) => const NotificationScreen(),
         '/events/host': (context) => const HostEventScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/date-requests': (context) => const DateRequestsScreen(),
       },
     );
   }

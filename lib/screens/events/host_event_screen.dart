@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
 import 'package:kanairoxo/models/data_models.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/services/api_client.dart';

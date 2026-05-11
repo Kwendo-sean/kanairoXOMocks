@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/providers/theme_provider.dart';
 import 'package:provider/provider.dart';
@@ -27,7 +26,8 @@ class SettingsScreen extends StatelessWidget {
           icon: Icon(Icons.arrow_back, color: textColor, size: 22),
           onPressed: () => Navigator.pop(context)),
         title: Text('Settings',
-          style: GoogleFonts.dmSans(
+          style: TextStyle(
+            fontFamily: 'DMSans',
             fontSize: 17,
             fontWeight: FontWeight.w600,
             color: textColor)),
@@ -38,7 +38,8 @@ class SettingsScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(left: 4, bottom: 8, top: 8),
             child: Text('Appearance',
-              style: GoogleFonts.dmSans(
+              style: TextStyle(
+                fontFamily: 'DMSans',
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: textColor.withOpacity(0.5),
@@ -50,17 +51,34 @@ class SettingsScreen extends StatelessWidget {
               border: Border.all(color: divider)),
             child: Column(children: [
               _SettingsTile(
-                icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-                title: 'Dark Mode',
-                subtitle: isDark ? 'Dark theme is on' : 'Light theme is on',
+                icon: Icons.phone_android_outlined,
+                title: 'Follow Device Theme',
+                subtitle: themeProvider.followSystem
+                    ? 'Matches your device setting'
+                    : 'Using manual setting',
                 trailing: Switch(
-                  value: isDark,
-                  onChanged: (_) => themeProvider.toggleTheme(),
+                  value: themeProvider.followSystem,
+                  onChanged: (v) => themeProvider.setFollowSystem(v),
                   activeColor: primary,
                   activeTrackColor: primary.withOpacity(0.3),
                   inactiveThumbColor: Colors.white,
                   inactiveTrackColor: Colors.grey.shade300),
-                onTap: () => themeProvider.toggleTheme()),
+                onTap: () => themeProvider.setFollowSystem(!themeProvider.followSystem)),
+              if (!themeProvider.followSystem) ...[
+                Divider(height: 1, color: divider),
+                _SettingsTile(
+                  icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
+                  title: 'Dark Mode',
+                  subtitle: isDark ? 'Dark theme is on' : 'Light theme is on',
+                  trailing: Switch(
+                    value: isDark,
+                    onChanged: (_) => themeProvider.toggleTheme(),
+                    activeColor: primary,
+                    activeTrackColor: primary.withOpacity(0.3),
+                    inactiveThumbColor: Colors.white,
+                    inactiveTrackColor: Colors.grey.shade300),
+                  onTap: () => themeProvider.toggleTheme()),
+              ],
             ])),
           const SizedBox(height: 24),
           Container(
@@ -73,7 +91,8 @@ class SettingsScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Theme Preview',
-                  style: GoogleFonts.dmSans(
+                  style: TextStyle(
+                    fontFamily: 'DMSans',
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: textColor)),
@@ -103,7 +122,8 @@ class SettingsScreen extends StatelessWidget {
               Icon(Icons.settings_outlined, size: 18, color: textColor.withOpacity(0.3)),
               const SizedBox(width: 12),
               Text('More settings coming soon',
-                style: GoogleFonts.dmSans(
+                style: TextStyle(
+                  fontFamily: 'DMSans',
                   fontSize: 13,
                   color: textColor.withOpacity(0.4))),
             ])),
@@ -140,12 +160,14 @@ class _SettingsTile extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
         child: Icon(icon, size: 18, color: primary)),
       title: Text(title,
-        style: GoogleFonts.dmSans(
+        style: TextStyle(
+          fontFamily: 'DMSans',
           fontSize: 14,
           fontWeight: FontWeight.w600,
           color: textColor)),
       subtitle: Text(subtitle,
-        style: GoogleFonts.dmSans(
+        style: TextStyle(
+          fontFamily: 'DMSans',
           fontSize: 12,
           color: textColor.withOpacity(0.5))),
       trailing: trailing);
@@ -174,7 +196,8 @@ class _ColorDot extends StatelessWidget {
           border: hasBorder ? Border.all(color: textColor.withOpacity(0.15), width: 1) : null)),
       const SizedBox(height: 4),
       Text(label,
-        style: GoogleFonts.dmSans(
+        style: TextStyle(
+          fontFamily: 'DMSans',
           fontSize: 9,
           color: textColor.withOpacity(0.5))),
     ]);

@@ -13,7 +13,7 @@ class VisionBoardScreen extends StatelessWidget {
         actions: [
           IconButton(
             onPressed: () {},
-            icon: const PhosphorIcon(PhosphorIcons.plus),
+            icon: PhosphorIcon(PhosphorIcons.plus(PhosphorIconsStyle.regular)),
             tooltip: 'Add Image',
           ),
         ],

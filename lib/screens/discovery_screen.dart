@@ -1,18 +1,25 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/models/connection_context_model.dart';
+import 'package:kanairoxo/models/music/spotify_models.dart';
 import 'package:kanairoxo/services/discovery_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
-import 'package:kanairoxo/services/notification_service.dart';
+import 'package:kanairoxo/services/spotify_service.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
+import 'package:kanairoxo/widgets/music/music_compat_chip.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
+import 'package:kanairoxo/models/messaging/conversation_model.dart';
+import 'package:kanairoxo/screens/messaging/chat_screen.dart';
+import 'package:kanairoxo/screens/music/spotify_connect_screen.dart';
+import 'package:kanairoxo/providers/notification_provider.dart';
+import 'package:kanairoxo/screens/messages/date_planner_screen.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({Key? key}) : super(key: key);
@@ -25,7 +32,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     with SingleTickerProviderStateMixin {
   final DiscoveryService _discoveryService = DiscoveryService();
   final ApiClient _apiClient = ApiClient();
-  final NotificationService _notificationService = NotificationService();
   final PageController _pageController = PageController();
 
   late AnimationController _animationController;
@@ -37,12 +43,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   bool _isLoading = true;
   String? _error;
   bool _isProcessingAction = false;
-  int _unreadCount = 0;
 
   ConnectionContextModel? _contextCard;
   bool _contextLoading = false;
-
-  static const bool _musicEnabled = false;
+  
+  final Map<String, MusicCompatibility> _musicCompat = {};
 
   @override
   void initState() {
@@ -61,9 +66,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     ));
 
     _initializeDiscovery();
-    _fetchUnreadCount();
-    _notificationService.setUnreadCountCallback(() {
-      if (mounted) _fetchUnreadCount();
+    
+    // Initial fetch for notifications
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<NotificationProvider>(context, listen: false).loadNotifications();
     });
   }
 
@@ -72,17 +78,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     _pageController.dispose();
     _animationController.dispose();
     super.dispose();
-  }
-
-  Future<void> _fetchUnreadCount() async {
-    try {
-      final response = await _apiClient.get('api/v1/notifications/unread-count/');
-      if (mounted) {
-        setState(() => _unreadCount = response['unread_count'] ?? 0);
-      }
-    } catch (e) {
-      debugPrint('Unread count error: $e');
-    }
   }
 
   Future<void> _initializeDiscovery() async {
@@ -135,7 +130,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           }
           if (_discoveries.isNotEmpty) {
             final profile = _getProfileAtIndex(0);
-            if (profile != null) _loadContextCard(profile.userId);
+            if (profile != null) {
+              _loadContextCard(profile.userId);
+              _loadMusicCompat(profile.userId);
+            }
           }
         } catch (e) {
           if (!mounted) return;
@@ -167,6 +165,19 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     });
   }
 
+  Future<void> _loadMusicCompat(String userId) async {
+    try {
+      final compat = await SpotifyService().getCompatibility(userId);
+      if (compat != null && mounted) {
+        setState(() {
+          _musicCompat[userId] = compat;
+        });
+      }
+    } catch (e) {
+      // Silent fail
+    }
+  }
+
   void _onPageChanged(int index) {
     setState(() {
       _currentIndex = index;
@@ -174,45 +185,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     final profile = _getProfileAtIndex(index);
     if (profile != null) {
       _loadContextCard(profile.userId);
-    }
-  }
-
-  Future<void> _handleSave() async {
-    if (_currentIndex >= _discoveries.length || _isProcessingAction) return;
-    if (!mounted) return;
-    setState(() {
-      _isProcessingAction = true;
-    });
-
-    await _animationController.forward();
-    final currentItem = _discoveries[_currentIndex];
-
-    try {
-      await _discoveryService.recordUserAction(currentItem.id, 'save');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Saved for later'),
-            backgroundColor: AppColors.themePrimary(context),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-      await Future.delayed(const Duration(milliseconds: 800));
-      _moveToNextProfile();
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not save')),
-        );
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isProcessingAction = false;
-          _animationController.reset();
-        });
-      }
+      _loadMusicCompat(profile.userId);
     }
   }
 
@@ -245,17 +218,51 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     return null;
   }
 
+  Future<void> _openChat() async {
+    final profile = _getProfileAtIndex(_currentIndex);
+    final userId = profile?.userId.toString();
+    
+    if (userId == null) return;
+    
+    try {
+      final response = await _apiClient.post(
+        'api/v1/messaging/start/',
+        {'user_id': userId});
+      
+      if (!mounted) return;
+      
+      final conv = ConversationModel.fromJson(
+        response['conversation']
+          as Map<String, dynamic>);
+      
+      Navigator.push(context,
+        MaterialPageRoute(
+          builder: (_) =>
+            ChatScreen(conversation: conv)));
+    } catch (e) {
+      debugPrint('Chat error: $e');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(
+          content: const Text('Could not open chat'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final bgColor = context.bgColor;
     final textColor = context.textColor;
     final primaryColor = context.primaryColor;
+    final notificationProvider = context.watch<NotificationProvider>();
+    final unreadCount = notificationProvider.unreadCount;
 
     return Scaffold(
       backgroundColor: bgColor,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: Text('Discover', style: AppTypography.displayMedium.copyWith(fontSize: 20, color: textColor)),
+        title: Text('Discover', style: AppTypography.screenTitle.copyWith(color: textColor)),
         centerTitle: true,
         automaticallyImplyLeading: false,
         actions: [
@@ -270,9 +277,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                 onPressed: () => Navigator.push(
                   context,
                   MaterialPageRoute(builder: (_) => const NotificationScreen()),
-                ).then((_) => _fetchUnreadCount()),
+                ),
               ),
-              if (_unreadCount > 0)
+              if (unreadCount > 0)
                 Positioned(
                   top: 6,
                   right: 6,
@@ -285,7 +292,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                     ),
                     child: Center(
                       child: Text(
-                        _unreadCount > 9 ? '9+' : '$_unreadCount',
+                        unreadCount > 9 ? '9+' : '$unreadCount',
                         style: const TextStyle(
                           fontSize: 9,
                           color: Colors.white,
@@ -300,11 +307,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: _isLoading
-          ? Center(child: CircularProgressIndicator(color: primaryColor))
-          : _error != null
+      body: _error != null
               ? _buildError()
-              : _discoveries.isEmpty
+              : (_discoveries.isEmpty && !_isLoading)
                   ? _buildEmpty()
                   : _buildPageView(),
     );
@@ -333,22 +338,56 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   Widget _buildEmpty() {
+    final theme = Theme.of(context);
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(24.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.people_outline, size: 60, color: context.mutedColor),
+            Icon(
+              Icons.auto_awesome_outlined, 
+              size: 64, 
+              color: AppColors.themePrimary(context).withOpacity(0.3)
+            ),
+            const SizedBox(height: 24),
+            Text(
+              'no more todayyy', 
+              style: AppTypography.displayMedium.copyWith(
+                color: context.textColor, 
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.5,
+              ),
+              textAlign: TextAlign.center,
+            ),
             const SizedBox(height: 12),
-            Text('No profiles right now', style: AppTypography.displayMedium.copyWith(color: context.textColor)),
-            const SizedBox(height: 8),
-            Text("Check back later", style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
+            Text(
+              "plan a date/ go for an event", 
+              style: AppTypography.bodyMedium.copyWith(
+                color: context.mutedColor,
+                fontSize: 15,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 48),
+            LiquidGlassButton(
+              width: double.infinity,
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const DatePlannerScreen()),
+                );
+              },
+              child: Text('Plan a Date', style: AppTypography.buttonText.copyWith(fontWeight: FontWeight.bold)),
+            ),
             const SizedBox(height: 16),
             LiquidGlassButton(
-              size: LiquidButtonSize.md,
-              onPressed: _initializeDiscovery,
-              child: Text('Refresh', style: AppTypography.buttonText),
+              width: double.infinity,
+              variant: LiquidButtonVariant.outline,
+              onPressed: () {
+                // Explore Events action
+              },
+              child: Text('Explore Events', style: AppTypography.buttonText.copyWith(color: context.textColor)),
             ),
           ],
         ),
@@ -358,6 +397,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Widget _buildPageView() {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    // If loading first batch, show a quiet empty state instead of a spinner
+    if (_isLoading && _discoveries.isEmpty) {
+      return const SizedBox.shrink();
+    }
 
     return PageView.builder(
       controller: _pageController,
@@ -410,19 +454,28 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                       ),
                     ),
                   ),
-                SlideTransition(
-                  position: _slideAnimation,
-                  child: ProfileCard(
-                    profile: profile,
-                    compatibilityScore: discoveryItem.overallScore,
-                    compatibilityText: discoveryItem.compatibilityText,
-                    explanation: discoveryItem.explanation,
-                    onNotNow: _moveToNextProfile,
-                    onSave: _handleSave,
-                    onConnectionSuccess: () {
-                      Future.delayed(const Duration(seconds: 1), _moveToNextProfile);
-                    },
-                  ),
+                Stack(
+                  children: [
+                    SlideTransition(
+                      position: _slideAnimation,
+                      child: ProfileCard(
+                        profile: profile,
+                        compatibilityScore: discoveryItem.overallScore,
+                        compatibilityText: discoveryItem.compatibilityText,
+                        explanation: discoveryItem.explanation,
+                        onNotNow: _moveToNextProfile,
+                        onMessage: _openChat,
+                        onConnectionSuccess: () {
+                          Future.delayed(const Duration(seconds: 1), _moveToNextProfile);
+                        },
+                      ),
+                    ),
+                    if (_musicCompat[profile.userId] != null && _musicCompat[profile.userId]!.score > 0)
+                      Positioned(
+                        top: 12, left: 12,
+                        child: MusicCompatChip(
+                          score: _musicCompat[profile.userId]!.score))
+                  ],
                 ),
                 const SizedBox(height: 16),
                 _buildContextCard(),
@@ -450,14 +503,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           onTap: () {} // navigateToEvent logic
         ),
       
-      ContextType.music => _musicEnabled
-        ? _MusicCompatibilityCard(
-            targetUserName: _getProfileAtIndex(_currentIndex)?.firstName ?? '')
-        : _MomentsPreviewCard(
-            data: MomentsData.fromMap(_contextCard!.data),
-            userName: _getProfileAtIndex(_currentIndex)?.firstName ?? 'them',
-            onPhotoTap: (index) {} // openMomentViewer logic
-          ),
+      ContextType.music => 
+        _MusicCompatibilityCard(
+          targetUserName: _getProfileAtIndex(_currentIndex)?.firstName ?? ''),
 
       ContextType.moments =>
         _MomentsPreviewCard(
@@ -486,19 +534,43 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 }
 
-class _ContextCardShimmer extends StatelessWidget {
+class _ContextCardShimmer extends StatefulWidget {
   const _ContextCardShimmer();
+
+  @override
+  State<_ContextCardShimmer> createState() => _ContextCardShimmerState();
+}
+
+class _ContextCardShimmerState extends State<_ContextCardShimmer> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this, duration: const Duration(milliseconds: 1500))..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.3, end: 0.7).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 100,
-      decoration: BoxDecoration(
-        color: context.isDark ? context.surfaceColor : Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16)),
-      child: Center(child: 
-        CircularProgressIndicator(
-          strokeWidth: 1.5,
-          color: context.primaryColor)));
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        height: 100,
+        decoration: BoxDecoration(
+          color: context.isDark ? context.surfaceColor : Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.borderColor.withOpacity(0.1)),
+        ),
+      ),
+    );
   }
 }
 
@@ -518,7 +590,7 @@ class _SharedEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.borderColor),
           boxShadow: [BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2))]),
         child: Row(children: [
@@ -589,7 +661,7 @@ class _MomentsPreviewCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.borderColor),
         boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 10,
           offset: const Offset(0, 2))]),
       child: Column(
@@ -644,7 +716,7 @@ class _HotspotsCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: context.borderColor),
         boxShadow: [BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 10,
           offset: const Offset(0, 2))]),
       child: Column(
@@ -669,7 +741,7 @@ class _HotspotsCard extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.themePrimaryGlass(context),
                   borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: context.primaryColor.withOpacity(0.15))),
+                  border: Border.all(color: context.primaryColor.withValues(alpha: 0.15))),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -701,7 +773,7 @@ class _NextEventCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.borderColor),
           boxShadow: [BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2))]),
         child: Row(children: [
@@ -765,11 +837,11 @@ class _MusicTeaserCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
+            color: context.isDark ? context.surfaceColor.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.5)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
             boxShadow: [BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 2))]),
           child: Column(
@@ -789,7 +861,7 @@ class _MusicTeaserCard extends StatelessWidget {
                   icon: Icons.music_note,
                   label: 'Spotify',
                   color: const Color(0xFF1DB954),
-                  onTap: () => _showComingSoon(context, 'Spotify'))),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpotifyConnectScreen())))),
                 const SizedBox(width: 10),
                 Expanded(child: _MusicConnectButton(
                   icon: Icons.music_note,
@@ -826,9 +898,9 @@ class _MusicConnectButton extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: color.withOpacity(0.2))),
+          border: Border.all(color: color.withValues(alpha: 0.2))),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -860,11 +932,11 @@ class _MusicCompatibilityCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
+            color: context.isDark ? context.surfaceColor.withValues(alpha: 0.7) : Colors.white.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.white.withOpacity(0.5)),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
             boxShadow: [BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 10,
               offset: const Offset(0, 2))]),
           child: Column(
@@ -874,7 +946,7 @@ class _MusicCompatibilityCard extends StatelessWidget {
                 Container(
                   width: 28, height: 28,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1DB954).withOpacity(0.12),
+                    color: const Color(0xFF1DB954).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8)),
                   child: const Icon(Icons.music_note_outlined, size: 15, color: Color(0xFF1DB954))),
                 const SizedBox(width: 8),
@@ -892,7 +964,7 @@ class _MusicCompatibilityCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
                 decoration: BoxDecoration(
-                  color: context.isDark ? context.borderColor.withOpacity(0.3) : Colors.grey.shade50,
+                  color: context.isDark ? context.borderColor.withValues(alpha: 0.3) : Colors.grey.shade50,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: context.borderColor)),
                 child: Row(children: [
@@ -901,7 +973,8 @@ class _MusicCompatibilityCard extends StatelessWidget {
                   Text('Recently played: ', style: AppTypography.caption.copyWith(color: context.mutedColor)),
                   Expanded(child: Text(MusicPlaceholderData.currentlyPlaying,
                     style: AppTypography.caption.copyWith(fontWeight: FontWeight.w600, color: context.textColor),
-                    maxLines: 1, overflow: TextOverflow.ellipsis)),
+                    maxLines: 1, 
+                    overflow: TextOverflow.ellipsis)),
                 ])),
               const SizedBox(height: 12),
               Text('Artists you both love', style: AppTypography.caption.copyWith(color: context.mutedColor, fontWeight: FontWeight.w600)),
@@ -913,9 +986,9 @@ class _MusicCompatibilityCard extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB954).withOpacity(0.08),
+                      color: const Color(0xFF1DB954).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(999),
-                      border: Border.all(color: const Color(0xFF1DB954).withOpacity(0.2))),
+                      border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.2))),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -939,9 +1012,9 @@ class _MusicCompatibilityCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.amber.withOpacity(0.08),
+                  color: Colors.amber.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.amber.withOpacity(0.2))),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.2))),
                 child: Row(children: [
                   Icon(Icons.info_outline, size: 13, color: Colors.amber.shade700),
                   const SizedBox(width: 6),
@@ -951,13 +1024,13 @@ class _MusicCompatibilityCard extends StatelessWidget {
               const SizedBox(height: 10),
               Row(children: [
                 Expanded(child: GestureDetector(
-                  onTap: () => _showComingSoon(context, 'Spotify'),
+                  onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SpotifyConnectScreen())),
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1DB954).withOpacity(0.08),
+                      color: const Color(0xFF1DB954).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFF1DB954).withOpacity(0.25))),
+                      border: Border.all(color: const Color(0xFF1DB954).withValues(alpha: 0.25))),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -972,9 +1045,9 @@ class _MusicCompatibilityCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 9),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFFC3C44).withOpacity(0.08),
+                      color: const Color(0xFFFC3C44).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFC3C44).withOpacity(0.25))),
+                      border: Border.all(color: const Color(0xFFFC3C44).withValues(alpha: 0.25))),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       mainAxisAlignment: MainAxisAlignment.center,

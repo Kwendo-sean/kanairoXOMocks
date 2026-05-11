@@ -1,8 +1,6 @@
-import 'package:flutter/foundation.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/models/couple_model.dart';
 import 'package:kanairoxo/models/memory_model.dart';
-import 'package:kanairoxo/models/user_model.dart';
 
 class CoupleService {
   final ApiClient _api = ApiClient();
@@ -12,11 +10,9 @@ class CoupleService {
     if (data == null) return [];
     if (data is List) return data;
     if (data is Map) {
-      // If it's a paginated response, try to get 'results'
       if (data.containsKey('results') && data['results'] is List) {
         return data['results'];
       }
-      // Otherwise fallback to values as requested
       return (data as Map<String, dynamic>).values.toList();
     }
     return [];
@@ -29,9 +25,10 @@ class CoupleService {
   }
 
   /// Get all memories for the couple
-  Future<List<Memory>> getMemories({int? limit}) async {
+  Future<List<Memory>> getMemories({int? limit, String? type}) async {
     final queryParameters = <String, String>{};
     if (limit != null) queryParameters['limit'] = limit.toString();
+    if (type != null && type != 'All') queryParameters['type'] = type.toLowerCase();
     
     final response = await _api.get('api/v1/couples/memories/', queryParameters: queryParameters);
     final list = _ensureList(response);
@@ -53,27 +50,15 @@ class CoupleService {
     return Couple.fromJson(response);
   }
 
-  /// Get partner data
-  Future<User?> fetchPartnerData(String coupleId) async {
-    try {
-      final response = await _api.get('/api/v1/couples/$coupleId/partner/');
-      return User.fromJson(response);
-    } catch (e) {
-      debugPrint('Partner fetch error: $e');
-      return null;
-    }
-  }
-
-  /// Relationship Pulse
+  /// Relationship Pulse / Check-in
   Future<Map<String, dynamic>> getPulse(String coupleId) async {
-    final response = await _api.get('api/v1/couples/$coupleId/pulse/');
+    final response = await _api.get('api/v1/couples/$coupleId/checkin/');
     return response is Map<String, dynamic> ? response : {};
   }
 
-  Future<void> submitPulse(String coupleId, int moodValue, {String note = ""}) async {
-    await _api.post('api/v1/couples/$coupleId/pulse/', {
-      'mood_value': moodValue,
-      'note': note,
+  Future<void> submitCheckIn(String coupleId, String mood) async {
+    await _api.post('api/v1/couples/$coupleId/checkin/', {
+      'mood': mood,
     });
   }
 
@@ -83,36 +68,83 @@ class CoupleService {
     return response is Map<String, dynamic> ? response : {};
   }
 
-  /// Daily Prompt
-  Future<Map<String, dynamic>> getDailyPrompt() async {
-    final response = await _api.get('api/v1/couples/daily-prompt/');
+  /// Spotify
+  Future<Map<String, dynamic>> getSpotifyPlaylist(String coupleId) async {
+    final response = await _api.get('api/v1/couples/$coupleId/spotify/playlist/');
     return response is Map<String, dynamic> ? response : {};
   }
 
-  /// Music Sync
-  Future<Map<String, dynamic>> getMusicSync(String coupleId) async {
-    final response = await _api.get('api/v1/couples/$coupleId/music-sync/');
-    return response is Map<String, dynamic> ? response : {};
+  Future<void> createSpotifyPlaylist(String coupleId) async {
+    await _api.post('api/v1/couples/$coupleId/spotify/playlist/create/', {});
   }
 
-  /// Challenges
-  Future<List<dynamic>> getChallenges(String coupleId) async {
-    final response = await _api.get('api/v1/couples/$coupleId/challenges/');
+  Future<Map<String, dynamic>?> getPartnerNowPlaying(String coupleId) async {
+    try {
+      final response = await _api.get('api/v1/couples/$coupleId/spotify/partner-now-playing/');
+      return response is Map<String, dynamic> ? response : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /// Notifications
+  Future<List<dynamic>> getNotifications(String coupleId, {String? type}) async {
+    final queryParameters = <String, String>{};
+    if (type != null) queryParameters['type'] = type;
+    final response = await _api.get('api/v1/couples/$coupleId/notifications/', queryParameters: queryParameters);
     return _ensureList(response);
   }
 
-  Future<void> completeChallenge(String coupleId, String challengeId) async {
-    await _api.post('api/v1/couples/$coupleId/challenges/$challengeId/complete/', {});
+  Future<void> readAllNotifications(String coupleId) async {
+    await _api.post('api/v1/couples/$coupleId/notifications/read-all/', {});
   }
 
-  /// Love Language Quiz
-  Future<Map<String, dynamic>> getLoveLanguage(String userId) async {
-    final response = await _api.get('api/v1/users/$userId/love-language/');
-    return response is Map<String, dynamic> ? response : {};
+  /// Appreciation
+  Future<List<dynamic>> getAppreciations(String coupleId, {int? limit}) async {
+    final queryParams = <String, String>{};
+    if (limit != null) queryParams['limit'] = limit.toString();
+    final response = await _api.get('api/v1/couples/$coupleId/appreciations/', queryParameters: queryParams);
+    return _ensureList(response);
   }
 
-  Future<Map<String, dynamic>> submitLoveLanguage(String userId, Map<String, int> scores) async {
-    return await _api.post('api/v1/users/$userId/love-language/', scores);
+  Future<void> sendAppreciation(String coupleId, String message) async {
+    await _api.post('api/v1/couples/$coupleId/appreciations/', {
+      'message': message,
+    });
+  }
+
+  /// Spotify Dedication
+  Future<void> dedicateSong(String coupleId, String trackName, String artist, String? note) async {
+    await _api.post('api/v1/couples/$coupleId/spotify/dedicate/', {
+      'track_name': trackName,
+      'artist': artist,
+      if (note != null) 'note': note,
+    });
+  }
+  
+  /// Date Jar / Spinning
+  Future<Map<String, dynamic>> spinDateJar(String coupleId, {int? budgetMax, String? vibe, String? locationArea}) async {
+    return await _api.post('api/v1/couples/$coupleId/dateideas/spin/', {
+      if (budgetMax != null) 'budget_max': budgetMax,
+      if (vibe != null) 'vibe': vibe,
+      if (locationArea != null) 'location_area': locationArea,
+    });
+  }
+
+  /// Messages
+  Future<List<dynamic>> getMessages(String coupleId) async {
+    final response = await _api.get('api/v1/couples/$coupleId/messages/');
+    return _ensureList(response);
+  }
+
+  Future<void> sendMessage(String coupleId, String content) async {
+    await _api.post('api/v1/couples/$coupleId/messages/', {
+      'content': content,
+    });
+  }
+
+  Future<void> thinkingOfYou(String coupleId) async {
+    await _api.post('api/v1/couples/$coupleId/thinking-of-you/', {});
   }
 }
 
@@ -122,18 +154,12 @@ class CouplesDashboard {
   final DashboardStats stats;
   final int relationshipPulse;
   final PartnerInfo partner;
-  final MusicSync? musicSync;
-  final DailyPrompt? dailyPrompt;
-  final List<dynamic> challenges;
 
   CouplesDashboard({
     required this.couple,
     required this.stats,
     required this.relationshipPulse,
     required this.partner,
-    this.musicSync,
-    this.dailyPrompt,
-    this.challenges = const [],
   });
 
   factory CouplesDashboard.fromJson(Map<String, dynamic> json) {
@@ -142,25 +168,6 @@ class CouplesDashboard {
       stats: DashboardStats.fromJson(json['stats'] ?? {}),
       relationshipPulse: (json['relationship_pulse'] as num?)?.toInt() ?? 50,
       partner: PartnerInfo.fromJson(json['partner'] ?? {}),
-      musicSync: json['music_sync'] != null ? MusicSync.fromJson(json['music_sync']) : null,
-      dailyPrompt: json['daily_prompt'] != null ? DailyPrompt.fromJson(json['daily_prompt']) : null,
-      challenges: json['challenges'] is List ? json['challenges'] : [],
-    );
-  }
-}
-
-class DailyPrompt {
-  final String id;
-  final String text;
-  final String category;
-
-  DailyPrompt({required this.id, required this.text, required this.category});
-
-  factory DailyPrompt.fromJson(Map<String, dynamic> json) {
-    return DailyPrompt(
-      id: json['id']?.toString() ?? '',
-      text: json['text']?.toString() ?? '',
-      category: json['category']?.toString() ?? '',
     );
   }
 }
@@ -210,26 +217,6 @@ class PartnerInfo {
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       photoUrl: json['profile_photo'],
-    );
-  }
-}
-
-class MusicSync {
-  final List<String> sharedArtists;
-  final List<String> overlappingGenres;
-  final String coupleAnthem;
-
-  MusicSync({
-    required this.sharedArtists,
-    required this.overlappingGenres,
-    required this.coupleAnthem,
-  });
-
-  factory MusicSync.fromJson(Map<String, dynamic> json) {
-    return MusicSync(
-      sharedArtists: List<String>.from(json['shared_artists'] ?? []),
-      overlappingGenres: List<String>.from(json['overlapping_genres'] ?? []),
-      coupleAnthem: json['couple_anthem'] ?? '',
     );
   }
 }

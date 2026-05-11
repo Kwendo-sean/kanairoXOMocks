@@ -37,6 +37,44 @@ class ProfileModel {
     required this.galleryCount,
   });
 
+  ProfileModel copyWith({
+    int? id,
+    String? fullName,
+    String? location,
+    String? headline,
+    String? bio,
+    String? profilePhotoUrl,
+    String? primaryNeighborhood,
+    String? lifeStage,
+    String? primarySocialCircle,
+    String? profileVisibility,
+    List<InterestModel>? interests,
+    int? completionPercentage,
+    List<NextStepModel>? nextSteps,
+    int? viewsCount,
+    int? savesCount,
+    int? galleryCount,
+  }) {
+    return ProfileModel(
+      id: id ?? this.id,
+      fullName: fullName ?? this.fullName,
+      location: location ?? this.location,
+      headline: headline ?? this.headline,
+      bio: bio ?? this.bio,
+      profilePhotoUrl: profilePhotoUrl ?? this.profilePhotoUrl,
+      primaryNeighborhood: primaryNeighborhood ?? this.primaryNeighborhood,
+      lifeStage: lifeStage ?? this.lifeStage,
+      primarySocialCircle: primarySocialCircle ?? this.primarySocialCircle,
+      profileVisibility: profileVisibility ?? this.profileVisibility,
+      interests: interests ?? this.interests,
+      completionPercentage: completionPercentage ?? this.completionPercentage,
+      nextSteps: nextSteps ?? this.nextSteps,
+      viewsCount: viewsCount ?? this.viewsCount,
+      savesCount: savesCount ?? this.savesCount,
+      galleryCount: galleryCount ?? this.galleryCount,
+    );
+  }
+
   factory ProfileModel.fromJson(Map<String, dynamic> json) {
     return ProfileModel(
       id: json['id'] ?? 0,

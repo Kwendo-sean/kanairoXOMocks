@@ -20,138 +20,39 @@
       android:src="@mipmap/ic_launcher"
       android:scaleType="fitCenter"/>
     
-    <TextView
+    <ImageView
+      android:id="@+id/widget_title"
       android:layout_width="wrap_content"
-      android:layout_height="wrap_content"
-      android:text="Moments"
-      android:textSize="11sp"
-      android:textStyle="bold"
-      android:textColor="#8B1A1A"
-      android:paddingStart="4dp"/>
+      android:layout_height="32dp"
+      android:paddingStart="4dp"
+      android:adjustViewBounds="true"
+      android:scaleType="fitStart" />
   </LinearLayout>
   
-  <GridLayout
+  <FrameLayout
     android:layout_width="match_parent"
     android:layout_height="0dp"
     android:layout_weight="1"
-    android:rowCount="2"
-    android:columnCount="2">
+    android:background="#FFFFFF"
+    android:elevation="2dp">
     
-    <FrameLayout
-      android:layout_width="0dp"
-      android:layout_height="0dp"
-      android:layout_columnWeight="1"
-      android:layout_rowWeight="1"
-      android:layout_margin="2dp"
-      android:background="#FFFFFF"
-      android:elevation="2dp">
-      
-      <ImageView
-        android:id="@+id/photo_1"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:layout_marginBottom="16dp"/>
-      
-      <TextView
-        android:id="@+id/swahili_1"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:text="Furaha kubwa"
-        android:textSize="8sp"
-        android:textColor="#333333"
-        android:gravity="center"
-        android:paddingBottom="2dp"
-        android:paddingTop="2dp"
-        android:fontFamily="cursive"/>
-    </FrameLayout>
-    
-    <FrameLayout
-      android:layout_width="0dp"
-      android:layout_height="0dp"
-      android:layout_columnWeight="1"
-      android:layout_rowWeight="1"
-      android:layout_margin="2dp"
-      android:background="#FFFFFF"
-      android:elevation="2dp">
-      
-      <ImageView
-        android:id="@+id/photo_2"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:layout_marginBottom="16dp"/>
-      
-      <TextView
-        android:id="@+id/swahili_2"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:text="Wakati mzuri"
-        android:textSize="8sp"
-        android:textColor="#333333"
-        android:gravity="center"
-        android:paddingBottom="2dp"
-        android:fontFamily="cursive"/>
-    </FrameLayout>
-    
-    <FrameLayout
-      android:layout_width="0dp"
-      android:layout_height="0dp"
-      android:layout_columnWeight="1"
-      android:layout_rowWeight="1"
-      android:layout_margin="2dp"
-      android:background="#FFFFFF"
-      android:elevation="2dp">
-      
-      <ImageView
-        android:id="@+id/photo_3"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:layout_marginBottom="16dp"/>
-      
-      <TextView
-        android:id="@+id/swahili_3"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:text="Maisha ni mazuri"
-        android:textSize="8sp"
-        android:textColor="#333333"
-        android:gravity="center"
-        android:paddingBottom="2dp"
-        android:fontFamily="cursive"/>
-    </FrameLayout>
-    
-    <FrameLayout
-      android:layout_width="0dp"
-      android:layout_height="0dp"
-      android:layout_columnWeight="1"
-      android:layout_rowWeight="1"
-      android:layout_margin="2dp"
-      android:background="#FFFFFF"
-      android:elevation="2dp">
-      
-      <ImageView
-        android:id="@+id/photo_4"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:scaleType="centerCrop"
-        android:layout_marginBottom="16dp"/>
-      
-      <TextView
-        android:id="@+id/swahili_4"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
-        android:text="Pamoja daima"
-        android:textSize="8sp"
-        android:textColor="#333333"
-        android:gravity="center"
-        android:paddingBottom="2dp"
-        android:fontFamily="cursive"/>
-    </FrameLayout>
-  </GridLayout>
+    <ImageView
+      android:id="@+id/widget_moment_image"
+      android:layout_width="match_parent"
+      android:layout_height="match_parent"
+      android:scaleType="centerCrop"
+      android:adjustViewBounds="false" />
+
+    <TextView
+      android:id="@+id/widget_moment_caption"
+      android:layout_width="match_parent"
+      android:layout_height="wrap_content"
+      android:layout_gravity="bottom"
+      android:background="#80000000"
+      android:textColor="#FFFFFF"
+      android:textSize="10sp"
+      android:padding="4dp"
+      android:gravity="center"
+      android:fontFamily="cursive" />
+  </FrameLayout>
 </LinearLayout>

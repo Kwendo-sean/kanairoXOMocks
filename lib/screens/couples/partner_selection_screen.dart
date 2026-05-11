@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/user_model.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:provider/provider.dart';
-import 'package:kanairoxo/widgets/glass_card.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class PartnerSelectionScreen extends StatelessWidget {
   const PartnerSelectionScreen({super.key});
@@ -16,112 +15,124 @@ class PartnerSelectionScreen extends StatelessWidget {
     final coupleUsers = authProvider.coupleUsers;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Container(
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              AppColors.primaryGlass.withOpacity(0.05),
-              AppColors.background,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                'Who are you?',
-                style: AppTypography.displayLarge,
+      body: Stack(
+        children: [
+          // Background Gradient
+          Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFFF5E6E6), Color(0xFFFAF7F4)],
               ),
-              const SizedBox(height: 12),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  'Select your profile to continue to your shared space.',
-                  textAlign: TextAlign.center,
-                  style: AppTypography.bodyMedium,
+            ),
+          ),
+          
+          // KXO stamp watermark
+          Center(
+            child: Opacity(
+              opacity: 0.04,
+              child: Text(
+                'KXO',
+                style: TextStyle(
+                  fontFamily: 'CormorantGaramond',
+                  fontSize: 180,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary,
                 ),
               ),
-              const SizedBox(height: 48),
-              if (coupleUsers != null)
+            ),
+          ),
+
+          SafeArea(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  'Who are you?',
+                  style: AppTypography.screenTitle,
+                ),
+                const SizedBox(height: 8),
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: coupleUsers
-                        .map((user) => _buildPartnerProfile(context, user))
-                        .toList(),
+                  padding: const EdgeInsets.symmetric(horizontal: 48),
+                  child: Text(
+                    'Select your profile to continue to your shared space.',
+                    textAlign: TextAlign.center,
+                    style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted),
                   ),
                 ),
-              const SizedBox(height: 60),
-            ],
+                const SizedBox(height: 64),
+                if (coupleUsers != null)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: coupleUsers
+                          .map((user) => _buildAvatar(context, user))
+                          .toList(),
+                    ),
+                  ),
+                const SizedBox(height: 60),
+              ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
 
-  Widget _buildPartnerProfile(BuildContext context, User user) {
+  Widget _buildAvatar(BuildContext context, User user) {
+    final photoUrl = user.profile?.mainProfilePhoto;
+
     return GestureDetector(
       onTap: () {
-        // This will update AuthProvider, triggering AuthGate to show CoupleHomeScreen
         context.read<AuthProvider>().setCoupleUser(user);
       },
       child: Column(
         children: [
-          Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.1),
-                  blurRadius: 20,
-                  offset: const Offset(0, 8),
-                ),
-              ],
+          CachedNetworkImage(
+            imageUrl: photoUrl ?? '',
+            imageBuilder: (ctx, img) => CircleAvatar(
+              radius: 44,
+              backgroundImage: img,
             ),
-            child: CircleAvatar(
-              radius: 54,
-              backgroundColor: Colors.white,
-              child: CircleAvatar(
-                radius: 50,
-                backgroundColor: AppColors.primaryGlass,
-                backgroundImage: user.profile?.mainProfilePhoto != null 
-                  ? NetworkImage(user.profile!.mainProfilePhoto!) 
-                  : null,
-                child: user.profile?.mainProfilePhoto == null
-                    ? const Icon(
-                        Icons.person,
-                        size: 40,
-                        color: AppColors.primary,
-                      )
-                    : null,
+            placeholder: (ctx, url) => CircleAvatar(
+              radius: 44,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              child: const Icon(
+                Icons.person_outline,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ),
+            errorWidget: (ctx, url, err) => CircleAvatar(
+              radius: 44,
+              backgroundColor: AppColors.primary.withOpacity(0.1),
+              child: const Icon(
+                Icons.person_outline,
+                color: AppColors.primary,
+                size: 28,
               ),
             ),
           ),
           const SizedBox(height: 16),
           Text(
             user.firstName ?? 'Partner',
-            style: AppTypography.displayMedium.copyWith(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
-            ),
+            style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             decoration: BoxDecoration(
-              color: AppColors.primaryGlass,
-              borderRadius: AppRadius.full,
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(999), // AppRadius.full is BorderRadius, instructions say 999
             ),
             child: Text(
               'Switch to',
               style: AppTypography.caption.copyWith(
-                color: AppColors.primary,
+                color: Colors.white,
                 fontWeight: FontWeight.w600,
               ),
             ),

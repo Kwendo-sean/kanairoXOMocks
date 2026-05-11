@@ -1,7 +1,4 @@
 // lib/services/connection_service.dart
-import 'dart:convert';
-import 'package:http/http.dart' as http;
-import '../models/discovery_models.dart';
 import 'api_client.dart';
 
 class ConnectionService {

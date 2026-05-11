@@ -1,35 +1,3 @@
-import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
-class ThemeProvider extends ChangeNotifier {
-  static const _key = 'dark_mode';
-  bool _isDarkMode = false;
-
-  bool get isDarkMode => _isDarkMode;
-
-  ThemeMode get themeMode => _isDarkMode ? ThemeMode.dark : ThemeMode.light;
-
-  ThemeProvider() {
-    _loadTheme();
-  }
-
-  Future<void> _loadTheme() async {
-    final prefs = await SharedPreferences.getInstance();
-    _isDarkMode = prefs.getBool(_key) ?? false;
-    notifyListeners();
-  }
-
-  Future<void> toggleTheme() async {
-    _isDarkMode = !_isDarkMode;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key, _isDarkMode);
-    notifyListeners();
-  }
-
-  Future<void> setDarkMode(bool value) async {
-    _isDarkMode = value;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_key, value);
-    notifyListeners();
-  }
-}
+// This file is kept for reference. The active ThemeProvider is at:
+// lib/providers/theme_provider.dart
+export 'package:kanairoxo/providers/theme_provider.dart';

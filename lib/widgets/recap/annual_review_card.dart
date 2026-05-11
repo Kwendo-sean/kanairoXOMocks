@@ -18,11 +18,11 @@ class AnnualReviewCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
                 PhosphorIcon(PhosphorIcons.sparkle(PhosphorIconsStyle.fill), color: AppConstants.primaryRed, size: 28),
-                SizedBox(width: 12),
-                Text(
+                const SizedBox(width: 12),
+                const Text(
                   '2023 in Review', // Example
                   style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
                 ),

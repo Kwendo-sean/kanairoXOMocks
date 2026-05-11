@@ -1,7 +1,5 @@
-import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
@@ -35,12 +33,42 @@ class ProfileApiService {
   }
   
   Future<void> uploadGalleryPhoto(File photo) async {
+    final fileName = photo.path.split('/').last;
+    
     final formData = FormData.fromMap({
       'image': await MultipartFile.fromFile(
         photo.path,
-        filename: photo.path.split('/').last),
+        filename: fileName),
+      'is_primary': false,
     });
-    await _apiClient.post('api/v1/profiles/gallery/upload/', formData as dynamic);
+    
+    await ApiClient.instance.dio.post(
+      'api/v1/profiles/gallery/upload/',
+      data: formData,
+      options: Options(
+        contentType: 'multipart/form-data',
+      ),
+    );
+  }
+
+  /// Uploads a single profile photo to the primary endpoint.
+  /// Returns the new photo URL from the response.
+  Future<String> uploadSingleProfilePhoto(File photo) async {
+    final fileName = photo.path.split('/').last;
+    final formData = FormData.fromMap({
+      'photo': await MultipartFile.fromFile(photo.path, filename: fileName),
+    });
+
+    final response = await ApiClient.instance.dio.post(
+      'api/v1/profiles/upload-photo/',
+      data: formData,
+      options: Options(
+        contentType: 'multipart/form-data',
+      ),
+    );
+
+    // Expecting response format: {"success": true, "photo_url": "..."}
+    return response.data['photo_url'] ?? '';
   }
   
   Future<void> deleteGalleryPhoto(int id) async {

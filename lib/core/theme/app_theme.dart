@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   static ThemeData get light => ThemeData(
@@ -12,7 +11,7 @@ class AppTheme {
             onPrimary: Colors.white,
             onSurface: Color(0xFF1A1A1A),
             onSurfaceVariant: Color(0xFFA0A0A0)),
-        textTheme: GoogleFonts.dmSansTextTheme(),
+        fontFamily: 'DMSans',
         appBarTheme: const AppBarTheme(
             backgroundColor: Color(0xFFFAF7F4),
             foregroundColor: Color(0xFF1A1A1A),
@@ -35,18 +34,17 @@ class AppTheme {
             onPrimary: Colors.white,
             onSurface: Color(0xFFF5EFE6),
             onSurfaceVariant: Color(0xFF7A6E66)),
-        textTheme: GoogleFonts.dmSansTextTheme(ThemeData.dark().textTheme.apply(
-            bodyColor: const Color(0xFFF5EFE6),
-            displayColor: const Color(0xFFF5EFE6))),
-        appBarTheme: AppBarTheme(
-            backgroundColor: const Color(0xFF0D0D0D),
-            foregroundColor: const Color(0xFFF5EFE6),
+        fontFamily: 'DMSans',
+        appBarTheme: const AppBarTheme(
+            backgroundColor: Color(0xFF0D0D0D),
+            foregroundColor: Color(0xFFF5EFE6),
             elevation: 0,
             centerTitle: true,
-            titleTextStyle: GoogleFonts.dmSans(
+            titleTextStyle: TextStyle(
+                fontFamily: 'DMSans',
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
-                color: const Color(0xFFF5EFE6))),
+                color: Color(0xFFF5EFE6))),
         cardColor: const Color(0xFF1C1612),
         dividerColor: const Color(0xFF2E2820),
         bottomNavigationBarTheme: const BottomNavigationBarThemeData(

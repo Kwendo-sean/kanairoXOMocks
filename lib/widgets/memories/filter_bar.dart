@@ -19,12 +19,12 @@ class FilterBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(
           children: [
-            _buildFilterChip(context, icon: PhosphorIcons.calendar, label: 'Date'),
-            _buildFilterChip(context, icon: PhosphorIcons.tag, label: 'Tags'),
-            _buildFilterChip(context, icon: PhosphorIcons.smiley, label: 'Mood'),
+            _buildFilterChip(context, icon: PhosphorIcons.calendar(PhosphorIconsStyle.regular), label: 'Date'),
+            _buildFilterChip(context, icon: PhosphorIcons.tag(PhosphorIconsStyle.regular), label: 'Tags'),
+            _buildFilterChip(context, icon: PhosphorIcons.smiley(PhosphorIconsStyle.regular), label: 'Mood'),
             _buildFilterChip(context, icon: PhosphorIcons.star(PhosphorIconsStyle.fill), label: 'Favorites', selected: true),
-            _buildFilterChip(context, icon: PhosphorIcons.camera, label: 'Photos'),
-            _buildFilterChip(context, icon: PhosphorIcons.microphone, label: 'Voice'),
+            _buildFilterChip(context, icon: PhosphorIcons.camera(PhosphorIconsStyle.regular), label: 'Photos'),
+            _buildFilterChip(context, icon: PhosphorIcons.microphone(PhosphorIconsStyle.regular), label: 'Voice'),
           ],
         ),
       ),

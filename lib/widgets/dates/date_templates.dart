@@ -20,17 +20,17 @@ class DateTemplates extends StatelessWidget {
         _buildTemplateTile(
           title: 'At-Home Movie Night',
           subtitle: 'Classic, cozy, and simple.',
-          icon: PhosphorIcons.filmStrip,          
+          icon: PhosphorIcons.filmStrip(PhosphorIconsStyle.regular),
         ),
         _buildTemplateTile(
           title: 'Half-Day Adventure',
           subtitle: 'Explore a new neighborhood or park.',
-          icon: PhosphorIcons.mapTrifold,
+          icon: PhosphorIcons.mapTrifold(PhosphorIconsStyle.regular),
         ),
          _buildTemplateTile(
           title: 'Spontaneous Local Coffee',
           subtitle: 'A quick 30-minute reconnect.',
-          icon: PhosphorIcons.coffee,
+          icon: PhosphorIcons.coffee(PhosphorIconsStyle.regular),
         ),
       ],
     );
