@@ -37,84 +37,132 @@ class ConnectionRequestModel {
 
 class ProfilePreviewModel {
   final String id;
-  final String firstName;
-  final String lastName;
-  final String fullName;
-  final String? mainProfilePhotoUrl;
-  final String neighborhoodDisplay;
-  final String lifeStage;
-  final String primarySocialCircle;
-  final String headline;
+  final String name;
+  final String? photoUrl;
+  final int? age;
+  final String? gender;
   final String bio;
+  final String headline;
+  final String neighborhood;
+  final String lifeStage;
+  final String socialCircle;
+  final List<GalleryItem> gallery;
   final List<String> interests;
-  final List<MomentPreview> moments;
-  final bool isVerified;
-  final bool momentsAreLimited;
-  final bool isConnected;
-  final bool hasPendingRequest;
-  final String? receivedRequestId;
+  final List<String> intents;
+  final List<String> sharedInterests;
+  final int mutualConnectionsCount;
+  final String connectionStatus; // none, request_sent, request_received, connected, blocked
+  final String? connectionId;
+  final CompatibilityModel? compatibility;
+  final List<String> badges;
+  final bool canMessage;
 
   ProfilePreviewModel({
     required this.id,
-    required this.firstName,
-    required this.lastName,
-    required this.fullName,
-    this.mainProfilePhotoUrl,
-    required this.neighborhoodDisplay,
-    required this.lifeStage,
-    required this.primarySocialCircle,
-    required this.headline,
+    required this.name,
+    this.photoUrl,
+    this.age,
+    this.gender,
     required this.bio,
+    required this.headline,
+    required this.neighborhood,
+    required this.lifeStage,
+    required this.socialCircle,
+    required this.gallery,
     required this.interests,
-    required this.moments,
-    required this.isVerified,
-    required this.momentsAreLimited,
-    required this.isConnected,
-    required this.hasPendingRequest,
-    this.receivedRequestId,
+    required this.intents,
+    required this.sharedInterests,
+    required this.mutualConnectionsCount,
+    required this.connectionStatus,
+    this.connectionId,
+    this.compatibility,
+    required this.badges,
+    required this.canMessage,
   });
 
   factory ProfilePreviewModel.fromJson(Map<String, dynamic> json) {
-    final statusObj = json['connection_status'];
-    bool connected = false;
-    bool pending = false;
-    String? reqId;
-
-    if (statusObj is Map) {
-      connected = statusObj['is_connected'] ?? false;
-      pending = statusObj['has_pending_request'] ?? false;
-      reqId = statusObj['received_request_id']?.toString();
-    } else if (statusObj is String) {
-      // Handle various backend string formats
-      connected = statusObj == 'connected' || 
-                 statusObj == 'mutual' || 
-                 statusObj == 'already_connected';
-      pending = statusObj == 'pending';
-    }
-
-    // Secondary check: if the main response has is_connected at root
-    if (json['is_connected'] == true) connected = true;
-
     return ProfilePreviewModel(
       id: json['id']?.toString() ?? '',
-      firstName: json['first_name'] ?? '',
-      lastName: json['last_name'] ?? '',
-      fullName: json['full_name'] ?? '',
-      mainProfilePhotoUrl: ApiConstants.fixMediaUrl(json['main_profile_photo_url']),
-      neighborhoodDisplay: json['neighborhood_display'] ?? json['neighborhood'] ?? '',
-      lifeStage: json['life_stage'] ?? '',
-      primarySocialCircle: json['primary_social_circle'] ?? '',
-      headline: json['headline'] ?? '',
+      name: json['name'] ?? '',
+      photoUrl: ApiConstants.fixMediaUrl(json['photo_url']),
+      age: json['age'],
+      gender: json['gender'],
       bio: json['bio'] ?? '',
-      interests: List<String>.from(json['interests'] ?? []),
-      moments: (json['moments'] as List? ?? [])
-          .map((m) => MomentPreview.fromMap(m))
+      headline: json['headline'] ?? '',
+      neighborhood: json['neighborhood'] ?? '',
+      lifeStage: json['life_stage'] ?? '',
+      socialCircle: json['social_circle'] ?? '',
+      gallery: (json['gallery'] as List? ?? [])
+          .map((item) => GalleryItem.fromJson(item))
           .toList(),
-      isVerified: json['is_verified'] ?? false,
-      momentsAreLimited: json['moments_are_limited'] ?? false,
-      isConnected: connected,
-      hasPendingRequest: pending,
-      receivedRequestId: reqId,
+      interests: List<String>.from(json['interests'] ?? []),
+      intents: List<String>.from(json['intents'] ?? []),
+      sharedInterests: List<String>.from(json['shared_interests'] ?? []),
+      mutualConnectionsCount: json['mutual_connections_count'] ?? 0,
+      connectionStatus: json['connection_status'] ?? 'none',
+      connectionId: json['connection_id']?.toString(),
+      compatibility: json['compatibility'] != null 
+          ? CompatibilityModel.fromJson(json['compatibility']) 
+          : null,
+      badges: List<String>.from(json['badges'] ?? []),
+      canMessage: json['can_message'] ?? false,
+    );
+  }
+}
+
+class GalleryItem {
+  final String imageUrl;
+  final String? caption;
+
+  GalleryItem({required this.imageUrl, this.caption});
+
+  factory GalleryItem.fromJson(Map<String, dynamic> json) {
+    return GalleryItem(
+      imageUrl: ApiConstants.fixMediaUrl(json['image_url']),
+      caption: json['caption'],
+    );
+  }
+}
+
+class CompatibilityModel {
+  final int score;
+  final CompatibilityBreakdown breakdown;
+
+  CompatibilityModel({required this.score, required this.breakdown});
+
+  factory CompatibilityModel.fromJson(Map<String, dynamic> json) {
+    return CompatibilityModel(
+      score: json['score'] ?? 0,
+      breakdown: CompatibilityBreakdown.fromJson(json['breakdown'] ?? {}),
+    );
+  }
+}
+
+class CompatibilityBreakdown {
+  final int interests;
+  final int intent;
+  final int neighborhood;
+  final int lifeStage;
+  final int socialCircle;
+  final int ageRange;
+
+  CompatibilityBreakdown({
+    required this.interests,
+    required this.intent,
+    required this.neighborhood,
+    required this.lifeStage,
+    required this.socialCircle,
+    required this.ageRange,
+  });
+
+  factory CompatibilityBreakdown.fromJson(Map<String, dynamic> json) {
+    return CompatibilityBreakdown(
+      interests: json['interests'] ?? 0,
+      intent: json['intent'] ?? 0,
+      neighborhood: json['neighborhood'] ?? 0,
+      lifeStage: json['life_stage'] ?? 0,
+      socialCircle: json['social_circle'] ?? 0,
+      ageRange: json['age_range'] ?? 0,
     );
   }
 }

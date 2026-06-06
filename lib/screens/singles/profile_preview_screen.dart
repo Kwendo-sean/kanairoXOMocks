@@ -7,32 +7,24 @@ import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/connection_models.dart';
 import 'package:kanairoxo/models/messaging/conversation_model.dart';
-import 'package:kanairoxo/models/music/spotify_models.dart';
 import 'package:kanairoxo/services/api_client.dart';
-import 'package:kanairoxo/services/spotify_service.dart';
 import 'package:kanairoxo/screens/messaging/chat_screen.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
-import 'package:kanairoxo/widgets/music/now_playing_bar.dart';
-import 'package:kanairoxo/widgets/music/music_compat_chip.dart';
 import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
-import 'package:kanairoxo/utils/feature_flags.dart';
+import 'package:kanairoxo/widgets/modals/report_modal.dart';
 
 class ProfilePreviewScreen extends StatefulWidget {
   final String userId;
-  final String? requestId;
-  final VoidCallback? onAccept;
-  final VoidCallback? onDecline;
-  final bool isConnected;
+  final String? connectionId; // From notification or other sources
+  final VoidCallback? onActionComplete;
 
   const ProfilePreviewScreen({
     super.key,
     required this.userId,
-    this.requestId,
-    this.onAccept,
-    this.onDecline,
-    this.isConnected = false,
+    this.connectionId,
+    this.onActionComplete,
   });
 
   @override
@@ -44,68 +36,20 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   ProfilePreviewModel? _profile;
   bool _loading = true;
   bool _responding = false;
-  
-  // Logic exactly matching ProfileCard.dart
-  String? _connectionStatus;
-  bool _isInitiator = false;
-
-  TrackModel? _nowPlaying;
-  MusicCompatibility? _musicCompat;
-  MusicProfile? _musicProfile;
 
   @override
   void initState() {
     super.initState();
-    _connectionStatus = widget.isConnected ? 'mutual' : 'none';
     _loadProfile();
-    _checkConnectionStatus();
-    _loadMusicData();
-  }
-
-  // Same checkConnectionStatus logic as ProfileCard
-  Future<void> _checkConnectionStatus() async {
-    try {
-      final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
-      final result = await connectionProvider.checkConnectionStatus(widget.userId);
-
-      if (result['success'] == true && result['data'] != null) {
-        final data = result['data'] as Map<String, dynamic>;
-        if (mounted) {
-          setState(() {
-            if (data['exists'] == true) {
-              _connectionStatus = data['connection_type'];
-              _isInitiator = data['is_initiator'] ?? false;
-            } else {
-              _connectionStatus = 'none';
-              _isInitiator = false;
-            }
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Status check error: $e');
-    }
   }
 
   Future<void> _loadProfile() async {
     if (mounted) setState(() => _loading = true);
     try {
-      final response = await apiClient.get('api/v1/profiles/${widget.userId}/preview/');
+      final response = await apiClient.get('api/v1/profiles/${widget.userId}/full/');
       if (mounted) {
         setState(() {
           _profile = ProfilePreviewModel.fromJson(response);
-          
-          // CRITICAL: Sync local connection status from the profile load immediately
-          // but only if we don't have a better status from the manual check yet
-          if (_connectionStatus == 'none' || _connectionStatus == null) {
-            if (_profile!.isConnected) {
-              _connectionStatus = 'mutual';
-            } else if (_profile!.hasPendingRequest) {
-              _connectionStatus = 'pending';
-              _isInitiator = _profile!.receivedRequestId == null;
-            }
-          }
-          
           _loading = false;
         });
       }
@@ -114,53 +58,52 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     }
   }
 
-  Future<void> _loadMusicData() async {
-    if (!FeatureFlags.spotifyEnabled) return;
-    final service = SpotifyService();
-    try {
-      final results = await Future.wait([
-        service.getNowPlaying(userId: widget.userId),
-        service.getCompatibility(widget.userId),
-        service.getMusicProfile(userId: widget.userId),
-      ]);
-
-      if (mounted) {
-        setState(() {
-          _nowPlaying = results[0] as TrackModel?;
-          _musicCompat = results[1] as MusicCompatibility?;
-          _musicProfile = results[2] as MusicProfile?;
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading music data: $e');
-    }
-  }
-
   Future<void> _handleAccept() async {
-    final reqId = widget.requestId ?? _profile?.receivedRequestId;
-    if (reqId == null) return;
+    final connId = _profile?.connectionId ?? widget.connectionId;
+    if (connId == null) return;
 
     setState(() => _responding = true);
     try {
       final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
-      final result = await connectionProvider.acceptConnection(reqId, targetUserId: widget.userId);
+      final result = await connectionProvider.acceptConnection(connId, targetUserId: widget.userId);
       
       if (result['success'] == true) {
-        setState(() {
-          _connectionStatus = 'mutual';
-          _responding = false;
-        });
-        widget.onAccept?.call();
+        _loadProfile();
+        widget.onActionComplete?.call();
       } else {
         throw Exception(result['error'] ?? 'Failed to accept');
       }
     } catch (e) {
-      setState(() => _responding = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
         );
       }
+    } finally {
+      if (mounted) setState(() => _responding = false);
+    }
+  }
+
+  Future<void> _handleDecline() async {
+    final connId = _profile?.connectionId ?? widget.connectionId;
+    if (connId == null) return;
+
+    setState(() => _responding = true);
+    try {
+      // Assuming a decline endpoint or reusing generic connection removal
+      await apiClient.delete('api/v1/connections/$connId/');
+      if (mounted) {
+        Navigator.pop(context);
+        widget.onActionComplete?.call();
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _responding = false);
     }
   }
 
@@ -169,278 +112,330 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     try {
       final connectionProvider = Provider.of<ConnectionProvider>(context, listen: false);
       final result = await connectionProvider.quickConnect(widget.userId);
-      
       if (result['success'] == true) {
-        final data = result['data'];
-        setState(() {
-          // Exactly matching logic for already connected users
-          if (data is Map && (data['status'] == 'already_connected' || data['connection_status'] == 'connected')) {
-            _connectionStatus = 'mutual';
-          } else {
-            _connectionStatus = 'pending';
-            _isInitiator = true;
-          }
-          _responding = false;
-        });
-      } else if (result['status'] == 'already_connected') {
-        setState(() {
-          _connectionStatus = 'mutual';
-          _responding = false;
-        });
-      } else {
-        throw Exception(result['error'] ?? 'Failed to connect');
+        _loadProfile();
+        widget.onActionComplete?.call();
       }
     } catch (e) {
-      setState(() => _responding = false);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
         );
       }
+    } finally {
+      if (mounted) setState(() => _responding = false);
     }
   }
 
   Future<void> _openChat() async {
-    final userId = widget.userId;
     try {
-      final response = await apiClient.post(
-        'api/v1/messaging/start/',
-        {'user_id': userId});
+      final response = await apiClient.post('api/v1/messaging/start/', {'user_id': widget.userId});
       if (!mounted) return;
-      final convData = response['conversation'] as Map<String, dynamic>;
-      final conv = ConversationModel.fromJson(convData);
-      Navigator.push(context,
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(conversation: conv)));
+      final conv = ConversationModel.fromJson(response['conversation']);
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatScreen(conversation: conv)));
     } catch (e) {
-      debugPrint('Open chat error: $e');
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        .showSnackBar(SnackBar(
-          content: const Text('Could not open chat'),
-          backgroundColor: Colors.red.shade700,
-          behavior: SnackBarBehavior.floating));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open chat')));
     }
+  }
+
+  void _showKebabMenu() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[900],
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.report_problem_outlined, color: Colors.white),
+              title: const Text('Report', style: TextStyle(color: Colors.white)),
+              onTap: () {
+                Navigator.pop(context);
+                ReportModal.show(context, targetType: 'user', targetId: widget.userId);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.block, color: Colors.redAccent),
+              title: const Text('Block', style: TextStyle(color: Colors.redAccent)),
+              onTap: () {
+                Navigator.pop(context);
+                _confirmBlock();
+              },
+            ),
+            if (_profile?.connectionStatus == 'connected')
+              ListTile(
+                leading: const Icon(Icons.person_remove_outlined, color: Colors.white),
+                title: const Text('Unfriend', style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _confirmUnfriend();
+                },
+              ),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmBlock() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Block User?', style: TextStyle(color: Colors.white)),
+        content: const Text('They will no longer be able to see your profile or message you.', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              await apiClient.post('api/v1/connections/${widget.userId}/block/', {});
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Block', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmUnfriend() {
+     showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Unfriend?', style: TextStyle(color: Colors.white)),
+        content: const Text('Are you sure you want to remove this connection?', style: TextStyle(color: Colors.white70)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(context);
+              final connId = _profile?.connectionId;
+              if (connId != null) {
+                await apiClient.delete('api/v1/connections/$connId/');
+                _loadProfile();
+              }
+            },
+            child: const Text('Unfriend', style: TextStyle(color: Colors.redAccent)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: (_loading && _profile == null)
-          ? _buildSkeleton()
-          : _profile == null
-              ? _buildError()
-              : _buildContent(),
+      body: _loading ? const Center(child: CircularProgressIndicator()) : _profile == null ? _buildError() : _buildContent(),
     );
   }
 
-  Widget _buildSkeleton() {
+  Widget _buildContent() {
+    final p = _profile!;
     return Stack(
       children: [
-        PulsingGlassPlaceholder(height: MediaQuery.of(context).size.height),
+        CustomScrollView(
+          physics: const BouncingScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 450,
+              pinned: true,
+              backgroundColor: Colors.black,
+              flexibleSpace: FlexibleSpaceBar(
+                background: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    SafeNetworkImage(url: p.photoUrl, fit: BoxFit.cover),
+                    const DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [Colors.transparent, Colors.black],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back, color: Colors.white),
+                onPressed: () => Navigator.pop(context),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.more_vert, color: Colors.white),
+                  onPressed: _showKebabMenu,
+                ),
+              ],
+            ),
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text('${p.name}${p.age != null ? ', ${p.age}' : ''}', 
+                          style: AppTypography.displayMedium.copyWith(color: Colors.white)),
+                        if (p.badges.contains('premium'))
+                          const Padding(
+                            padding: EdgeInsets.only(left: 8),
+                            child: Icon(Icons.bolt, color: Colors.amber, size: 24),
+                          ),
+                      ],
+                    ),
+                    Text(p.headline, style: AppTypography.bodyLarge.copyWith(color: Colors.white70)),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                        const SizedBox(width: 4),
+                        Text(p.neighborhood, style: AppTypography.caption.copyWith(color: Colors.white)),
+                        const SizedBox(width: 16),
+                        const Icon(Icons.group, size: 16, color: Colors.blueAccent),
+                        const SizedBox(width: 4),
+                        Text(p.socialCircle, style: AppTypography.caption.copyWith(color: Colors.white)),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildSection('About', p.bio),
+                    if (p.interests.isNotEmpty) _buildChips('Interests', p.interests),
+                    if (p.intents.isNotEmpty) _buildChips('Looking for', p.intents),
+                    if (p.compatibility != null) _buildCompatibility(p.compatibility!),
+                    if (p.gallery.isNotEmpty) _buildGallery(p.gallery),
+                    const SizedBox(height: 120),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
         Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          left: 16,
-          child: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 18)),
+          bottom: 0, left: 0, right: 0,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).padding.bottom + 20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                colors: [Colors.transparent, Colors.black.withOpacity(0.9)],
+              ),
+            ),
+            child: _buildActionButtons(),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildContent() {
-    final p = _profile!;
-    final name = '${p.firstName} ${p.lastName}'.trim();
-    final screenHeight = MediaQuery.of(context).size.height;
-
-    return Stack(
+  Widget _buildSection(String title, String content) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // FIXED BACKGROUND PHOTO
-        Positioned.fill(
-          child: (p.mainProfilePhotoUrl != null && p.mainProfilePhotoUrl!.isNotEmpty)
-              ? SafeNetworkImage(url: p.mainProfilePhotoUrl, fit: BoxFit.cover)
-              : Container(
-                  color: Colors.grey.shade900,
-                  child: Center(
-                    child: Text(
-                      p.firstName.isNotEmpty ? p.firstName[0].toUpperCase() : '?',
-                      style: const TextStyle(color: Colors.white, fontSize: 80, fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ),
-        ),
+        Text(title, style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text(content, style: AppTypography.bodyMedium.copyWith(color: Colors.white70)),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
 
-        // SCRIM FOR TOP READABILITY
-        Positioned(
-          top: 0, left: 0, right: 0,
-          height: 120,
-          child: DecoratedBox(
+  Widget _buildChips(String title, List<String> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8, runSpacing: 8,
+          children: items.map((i) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [Colors.black.withOpacity(0.5), Colors.transparent],
-              ),
+              color: Colors.white.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.white.withOpacity(0.1)),
+            ),
+            child: Text(i, style: AppTypography.caption.copyWith(color: Colors.white)),
+          )).toList(),
+        ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _buildCompatibility(CompatibilityModel compat) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.05),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Compatibility Score', style: AppTypography.bodyMedium.copyWith(color: Colors.white)),
+              Text('${compat.score}%', style: AppTypography.displaySmall.copyWith(color: AppConstants.primaryRed)),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildCompatRow('Interests', compat.breakdown.interests),
+          _buildCompatRow('Intents', compat.breakdown.intent),
+          _buildCompatRow('Lifestyle', compat.breakdown.lifeStage),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCompatRow(String label, int score) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Expanded(child: Text(label, style: AppTypography.caption.copyWith(color: Colors.white70))),
+          Expanded(
+            flex: 2,
+            child: LinearProgressIndicator(
+              value: score / 100,
+              backgroundColor: Colors.white12,
+              valueColor: AlwaysStoppedAnimation(AppConstants.primaryRed),
+              borderRadius: BorderRadius.circular(4),
             ),
           ),
-        ),
+        ],
+      ),
+    );
+  }
 
-        // MAIN SCROLLABLE AREA
-        CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // Spacer to keep the face visible
-            SliverToBoxAdapter(
-              child: SizedBox(height: screenHeight * 0.45),
-            ),
-            
-            // Name and Headline (floating over photo)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      name,
-                      style: AppTypography.displayLarge.copyWith(
-                        color: Colors.white,
-                        fontSize: 36,
-                        fontWeight: FontWeight.w700,
-                        shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 16)],
-                      ),
-                    ),
-                    if (p.headline.isNotEmpty)
-                      Text(
-                        p.headline,
-                        style: AppTypography.bodyLarge.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
-                          shadows: [Shadow(color: Colors.black.withOpacity(0.8), blurRadius: 8)],
-                        ),
-                      ),
-                    const SizedBox(height: 16),
-                    _buildInfoBadge(Icons.location_on_outlined, p.neighborhoodDisplay),
-                  ],
-                ),
-              ),
-            ),
-
-            // GLASS CONTENT CARD
-            SliverToBoxAdapter(
+  Widget _buildGallery(List<GalleryItem> items) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Gallery', style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 250,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: items.length,
+            itemBuilder: (context, index) => Container(
+              width: 200,
+              margin: const EdgeInsets.only(right: 12),
               child: ClipRRect(
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                child: BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 30, sigmaY: 30),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.3),
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                      border: Border.all(color: Colors.white.withOpacity(0.1)),
-                    ),
-                    padding: const EdgeInsets.fromLTRB(24, 32, 24, 180),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (FeatureFlags.spotifyEnabled && _nowPlaying != null)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 24),
-                            child: NowPlayingBar(track: _nowPlaying!, compact: true),
-                          ),
-
-                        if (FeatureFlags.spotifyEnabled && _musicCompat != null && _musicCompat!.score > 0)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 24),
-                            child: MusicCompatChip(
-                              score: _musicCompat!.score,
-                              sharedGenres: _musicCompat!.sharedGenres,
-                            ),
-                          ),
-
-                        _buildSectionTitle('About'),
-                        Text(
-                          p.bio.isNotEmpty ? p.bio : 'No bio provided.',
-                          style: AppTypography.bodyLarge.copyWith(color: Colors.white.withOpacity(0.9)),
-                        ),
-                        const SizedBox(height: 32),
-
-                        if (FeatureFlags.spotifyEnabled && _musicProfile != null && _musicProfile!.topArtists.isNotEmpty) ...[
-                          _buildSectionTitle('Vibes With'),
-                          Wrap(
-                            spacing: 8, runSpacing: 8,
-                            children: _musicProfile!.topArtists.take(5).map((a) => _buildGlassChip(a.name)).toList(),
-                          ),
-                          const SizedBox(height: 32),
-                        ],
-
-                        if (p.interests.isNotEmpty) ...[
-                          _buildSectionTitle('Interests'),
-                          Wrap(
-                            spacing: 8, runSpacing: 8,
-                            children: p.interests.map((i) => _buildGlassChip(i)).toList(),
-                          ),
-                          const SizedBox(height: 32),
-                        ],
-
-                        if (p.moments.isNotEmpty) ...[
-                          _buildSectionTitle('Moments'),
-                          const SizedBox(height: 12),
-                          GridView.builder(
-                            padding: EdgeInsets.zero,
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 3, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1,
-                            ),
-                            itemCount: p.moments.length,
-                            itemBuilder: (ctx, i) => ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: SafeNetworkImage(url: p.moments[i].imageUrl, fit: BoxFit.cover),
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-
-        // TOP BACK BUTTON
-        Positioned(
-          top: MediaQuery.of(context).padding.top + 8,
-          left: 16,
-          child: GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: Colors.black.withOpacity(0.3), shape: BoxShape.circle),
-              child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-            ),
-          ),
-        ),
-
-        // STICKY BOTTOM GLASS ACTION BAR
-        Positioned(
-          bottom: 0, left: 0, right: 0,
-          child: ClipRRect(
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-              child: Container(
-                padding: EdgeInsets.fromLTRB(24, 20, 24, MediaQuery.of(context).padding.bottom + 20),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.4),
-                  border: Border(top: BorderSide(color: Colors.white.withOpacity(0.1))),
-                ),
-                child: _buildActionButtons(),
+                borderRadius: BorderRadius.circular(16),
+                child: SafeNetworkImage(url: items[index].imageUrl, fit: BoxFit.cover),
               ),
             ),
           ),
@@ -450,146 +445,73 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Widget _buildActionButtons() {
-    // EXACT SAME LOGIC AS PROFILECARD.DART
-    if (_connectionStatus == 'mutual' || _connectionStatus == 'connected') {
+    final status = _profile?.connectionStatus ?? 'none';
+
+    if (status == 'connected') {
       return LiquidGlassButton(
-        size: LiquidButtonSize.xl,
-        width: double.infinity,
         onPressed: _openChat,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.chat_bubble_outline, size: 22, color: Colors.white),
-            const SizedBox(width: 10),
-            Text('Message', style: AppTypography.buttonText.copyWith(fontSize: 16)),
-          ],
-        ),
+        child: const Text('Message'),
       );
     }
 
-    if (_connectionStatus == 'pending' && !_isInitiator) {
+    if (status == 'request_received') {
       return Row(
         children: [
           Expanded(
-            child: GestureDetector(
-              onTap: (widget.onDecline != null && !_responding) ? widget.onDecline : null,
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 18),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.1)),
-                ),
-                child: Center(
-                  child: Text('Decline', style: AppTypography.labelMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600)),
-                ),
+            child: OutlinedButton(
+              onPressed: _responding ? null : _handleDecline,
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Colors.white24),
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              child: const Text('Decline', style: TextStyle(color: Colors.white)),
             ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            flex: 2,
             child: LiquidGlassButton(
-              size: LiquidButtonSize.xl,
               onPressed: _responding ? null : _handleAccept,
-              child: _responding
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.favorite, size: 22, color: Colors.white),
-                        const SizedBox(width: 10),
-                        Text('Accept', style: AppTypography.buttonText.copyWith(fontSize: 16)),
-                      ],
-                    ),
+              child: const Text('Accept'),
             ),
           ),
         ],
       );
     }
 
-    if (_connectionStatus == 'pending' && _isInitiator) {
+    if (status == 'request_sent') {
       return Container(
         width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 18),
+        padding: const EdgeInsets.symmetric(vertical: 16),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withOpacity(0.1)),
+          color: Colors.white10,
+          borderRadius: BorderRadius.circular(12),
         ),
-        child: Center(
-          child: Text('Request Sent', style: AppTypography.labelMedium.copyWith(color: Colors.white70, fontWeight: FontWeight.w600)),
-        ),
+        child: const Center(child: Text('Request Sent', style: TextStyle(color: Colors.white60))),
       );
     }
 
-    // Default: 'none'
-    return LiquidGlassButton(
-      size: LiquidButtonSize.xl,
-      width: double.infinity,
-      onPressed: _responding ? null : _handleConnect,
-      child: _responding
-          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.favorite, size: 22, color: Colors.white),
-                const SizedBox(width: 10),
-                Text('Connect', style: AppTypography.buttonText.copyWith(fontSize: 16)),
-              ],
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () {}, // Save logic
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Colors.white24),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(
-        title,
-        style: AppTypography.labelMedium.copyWith(
-          color: Colors.white,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 0.5,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildGlassChip(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
-      ),
-      child: Text(
-        label,
-        style: AppTypography.caption.copyWith(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13),
-      ),
-    );
-  }
-
-  Widget _buildInfoBadge(IconData icon, String text) {
-    if (text.isEmpty) return const SizedBox.shrink();
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: Colors.black.withOpacity(0.3),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: AppConstants.primaryRed),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: AppTypography.bodyMedium.copyWith(color: Colors.white, fontWeight: FontWeight.w600),
+            child: const Text('Save', style: TextStyle(color: Colors.white)),
           ),
-        ],
-      ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: LiquidGlassButton(
+            onPressed: _responding ? null : _handleConnect,
+            child: const Text('Connect'),
+          ),
+        ),
+      ],
     );
   }
 
@@ -598,11 +520,8 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.error_outline, size: 48, color: Colors.white54),
-          const SizedBox(height: 16),
-          Text('Could not load profile', style: AppTypography.bodyMedium.copyWith(color: Colors.white)),
-          const SizedBox(height: 24),
-          LiquidGlassButton(onPressed: _loadProfile, child: Text('Retry', style: AppTypography.buttonText)),
+          const Text('Error loading profile', style: TextStyle(color: Colors.white)),
+          TextButton(onPressed: _loadProfile, child: const Text('Retry')),
         ],
       ),
     );

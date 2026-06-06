@@ -1,4 +1,3 @@
-// lib/models/discovery_models.dart
 import 'package:flutter/foundation.dart';
 import '../utils/constants.dart';
 
@@ -17,7 +16,7 @@ class DiscoverySession {
   final int profilesShown;
   final int profilesSwiped;
   final int connectionsMade;
-  final int savesMade;
+  final int masonrySavesMade;
   final String? timeElapsed;
 
   DiscoverySession({
@@ -34,7 +33,7 @@ class DiscoverySession {
     required this.profilesShown,
     required this.profilesSwiped,
     required this.connectionsMade,
-    required this.savesMade,
+    required this.masonrySavesMade,
     this.timeElapsed,
   });
 
@@ -60,12 +59,11 @@ class DiscoverySession {
         profilesShown: (json['profiles_shown'] as num?)?.toInt() ?? 0,
         profilesSwiped: (json['profiles_swiped'] as num?)?.toInt() ?? 0,
         connectionsMade: (json['connections_made'] as num?)?.toInt() ?? 0,
-        savesMade: (json['saves_made'] as num?)?.toInt() ?? 0,
+        masonrySavesMade: (json['saves_made'] as num?)?.toInt() ?? 0,
         timeElapsed: json['time_elapsed']?.toString(),
       );
     } catch (e) {
       debugPrint('Error parsing DiscoverySession: $e');
-      // Return a default session
       return DiscoverySession(
         id: '0',
         sessionId: '',
@@ -80,159 +78,121 @@ class DiscoverySession {
         profilesShown: 0,
         profilesSwiped: 0,
         connectionsMade: 0,
-        savesMade: 0,
+        masonrySavesMade: 0,
       );
     }
   }
 }
 
-// Discovery Item Model
+// Discovery Item Model (Handles Profiles and Ads)
 class DiscoveryItem {
-  final String id;
-  final String sessionId;
-  final String sessionContext;
-  final String itemType;
-  final String itemId;
-  final int position;
-  final DateTime shownAt;
-  final String? userAction;
-  final DateTime? actionTakenAt;
+  final bool isAd;
+  
+  // Profile fields
+  final String? id;
+  final String? explanation;
   final double overallScore;
-  final Map<String, dynamic> componentScores;
-  final String explanation;
-  final Map<String, dynamic> itemDetails;
   final Map<String, dynamic> profileDetails;
+  
+  // Ad fields
+  final String? adId;
+  final String? title;
+  final String? subtitle;
+  final String? body;
+  final String? imageUrl;
+  final String? ctaText;
+  final String? ctaType;
+  final String? ctaUrl;
+  final String? ctaEventId;
+  final AdSponsor? sponsor;
+  final String? sponsoredByLabel;
 
   DiscoveryItem({
-    required this.id,
-    required this.sessionId,
-    required this.sessionContext,
-    required this.itemType,
-    required this.itemId,
-    required this.position,
-    required this.shownAt,
-    this.userAction,
-    this.actionTakenAt,
-    required this.overallScore,
-    required this.componentScores,
-    required this.explanation,
-    required this.itemDetails,
+    this.isAd = false,
+    this.id,
+    this.explanation,
+    this.overallScore = 0.0,
     this.profileDetails = const {},
+    this.adId,
+    this.title,
+    this.subtitle,
+    this.body,
+    this.imageUrl,
+    this.ctaText,
+    this.ctaType,
+    this.ctaUrl,
+    this.ctaEventId,
+    this.sponsor,
+    this.sponsoredByLabel,
   });
 
   factory DiscoveryItem.fromJson(Map<String, dynamic> json) {
-    try {
+    bool isAd = json['is_ad'] ?? false;
+    if (isAd) {
       return DiscoveryItem(
-        id: json['id']?.toString() ?? '0',
-        sessionId: json['session']?.toString() ?? '0',
-        sessionContext: json['session_context']?.toString() ?? 'general',
-        itemType: json['item_type']?.toString() ?? 'profile',
-        itemId: json['item_id']?.toString() ?? '0',
-        position: (json['position'] as num?)?.toInt() ?? 0,
-        shownAt: json['shown_at'] != null
-            ? DateTime.parse(json['shown_at'].toString())
-            : DateTime.now(),
-        userAction: json['user_action']?.toString(),
-        actionTakenAt: json['action_taken_at'] != null
-            ? DateTime.parse(json['action_taken_at'].toString())
-            : null,
+        isAd: true,
+        adId: json['id']?.toString(),
+        title: json['title'],
+        subtitle: json['subtitle'],
+        body: json['body'],
+        imageUrl: ApiConstants.fixMediaUrl(json['image_url']),
+        ctaText: json['cta_text'],
+        ctaType: json['cta_type'],
+        ctaUrl: json['cta_url'],
+        ctaEventId: json['cta_event_id']?.toString(),
+        sponsor: json['sponsor'] != null ? AdSponsor.fromJson(json['sponsor']) : null,
+        sponsoredByLabel: json['sponsored_by_label'],
+      );
+    } else {
+      return DiscoveryItem(
+        isAd: false,
+        id: json['id']?.toString(),
+        explanation: json['explanation'] ?? 'Recommended for you',
         overallScore: (json['overall_score'] as num?)?.toDouble() ?? 0.0,
-        componentScores: json['component_scores'] is Map<String, dynamic>
-            ? Map<String, dynamic>.from(json['component_scores'])
-            : <String, dynamic>{},
-        explanation: json['explanation']?.toString() ?? 'Recommended for you',
-        itemDetails: json['item_details'] is Map<String, dynamic>
-            ? Map<String, dynamic>.from(json['item_details'])
-            : <String, dynamic>{},
         profileDetails: json['profile_details'] is Map<String, dynamic>
             ? Map<String, dynamic>.from(json['profile_details'])
-            : <String, dynamic>{},
-      );
-    } catch (e) {
-      debugPrint('Error parsing DiscoveryItem: $e');
-      return DiscoveryItem(
-        id: '0',
-        sessionId: '0',
-        sessionContext: 'general',
-        itemType: 'profile',
-        itemId: '0',
-        position: 0,
-        shownAt: DateTime.now(),
-        overallScore: 0.0,
-        componentScores: {},
-        explanation: 'Recommended for you',
-        itemDetails: {},
-        profileDetails: {},
+            : json, // Fallback if direct profile fields are at root
       );
     }
   }
 
-  bool get isProfile => itemType == 'profile';
-
   String get compatibilityText {
-    if (overallScore >= 80) {
-      return 'Excellent Match';
-    } else if (overallScore >= 60) {
-      return 'Great Match';
-    } else if (overallScore >= 40) {
-      return 'Good Match';
-    } else {
-      return 'Potential Match';
-    }
+    if (overallScore >= 80) return 'Excellent Match';
+    if (overallScore >= 60) return 'Great Match';
+    if (overallScore >= 40) return 'Good Match';
+    return 'Potential Match';
+  }
+}
+
+class AdSponsor {
+  final String id;
+  final String name;
+  final String? logoUrl;
+  final bool isVerified;
+
+  AdSponsor({required this.id, required this.name, this.logoUrl, this.isVerified = false});
+
+  factory AdSponsor.fromJson(Map<String, dynamic> json) {
+    return AdSponsor(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      logoUrl: ApiConstants.fixMediaUrl(json['logo_url']),
+      isVerified: json['is_verified'] ?? false,
+    );
   }
 }
 
 // Discovery Batch Response Model
 class DiscoveryBatch {
-  final DiscoverySession session;
   final List<DiscoveryItem> discoveries;
-  final BatchInfo batchInfo;
 
-  DiscoveryBatch({
-    required this.session,
-    required this.discoveries,
-    required this.batchInfo,
-  });
+  DiscoveryBatch({required this.discoveries});
 
   factory DiscoveryBatch.fromJson(Map<String, dynamic> json) {
-    try {
-      return DiscoveryBatch(
-        session: DiscoverySession.fromJson(json['session'] ?? {}),
-        discoveries: (json['discoveries'] as List?)
-            ?.map((item) => DiscoveryItem.fromJson(item))
-            .toList() ??
-            [],
-        batchInfo: BatchInfo.fromJson(json['batch_info'] ?? {'size': 0, 'remaining_today': 0}),
-      );
-    } catch (e) {
-      debugPrint('Error parsing DiscoveryBatch: $e');
-      return DiscoveryBatch(
-        session: DiscoverySession.fromJson({}),
-        discoveries: [],
-        batchInfo: BatchInfo.fromJson({'size': 0, 'remaining_today': 0}),
-      );
-    }
-  }
-}
-
-class BatchInfo {
-  final int size;
-  final int remainingToday;
-
-  BatchInfo({
-    required this.size,
-    required this.remainingToday,
-  });
-
-  factory BatchInfo.fromJson(Map<String, dynamic> json) {
-    try {
-      return BatchInfo(
-        size: (json['size'] as num?)?.toInt() ?? 0,
-        remainingToday: (json['remaining_today'] as num?)?.toInt() ?? 0,
-      );
-    } catch (e) {
-      return BatchInfo(size: 0, remainingToday: 0);
-    }
+    var list = json['recommendations'] as List? ?? json['discoveries'] as List? ?? [];
+    return DiscoveryBatch(
+      discoveries: list.map((item) => DiscoveryItem.fromJson(item)).toList(),
+    );
   }
 }
 
@@ -245,22 +205,10 @@ class DiscoveryProfile {
   final String lifeStage;
   final String headline;
   final int matchScore;
-  final double interestScore;
-  final double neighborhoodScore;
-  final double vibeScore;
-  final List<String> sharedInterests;
   final String? firstName;
-  final String? lastName;
   final String? bio;
   final int? age;
-  final String? gender;
   final List<String> interests;
-  final String? location;
-  final double? trustScore;
-  final List<String>? currentMoods;
-  final String? primaryIntent;
-  final String? secondaryIntent;
-  final bool isOnline;
 
   DiscoveryProfile({
     required this.userId,
@@ -270,112 +218,34 @@ class DiscoveryProfile {
     required this.lifeStage,
     required this.headline,
     required this.matchScore,
-    required this.interestScore,
-    required this.neighborhoodScore,
-    required this.vibeScore,
-    required this.sharedInterests,
     this.firstName,
-    this.lastName,
     this.bio,
     this.age,
-    this.gender,
     required this.interests,
-    this.location,
-    this.trustScore,
-    this.currentMoods,
-    this.primaryIntent,
-    this.secondaryIntent,
-    this.isOnline = false,
   });
 
   factory DiscoveryProfile.fromJson(Map<String, dynamic> json) {
     try {
-      // Handle different possible ID fields
-      String userId = json['id']?.toString() ?? json['user_id']?.toString() ?? json['public_id']?.toString() ?? '0';
-
-      // Parse interests - handle different formats
-      List<String> interests = [];
-      if (json['interests'] is List) {
-        interests = List<String>.from(json['interests'].map((i) => i.toString()));
-      } else if (json['interests'] is String) {
-        interests = json['interests'].split(',').map((i) => i.trim()).toList();
-      }
-
-      // Try all possible field names for photo — Updated based on nested structure
-      final rawPhoto =
-        json['main_profile_photo_url']
-        ?? json['profile_photo_url']
-        ?? json['photo']
-        ?? json['avatar']
-        ?? json['profile_photo']
-        ?? json['image_url']
-        ?? json['image']
-        ?? json['file'];
-
+      String userId = json['id']?.toString() ?? json['user_id']?.toString() ?? '0';
+      List<String> interests = List<String>.from(json['interests'] ?? []);
+      
       return DiscoveryProfile(
         userId: userId,
         fullName: json['full_name'] ?? json['display_name'] ?? 'User',
-        profilePhotoUrl: rawPhoto != null ? ApiConstants.fixMediaUrl(rawPhoto.toString()) : null,
-        neighborhood: json['neighborhood'] ?? json['primary_neighborhood'] ?? '',
+        profilePhotoUrl: ApiConstants.fixMediaUrl(json['main_profile_photo_url'] ?? json['photo_url'] ?? json['profile_photo_url']),
+        neighborhood: json['neighborhood'] ?? '',
         lifeStage: json['life_stage'] ?? '',
         headline: json['headline'] ?? '',
-        matchScore: json['match_score'] ?? 0,
-        interestScore: (json['interest_score'] ?? 0).toDouble(),
-        neighborhoodScore: (json['neighborhood_score'] ?? 0).toDouble(),
-        vibeScore: (json['vibe_score'] ?? 0).toDouble(),
-        sharedInterests: List<String>.from(json['shared_interests'] ?? []),
-        firstName: json['first_name']?.toString(),
-        lastName: json['last_name']?.toString(),
-        bio: json['bio']?.toString(),
-        age: (json['age'] as num?)?.toInt(),
-        gender: json['gender']?.toString(),
+        matchScore: (json['match_score'] ?? json['overall_score'] ?? 0).toInt(),
+        firstName: json['first_name'],
+        bio: json['bio'],
+        age: json['age'],
         interests: interests,
-        location: json['location']?.toString(),
-        trustScore: (json['trust_score'] as num?)?.toDouble(),
-        currentMoods: json['current_moods'] is List ? List<String>.from(json['current_moods']) : [],
-        primaryIntent: json['primary_intent']?.toString(),
-        secondaryIntent: json['secondary_intent']?.toString(),
-        isOnline: json['is_online'] ?? false,
       );
     } catch (e) {
-      debugPrint('Error parsing DiscoveryProfile: $e');
       return DiscoveryProfile(
-        userId: json['user_id']?.toString() ?? json['id']?.toString() ?? '0',
-        fullName: 'Unknown User',
-        neighborhood: '',
-        lifeStage: '',
-        headline: '',
-        matchScore: 0,
-        interestScore: 0,
-        neighborhoodScore: 0,
-        vibeScore: 0,
-        sharedInterests: [],
-        interests: [],
+        userId: '0', fullName: 'Error', neighborhood: '', lifeStage: '', headline: '', matchScore: 0, interests: []
       );
     }
-  }
-}
-
-// User Action Request Model
-class UserActionRequest {
-  final String action;
-  final double? rating;
-  final Map<String, dynamic>? context;
-  final String? explanation;
-
-  UserActionRequest({
-    required this.action,
-    this.rating,
-    this.context,
-    this.explanation,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'action': action,
-      if (rating != null) 'rating': rating,
-      if (context != null) 'context': context,
-      if (explanation != null) 'explanation': explanation,
-    };
   }
 }

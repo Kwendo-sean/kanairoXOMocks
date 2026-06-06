@@ -12,6 +12,7 @@ import '../../services/api_client.dart';
 import '../../utils/auth_storage.dart';
 import '../../widgets/liquid_glass_button.dart';
 import '../../services/notification_service.dart';
+import '../../widgets/modals/report_modal.dart';
 
 class ChatScreen extends StatefulWidget {
   final ConversationModel conversation;
@@ -347,8 +348,6 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w500)),
         ]));
     }
-    // MESSAGES — remove daily limit UI
-    // Daily limit UI (messagesRemaining) removed as per requirements.
     return const SizedBox.shrink();
   }
   
@@ -475,29 +474,32 @@ class _MessageBubble extends StatelessWidget {
           textAlign: TextAlign.center)));
     }
     
-    return Align(
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
-        margin: EdgeInsets.only(bottom: 4, left: isMe ? 48 : 0, right: isMe ? 0 : 48),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              padding: message.messageType == 'photo' ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              decoration: BoxDecoration(
-                color: isMe ? myBubble : theirBubble,
-                borderRadius: BorderRadius.only(
-                  topLeft: const Radius.circular(18),
-                  topRight: const Radius.circular(18),
-                  bottomLeft: Radius.circular(isMe ? 18 : 4),
-                  bottomRight: Radius.circular(isMe ? 4 : 18)),
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 2))]),
-              child: _buildBubbleContent(message, isMe, myText, theirText)),
-            const SizedBox(height: 2),
-            Text(_formatTime(message.sentAt),
-              style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontSize: 9)),
-          ])));
+    return GestureDetector(
+      onLongPress: () => ReportModal.show(context, targetType: 'message', targetId: message.id),
+      child: Align(
+        alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+        child: Container(
+          constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+          margin: EdgeInsets.only(bottom: 4, left: isMe ? 48 : 0, right: isMe ? 0 : 48),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: message.messageType == 'photo' ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: isMe ? myBubble : theirBubble,
+                  borderRadius: BorderRadius.only(
+                    topLeft: const Radius.circular(18),
+                    topRight: const Radius.circular(18),
+                    bottomLeft: Radius.circular(isMe ? 18 : 4),
+                    bottomRight: Radius.circular(isMe ? 4 : 18)),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 4, offset: const Offset(0, 2))]),
+                child: _buildBubbleContent(message, isMe, myText, theirText)),
+              const SizedBox(height: 2),
+              Text(_formatTime(message.sentAt),
+                style: AppTypography.caption.copyWith(color: AppColors.textMuted, fontSize: 9)),
+            ]))),
+    );
   }
   
   Widget _buildBubbleContent(MessageModel msg, bool isMe, Color myText, Color theirText) {

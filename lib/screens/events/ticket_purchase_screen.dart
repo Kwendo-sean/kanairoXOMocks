@@ -10,8 +10,9 @@ import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 
 class TicketPurchaseScreen extends StatefulWidget {
   final Experience event;
+  final String? selectedTierId;
 
-  const TicketPurchaseScreen({super.key, required this.event});
+  const TicketPurchaseScreen({super.key, required this.event, this.selectedTierId});
 
   @override
   State<TicketPurchaseScreen> createState() => _TicketPurchaseScreenState();
@@ -37,7 +38,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   }
   
   Future<void> _purchaseTicket() async {
-    if (widget.event.basePrice > 0 && _phoneController.text.isEmpty) {
+    if (_phoneController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter your phone number'))
       );
@@ -55,18 +56,16 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         {
           'quantity': _quantity,
           'phone_number': _phoneController.text.trim(),
+          'pricing_tier_id': widget.selectedTierId,
         });
       
       if (response['status'] == 'confirmed') {
-        // Free ticket or already confirmed
         setState(() {
           _ticketId = response['ticket_id']?.toString();
           _paymentStatus = 'success';
           _isLoading = false;
         });
-        _downloadTicket();
       } else {
-        // Paid — start polling
         setState(() {
           _ticketId = response['ticket_id']?.toString();
           _paymentStatus = 'polling';
@@ -93,7 +92,6 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
           if (status == 'paid') {
             _pollTimer?.cancel();
             setState(() => _paymentStatus = 'success');
-            _downloadTicket();
           } else if (status == 'cancelled' || status == 'failed') {
             _pollTimer?.cancel();
             setState(() => _paymentStatus = 'failed');
@@ -103,33 +101,18 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         }
       });
     
-    // Stop polling after 2 minutes
     Future.delayed(const Duration(minutes: 2), () {
       if (_paymentStatus == 'polling') {
         _pollTimer?.cancel();
-        if (mounted) {
-          setState(() => _paymentStatus = 'failed');
-        }
+        if (mounted) setState(() => _paymentStatus = 'failed');
       }
     });
   }
   
-  Future<void> _downloadTicket() async {
-    if (_ticketId == null) return;
-    try {
-      final url = '${ApiConstants.baseUrl}/api/v1/tickets/$_ticketId/download/';
-      debugPrint('Download URL: $url');
-      // In a real app, use url_launcher to open this URL
-    } catch (e) {
-      debugPrint('Download error: $e');
-    }
-  }
-  
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
-    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+    final textColor = Colors.white;
+    final bgColor = Colors.black;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -140,7 +123,7 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context)),
-        title: Text('Get Tickets', style: AppTypography.screenTitle.copyWith(color: textColor))),
+        title: Text('Checkout', style: AppTypography.labelLarge.copyWith(color: textColor))),
       
       body: _paymentStatus == 'success'
         ? _buildSuccessState(textColor)
@@ -148,212 +131,98 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
           ? _buildPollingState(textColor)
           : _paymentStatus == 'failed'
             ? _buildFailedState(textColor)
-            : _buildPurchaseForm(isDark, textColor, bgColor));
+            : _buildPurchaseForm(textColor, bgColor));
   }
   
-  Widget _buildPurchaseForm(bool isDark, Color textColor, Color bgColor) {
-    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
-    final borderColor = isDark ? Colors.grey[800]! : Colors.grey.shade200;
-
+  Widget _buildPurchaseForm(Color textColor, Color bgColor) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(children: [
-        
-        // Event summary card
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: borderColor)),
-          child: Row(children: [
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Complete Purchase', style: AppTypography.displaySmall.copyWith(color: Colors.white)),
+          const SizedBox(height: 8),
+          Text('Enter your M-Pesa number to receive a payment prompt.', style: TextStyle(color: Colors.white60)),
+          const SizedBox(height: 32),
+          
+          _SectionHeader(title: 'Quantity', textColor: textColor),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(12)),
+            child: Row(
               children: [
-                Text(widget.event.title,
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
-                const SizedBox(height: 4),
-                Text(
-                  '${widget.event.venueName} · ${widget.event.neighborhood}',
-                  style: AppTypography.caption.copyWith(color: isDark ? Colors.grey[400] : AppColors.textMuted)),
-                Text(
-                  widget.event.formattedDate,
-                  style: AppTypography.caption.copyWith(color: isDark ? Colors.grey[400] : AppColors.textMuted)),
-              ])),
-            Text(
-              widget.event.basePrice == 0
-                ? 'FREE'
-                : 'KES ${widget.event.basePrice.toInt()}',
-              style: AppTypography.displayMedium.copyWith(
-                color: const Color(0xFF9B111E),
-                fontWeight: FontWeight.w700)),
-          ])),
-        
-        const SizedBox(height: 20),
-        
-        // Quantity selector
-        _SectionHeader(title: 'Number of Tickets', textColor: textColor),
-        const SizedBox(height: 10),
-        Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: borderColor)),
-          child: Row(children: [
-            Text('Tickets', style: AppTypography.bodyMedium.copyWith(color: textColor)),
-            const Spacer(),
-            IconButton(
-              icon: Icon(Icons.remove_circle_outline,
-                color: _quantity > 1 ? const Color(0xFF9B111E) : Colors.grey),
-              onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null),
-            Text('$_quantity',
-              style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
-            IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: Color(0xFF9B111E)),
-              onPressed: () => setState(() => _quantity++)),
-          ])),
-        
-        const SizedBox(height: 20),
-        
-        // Phone number for M-Pesa
-        if (widget.event.basePrice > 0) ...[
-          _SectionHeader(title: 'M-Pesa Payment', textColor: textColor),
-          const SizedBox(height: 10),
+                const Text('Tickets', style: TextStyle(color: Colors.white)),
+                const Spacer(),
+                IconButton(icon: const Icon(Icons.remove, color: Colors.white), onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null),
+                Text('$_quantity', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+                IconButton(icon: const Icon(Icons.add, color: Colors.white), onPressed: () => setState(() => _quantity++)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          
+          _SectionHeader(title: 'Phone Number', textColor: textColor),
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
-            style: TextStyle(color: textColor),
+            style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: '07XXXXXXXX',
-              hintStyle: const TextStyle(color: Colors.grey),
-              prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: Colors.grey),
-              helperText: 'You will receive an M-Pesa prompt',
-              helperStyle: const TextStyle(color: Colors.grey),
+              hintText: '0712345678',
+              hintStyle: const TextStyle(color: Colors.white24),
               filled: true,
-              fillColor: cardColor,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor)),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: borderColor)),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: Color(0xFF9B111E), width: 1.5)))),
-          const SizedBox(height: 20),
-        ],
-        
-        // Total
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: const Color(0xFF9B111E).withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12)),
-          child: Row(children: [
-            Text('Total', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
-            const Spacer(),
-            Text(
-              totalAmount == 0 ? 'FREE' : 'KES ${totalAmount.toInt()}',
-              style: AppTypography.displayMedium.copyWith(
-                color: const Color(0xFF9B111E),
-                fontWeight: FontWeight.w700)),
-          ])),
-        
-        const SizedBox(height: 24),
-        
-        // Purchase button
-        SizedBox(
-          width: double.infinity,
-          child: LiquidGlassButton(
-            size: LiquidButtonSize.xl,
+              fillColor: Colors.white.withOpacity(0.05),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+            ),
+          ),
+          const SizedBox(height: 48),
+          
+          LiquidGlassButton(
+            width: double.infinity,
             onPressed: _isLoading ? null : _purchaseTicket,
-            child: _isLoading
-              ? const SizedBox(
-                  width: 20, height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-              : Text(
-                  totalAmount == 0
-                    ? 'Get Free Ticket'
-                    : 'Pay KES ${totalAmount.toInt()} via M-Pesa',
-                  style: AppTypography.buttonText))),
-      ]));
+            child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Pay with M-Pesa'),
+          ),
+        ],
+      ),
+    );
   }
   
   Widget _buildPollingState(Color textColor) {
     return Center(child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const CircularProgressIndicator(color: Color(0xFF9B111E), strokeWidth: 2),
+        const CircularProgressIndicator(color: AppConstants.primaryRed),
         const SizedBox(height: 24),
-        Text('Waiting for payment...',
-          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
-        const SizedBox(height: 8),
-        Text(
-          'Check your phone for the M-Pesa prompt\nand complete the payment',
-          style: AppTypography.caption.copyWith(color: Colors.grey),
-          textAlign: TextAlign.center),
-      ]));
+        Text('Waiting for M-Pesa prompt...', style: TextStyle(color: textColor)),
+      ],
+    ));
   }
   
   Widget _buildSuccessState(Color textColor) {
-    return Center(child: Padding(
-      padding: const EdgeInsets.all(32),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 80, height: 80,
-            decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
-            child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 44)),
-          const SizedBox(height: 20),
-          Text('Ticket Confirmed',
-            style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
-          const SizedBox(height: 8),
-          Text(
-            'Your ticket has been sent to your email and is ready to download',
-            style: AppTypography.bodyMedium.copyWith(color: Colors.grey),
-            textAlign: TextAlign.center),
-          const SizedBox(height: 32),
-          SizedBox(
-            width: double.infinity,
-            child: LiquidGlassButton(
-              size: LiquidButtonSize.lg,
-              onPressed: _downloadTicket,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.download_outlined, color: Colors.white, size: 18),
-                  const SizedBox(width: 8),
-                  Text('Download Ticket', style: AppTypography.buttonText),
-                ]))),
-          const SizedBox(height: 12),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Back to Event',
-              style: AppTypography.labelMedium.copyWith(color: Colors.grey))),
-        ])));
+    return Center(child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.check_circle, color: Colors.green, size: 80),
+        const SizedBox(height: 24),
+        const Text('Payment Successful!', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        const Text('Your tickets are now available in your profile.', style: TextStyle(color: Colors.white70)),
+        const SizedBox(height: 32),
+        LiquidGlassButton(onPressed: () => Navigator.pop(context), child: const Text('Back to Event')),
+      ],
+    ));
   }
   
   Widget _buildFailedState(Color textColor) {
     return Center(child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const Icon(Icons.error_outline, color: Colors.red, size: 48),
-        const SizedBox(height: 16),
-        Text('Payment Failed',
-          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
-        const SizedBox(height: 8),
-        Text(
-          'The payment was not completed.\nPlease try again.',
-          style: AppTypography.caption.copyWith(color: Colors.grey),
-          textAlign: TextAlign.center),
+        const Icon(Icons.error_outline, color: Colors.red, size: 80),
         const SizedBox(height: 24),
-        LiquidGlassButton(
-          size: LiquidButtonSize.md,
-          onPressed: () => setState(() => _paymentStatus = 'idle'),
-          child: Text('Try Again', style: AppTypography.buttonText)),
-      ]));
+        const Text('Payment Failed', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 32),
+        TextButton(onPressed: () => setState(() => _paymentStatus = 'idle'), child: const Text('Try Again', style: TextStyle(color: Colors.redAccent))),
+      ],
+    ));
   }
 }
 
@@ -364,10 +233,9 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 8),
-      child: Text(title, style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Text(title, style: AppTypography.labelMedium.copyWith(color: textColor, fontWeight: FontWeight.bold)),
     );
   }
 }

@@ -3,11 +3,13 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
+import 'package:kanairoxo/models/event_tier_model.dart';
 import '../../models/data_models.dart';
 import '../../models/ticket_model.dart';
 import '../../providers/events_provider.dart';
 import '../../services/api_client.dart';
 import 'ticket_purchase_screen.dart';
+import 'package:kanairoxo/utils/constants.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -19,14 +21,19 @@ class EventDetailScreen extends StatefulWidget {
 }
 
 class _EventDetailScreenState extends State<EventDetailScreen> {
+  final ApiClient apiClient = ApiClient();
   Experience? _experience;
+  List<EventTier> _tiers = [];
+  EventTier? _selectedTier;
   bool _isLoading = true;
+  bool _loadingTiers = false;
   bool _hasTicket = false;
 
   @override
   void initState() {
     super.initState();
     _loadEventDetail();
+    _loadTiers();
     _checkTicketStatus();
   }
 
@@ -42,24 +49,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         _isLoading = false;
       });
     } catch (e) {
-      debugPrint('Error loading event detail: $e');
       if (!mounted) return;
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
+    }
+  }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Failed to load event details'),
-          backgroundColor: Color(0xFF9B111E),
-        ),
-      );
+  Future<void> _loadTiers() async {
+    setState(() => _loadingTiers = true);
+    try {
+      final response = await apiClient.get('api/v1/events/${widget.eventId}/tiers/');
+      if (mounted) {
+        setState(() {
+          _tiers = (response['tiers'] as List).map((t) => EventTier.fromJson(t)).toList();
+          if (_tiers.isNotEmpty) {
+            _selectedTier = _tiers.firstWhere((t) => t.isAvailableNow, orElse: () => _tiers.first);
+          }
+          _loadingTiers = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadingTiers = false);
     }
   }
 
   Future<void> _checkTicketStatus() async {
     try {
-      final response = await ApiClient.instance.get('api/v1/tickets/');
+      final response = await apiClient.get('api/v1/tickets/');
       final List<dynamic> data = response is List ? response : (response['results'] ?? []);
       final tickets = data.map((json) => TicketModel.fromJson(json)).toList();
       
@@ -78,49 +93,33 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => TicketPurchaseScreen(event: _experience!),
+        builder: (context) => TicketPurchaseScreen(
+          event: _experience!,
+          selectedTierId: _selectedTier?.id,
+        ),
       ),
     ).then((_) => _checkTicketStatus());
   }
 
-  Future<void> _handleSaveEvent() async {
-    if (_experience == null) return;
-    try {
-      await Provider.of<EventsProvider>(context, listen: false).toggleSave(_experience!);
-      setState(() {
-        _experience = _experience!.copyWith(isSaved: !(_experience!.isSaved));
-      });
-    } catch (e) {
-      debugPrint('Error saving event: $e');
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final primaryColor = const Color(0xFF9B111E);
+    final primaryColor = AppConstants.primaryRed;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
-    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
-    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
-    final mutedTextColor = isDark ? const Color(0xFF999999) : const Color(0xFF444444);
-    final borderColor = isDark ? const Color(0xFF2E2820) : const Color(0xFFE8E0D0);
+    final bgColor = Colors.black;
+    final surfaceColor = Colors.grey[900]!;
+    final textColor = Colors.white;
+    final mutedTextColor = Colors.white70;
+    final borderColor = Colors.white10;
 
     if (_isLoading) {
-      return Scaffold(
-        backgroundColor: bgColor,
-        body: Center(child: CircularProgressIndicator(color: primaryColor)),
-      );
+      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
     }
 
     if (_experience == null) {
-      return Scaffold(
-        backgroundColor: bgColor,
-        body: const Center(child: Text('Event not found')),
-      );
+      return const Scaffold(backgroundColor: Colors.black, body: Center(child: Text('Event not found', style: TextStyle(color: Colors.white))));
     }
 
     final formattedDate = DateFormat('EEE, d MMM').format(_experience!.startDateTime);
-    final formattedTime = _experience!.formattedTime;
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -128,333 +127,69 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       body: CustomScrollView(
         physics: const BouncingScrollPhysics(),
         slivers: [
-          // Hero image — SliverAppBar
           SliverAppBar(
-            expandedHeight: MediaQuery.of(context).size.height * 0.48,
-            pinned: false,
-            stretch: true,
-            backgroundColor: Colors.transparent,
-            automaticallyImplyLeading: false,
+            expandedHeight: 350,
+            pinned: true,
+            backgroundColor: Colors.black,
             flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [StretchMode.zoomBackground],
               background: Stack(
                 fit: StackFit.expand,
                 children: [
                   CachedNetworkImage(
-                    imageUrl: _experience!.coverUrl ?? _experience!.venueAddress,
+                    imageUrl: _experience!.coverUrl ?? '',
                     fit: BoxFit.cover,
-                    errorWidget: (context, url, error) => Container(
-                      color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEDE5D8),
-                      child: Icon(Icons.image_outlined, color: isDark ? Colors.grey[800] : const Color(0xFFBBAA99), size: 56),
-                    ),
                   ),
-                  Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          stops: const [0.4, 1.0],
-                          colors: [
-                            Colors.transparent,
-                            bgColor,
-                          ],
-                        ),
+                  const DecoratedBox(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black],
                       ),
                     ),
                   ),
                 ],
               ),
             ),
-            leading: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.only(left: 8),
-                child: CircleAvatar(
-                  backgroundColor: Colors.black.withOpacity(0.35),
-                  radius: 18,
-                  child: IconButton(
-                    padding: EdgeInsets.zero,
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    color: Colors.white,
-                    iconSize: 16,
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                ),
-              ),
-            ),
+            leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
           ),
-
-          // Content sheet — SliverToBoxAdapter
           SliverToBoxAdapter(
-            child: Container(
-              decoration: BoxDecoration(
-                color: bgColor,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(28),
-                  topRight: Radius.circular(28),
-                ),
-              ),
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+            child: Padding(
+              padding: const EdgeInsets.all(24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Row — title + price
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          _experience!.title,
-                          style: TextStyle(
-                            fontFamily: 'CormorantGaramond',
-                            fontSize: 28,
-                            fontWeight: FontWeight.w600,
-                            color: textColor,
-                          ),
-                          maxLines: 3,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: _experience!.basePrice == 0
-                              ? Colors.green.withOpacity(0.1)
-                              : primaryColor.withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: _experience!.basePrice == 0
-                                ? Colors.green.withOpacity(0.3)
-                                : primaryColor.withOpacity(0.25),
-                          ),
-                        ),
-                        child: Text(
-                          _experience!.priceDisplay,
-                          style: TextStyle(
-                            fontFamily: 'DMSans',
-                            fontSize: 14,
-                            fontWeight: FontWeight.w700,
-                            color: _experience!.basePrice == 0
-                                ? Colors.green
-                                : primaryColor,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 20),
-
-                  // Organiser row
+                  Text(_experience!.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 12),
                   Row(
                     children: [
-                      CircleAvatar(
-                        radius: 16,
-                        backgroundColor: isDark ? const Color(0xFF2E2820) : const Color(0xFFF0E8E0),
-                        backgroundImage: _experience!.organizer.profilePicture != null
-                            ? NetworkImage(_experience!.organizer.profilePicture!)
-                            : null,
-                        child: _experience!.organizer.profilePicture == null
-                            ? Text(
-                                _experience!.organizer.firstName.isNotEmpty
-                                    ? _experience!.organizer.firstName[0].toUpperCase()
-                                    : '',
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              )
-                            : null,
-                      ),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "Hosted by",
-                            style: TextStyle(
-                              fontFamily: 'DMSans',
-                              fontSize: 11,
-                              color: Color(0xFF999999),
-                            ),
-                          ),
-                          Text(
-                            _experience!.organizer.firstName,
-                            style: TextStyle(
-                              fontFamily: 'DMSans',
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                              color: textColor,
-                            ),
-                          ),
-                        ],
-                      ),
+                      const Icon(Icons.calendar_today, size: 16, color: Colors.redAccent),
+                      const SizedBox(width: 8),
+                      Text('$formattedDate · ${_experience!.formattedTime}', style: const TextStyle(color: Colors.white70)),
                     ],
                   ),
-
-                  const SizedBox(height: 20),
-                  Divider(color: borderColor, height: 1),
-                  const SizedBox(height: 20),
-
-                  // Info rows
-                  _buildInfoRow(
-                    context,
-                    Icons.calendar_today_outlined,
-                    "Date & Time",
-                    "$formattedDate · $formattedTime",
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                      const SizedBox(width: 8),
+                      Text('${_experience!.venueName}, ${_experience!.neighborhood}', style: const TextStyle(color: Colors.white70)),
+                    ],
                   ),
-                  const SizedBox(height: 14),
-                  _buildInfoRow(
-                    context,
-                    Icons.location_on_outlined,
-                    "Location",
-                    "${_experience!.venueName} · ${_experience!.neighborhood}",
-                  ),
-                  const SizedBox(height: 14),
-                  _buildInfoRow(
-                    context,
-                    Icons.confirmation_number_outlined,
-                    "Availability",
-                    "${_experience!.ticketsAvailable} tickets left",
-                  ),
-
-                  const SizedBox(height: 24),
-                  Divider(color: borderColor, height: 1),
-                  const SizedBox(height: 24),
-
-                  // Description section
-                  Text(
-                    "About this Experience",
-                    style: TextStyle(
-                      fontFamily: 'DMSans',
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: textColor,
-                      letterSpacing: 0.3,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _experience!.description,
-                    style: TextStyle(
-                      fontFamily: 'DMSans',
-                      fontSize: 14,
-                      color: mutedTextColor,
-                      height: 1.6,
-                    ),
-                  ),
-
                   const SizedBox(height: 32),
+                  const Text('About this Experience', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  const SizedBox(height: 12),
+                  Text(_experience!.description, style: const TextStyle(color: Colors.white70, height: 1.5)),
+                  const SizedBox(height: 32),
+                  
+                  if (_tiers.isNotEmpty) ...[
+                    const Text('Select Ticket Type', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 16),
+                    ..._tiers.map((tier) => _buildTierCard(tier)),
+                    const SizedBox(height: 24),
+                  ],
 
-                  // Ticket action section
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: surfaceColor,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Column(
-                      children: [
-                        Row(
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _experience!.priceDisplay,
-                                  style: TextStyle(
-                                    fontFamily: 'CormorantGaramond',
-                                    fontSize: 24,
-                                    fontWeight: FontWeight.w600,
-                                    color: primaryColor,
-                                  ),
-                                ),
-                                Text(
-                                  "${_experience!.ticketsAvailable} tickets left",
-                                  style: const TextStyle(
-                                    fontFamily: 'DMSans',
-                                    fontSize: 12,
-                                    color: Color(0xFF999999),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const Spacer(),
-                            if (_experience!.ticketsAvailable < 20)
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                decoration: BoxDecoration(
-                                  color: Colors.orange.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
-                                ),
-                                child: Text(
-                                  "Limited",
-                                  style: TextStyle(
-                                    fontFamily: 'DMSans',
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: Colors.orange[700],
-                                  ),
-                                ),
-                              ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        _hasTicket
-                            ? Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                decoration: BoxDecoration(
-                                  color: Colors.green.withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(32),
-                                  border: Border.all(color: Colors.green.withOpacity(0.3)),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.check_circle_outline_rounded, color: Colors.green[600], size: 18),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      "You're Going",
-                                      style: TextStyle(
-                                        color: Colors.green[700],
-                                        fontFamily: 'DMSans',
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              )
-                            : SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: _navigateToPurchase,
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: primaryColor,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(32),
-                                    ),
-                                    elevation: 0,
-                                  ),
-                                  child: const Text(
-                                    "Get Tickets",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontFamily: 'DMSans',
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                      ],
-                    ),
-                  ),
+                  _buildPurchaseAction(primaryColor, surfaceColor, borderColor),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -464,46 +199,100 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
-    final primaryColor = const Color(0xFF9B111E);
-
-    return Row(
-      children: [
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: primaryColor.withOpacity(0.07),
-            borderRadius: BorderRadius.circular(10),
+  Widget _buildTierCard(EventTier tier) {
+    final isSelected = _selectedTier?.id == tier.id;
+    return GestureDetector(
+      onTap: tier.isAvailableNow ? () => setState(() => _selectedTier = tier) : null,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: isSelected ? AppConstants.primaryRed.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: isSelected ? AppConstants.primaryRed : Colors.white.withOpacity(0.1),
+            width: isSelected ? 2 : 1,
           ),
-          child: Icon(icon, color: primaryColor, size: 18),
         ),
-        const SizedBox(width: 14),
-        Column(
+        child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: const TextStyle(
-                fontFamily: 'DMSans',
-                fontSize: 11,
-                color: Color(0xFF999999),
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(tier.name, style: TextStyle(color: tier.isAvailableNow ? Colors.white : Colors.white38, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('KES ${tier.price}', style: TextStyle(color: tier.isAvailableNow ? AppConstants.primaryRed : Colors.white24, fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
             ),
-            Text(
-              value,
-              style: TextStyle(
-                fontFamily: 'DMSans',
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: textColor,
+            if (tier.description.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(tier.description, style: TextStyle(color: Colors.white54, fontSize: 12)),
               ),
-            ),
+            if (tier.benefits.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Wrap(
+                  spacing: 8,
+                  children: tier.benefits.map((b) => Text('• $b', style: const TextStyle(color: Colors.white70, fontSize: 11))).toList(),
+                ),
+              ),
+            if (tier.remaining > 0 && tier.remaining < 20)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: Text('${tier.remaining} left!', style: const TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
+            if (!tier.isAvailableNow)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: Text('Not Available', style: TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.bold)),
+              ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildPurchaseAction(Color primaryColor, Color surfaceColor, Color borderColor) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: borderColor),
+      ),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_selectedTier != null ? 'KES ${_selectedTier!.price}' : _experience!.priceDisplay,
+                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor)),
+                  const Text('Price per ticket', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                ],
+              ),
+              if (_hasTicket)
+                const Icon(Icons.check_circle, color: Colors.green, size: 32)
+            ],
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton(
+              onPressed: (_hasTicket || (_tiers.isNotEmpty && _selectedTier == null)) ? null : _navigateToPurchase,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+              ),
+              child: Text(_hasTicket ? "You're Going" : "Get Tickets", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

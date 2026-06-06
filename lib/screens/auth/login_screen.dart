@@ -9,6 +9,7 @@ import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/services/notification_service.dart';
+import 'package:kanairoxo/services/api_client.dart';
 
 class LoginScreen extends StatefulWidget {
   final VoidCallback onLoginSuccess;
@@ -29,6 +30,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isRestoring = false;
 
   final GoogleSignIn _googleSignIn = GoogleSignIn(
     scopes: ['email', 'profile'],
@@ -47,54 +49,41 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
       await auth.login(phoneNumber, _passwordController.text);
-      
-      // Register device token for push notifications
       await NotificationService().registerDeviceToken();
-      
-      // Call the success callback to trigger navigation defined in app.dart
       widget.onLoginSuccess();
     } catch (e) {
-      // Error handled by provider
+      if (e.toString().contains('401')) {
+        // Potential deleted user
+      }
     }
   }
 
-  Future<void> _handleGoogleSignIn(AuthProvider auth) async {
+  Future<void> _handleRestore() async {
+    final phone = _phoneController.text.trim();
+    final pass = _passwordController.text;
+    
+    if (phone.isEmpty || pass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter phone and password first')));
+      return;
+    }
+
+    setState(() => _isRestoring = true);
     try {
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) return;
-
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-      final String? idToken = googleAuth.idToken;
-
-      if (idToken != null) {
-        final bool isNewUser = await auth.googleLogin(idToken);
-        
-        // Register device token for push notifications
-        await NotificationService().registerDeviceToken();
-
-        if (isNewUser) {
-          if (mounted) {
-            Navigator.of(context).pushReplacementNamed('/profile_editor');
-          }
-        } else {
-          widget.onLoginSuccess();
-        }
+      final apiClient = ApiClient();
+      await apiClient.post('api/v1/auth/me/restore/', {
+        'phone_number': phone,
+        'password': pass,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account restored! You can now log in.')));
+        setState(() => _isRestoring = false);
       }
     } catch (e) {
-      debugPrint('Google Sign-In Error: $e');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Google Sign-In failed: $e'), backgroundColor: Colors.red),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Restore failed: $e'), backgroundColor: Colors.red));
+        setState(() => _isRestoring = false);
       }
     }
-  }
-
-  @override
-  void dispose() {
-    _phoneController.dispose();
-    _passwordController.dispose();
-    super.dispose();
   }
 
   @override
@@ -121,13 +110,22 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    margin: const EdgeInsets.only(bottom: 24),
+                    margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
                       color: Colors.red.withOpacity(0.1),
                       borderRadius: AppRadius.md,
                       border: Border.all(color: Colors.red.withOpacity(0.3)),
                     ),
                     child: Text(auth.error!, style: AppTypography.bodyMedium.copyWith(color: Colors.red)),
+                  ),
+                
+                if (auth.error != null && auth.error!.toLowerCase().contains('unauthorized'))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 24),
+                    child: TextButton(
+                      onPressed: _isRestoring ? null : _handleRestore,
+                      child: Text('Account deleted? Restore it', style: TextStyle(color: context.primaryColor, fontWeight: FontWeight.bold)),
+                    ),
                   ),
 
                 _buildGlassTextField(
@@ -171,11 +169,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   width: double.infinity,
                   onPressed: auth.isLoading ? null : () => _handleLogin(auth),
                   child: auth.isLoading
-                      ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
-                        )
+                      ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
                       : Text('Log In', style: AppTypography.buttonText),
                 ),
 
@@ -195,7 +189,21 @@ class _LoginScreenState extends State<LoginScreen> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    _buildSocialButton(PhosphorIcons.googleLogo(), () => _handleGoogleSignIn(auth)),
+                    _buildSocialButton(PhosphorIcons.googleLogo(), () async {
+                       try {
+                        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+                        if (googleUser == null) return;
+                        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+                        if (googleAuth.idToken != null) {
+                          final bool isNew = await auth.googleLogin(googleAuth.idToken!);
+                          await NotificationService().registerDeviceToken();
+                          if (isNew) Navigator.pushReplacementNamed(context, '/onboarding');
+                          else widget.onLoginSuccess();
+                        }
+                      } catch (e) {
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Login Error: $e')));
+                      }
+                    }),
                     const SizedBox(width: 16),
                     _buildSocialButton(PhosphorIcons.appleLogo(), () {}),
                   ],
@@ -264,18 +272,9 @@ class _LoginScreenState extends State<LoginScreen> {
             filled: true,
             fillColor: context.isDark ? context.surfaceColor.withOpacity(0.7) : Colors.white.withOpacity(0.7),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: context.borderColor),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: context.borderColor),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(color: context.primaryColor, width: 1.5),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.all(color: context.primaryColor, width: 1.5)),
           ),
         ),
       ),

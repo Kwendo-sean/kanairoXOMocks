@@ -1,22 +1,12 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/moment_service.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_theme.dart';
-import 'package:kanairoxo/widgets/liquid_glass_button.dart';
+import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
-import 'package:kanairoxo/widgets/moments/comments_bottom_sheet.dart';
-import 'package:kanairoxo/widgets/moments/the_drop_widget.dart';
-import 'package:kanairoxo/widgets/moments/polaroid_stack.dart';
-import 'package:kanairoxo/widgets/moments/constellation_view.dart';
-import 'package:kanairoxo/services/widget_service.dart';
-import 'package:kanairoxo/services/api_client.dart';
-import 'package:kanairoxo/screens/create_moment_screen.dart';
-import 'package:kanairoxo/screens/moments/moment_detail_screen.dart';
+import 'package:kanairoxo/screens/moments/creation/moment_creation_flow.dart';
+import 'package:kanairoxo/widgets/modals/report_modal.dart';
 
 class MomentsScreen extends StatefulWidget {
   const MomentsScreen({super.key});
@@ -25,682 +15,257 @@ class MomentsScreen extends StatefulWidget {
   State<MomentsScreen> createState() => _MomentsScreenState();
 }
 
-class _MomentsScreenState extends State<MomentsScreen> {
+class _MomentsScreenState extends State<MomentsScreen> with SingleTickerProviderStateMixin {
+  late TabController _feedTabController;
   final MomentService _momentService = MomentService();
-  
-  List<Moment> _allMoments = [];
-  DropModel? _dropData;
-  
+  List<Moment> _moments = [];
   bool _isLoading = true;
-  String _selectedTag = 'All';
-  String _carouselStyle = 'polaroid';
-
-  final List<String> _subtitles = [
-    'Where Nairobi comes alive',
-    'The city through your eyes',
-    'Real moments, real connections',
-    'Life in Nairobi, unfiltered',
-    'Your story, your city',
-    'Nairobi never sleeps',
-    'Captured in the moment',
-  ];
-  
-  late final String _carouselSubtitle;
 
   @override
   void initState() {
     super.initState();
-    _carouselSubtitle = _subtitles[DateTime.now().millisecond % _subtitles.length];
-    
+    _feedTabController = TabController(length: 4, vsync: this);
     _loadMoments();
-    
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadStylePreference();
-      _loadDropData();
-    });
-  }
-
-  Future<void> _loadStylePreference() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final saved = prefs.getString('carousel_style');
-      if (mounted) {
-        setState(() {
-          _carouselStyle = saved ?? 'polaroid';
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _carouselStyle = 'polaroid';
-        });
-      }
-    }
-  }
-
-  Future<void> _switchStyle(String style) async {
-    if (_carouselStyle == style) return;
-    
-    setState(() => _carouselStyle = style);
-    
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('carousel_style', style);
-    } catch (e) {
-      // Error
-    }
   }
 
   Future<void> _loadMoments() async {
-    if (!mounted) return;
     setState(() => _isLoading = true);
     try {
       final moments = await _momentService.getMoments();
-      if (!mounted) return;
       setState(() {
-        _allMoments = moments;
+        _moments = moments;
         _isLoading = false;
       });
-      WidgetService.refreshAllWidgets(_allMoments, 0, 0); 
     } catch (e) {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+      setState(() => _isLoading = false);
     }
-  }
-
-  Future<void> _loadDropData() async {
-    try {
-      final response = await ApiClient.instance.dio.get('/api/v1/moments/drop/');
-      if (mounted) {
-        setState(() {
-          _dropData = DropModel.fromJson(response.data as Map<String, dynamic>);
-        });
-        if (_dropData != null) {
-          WidgetService.updateDropWidget(
-              secondsUntilDrop: _dropData!.secondsUntilDrop,
-              isLive: _dropData!.status == 'live');
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _dropData = null);
-      }
-    }
-  }
-
-  List<Moment> get filteredMoments {
-    if (_selectedTag == 'All') return _allMoments;
-    return _allMoments
-        .where((m) => m.type.name.toLowerCase() == _selectedTag.toLowerCase())
-        .toList();
-  }
-
-  void openCreateMoment() async {
-    final result = await Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const CreateMomentScreen()),
-    );
-    if (result == true) {
-      _loadMoments();
-    }
-  }
-
-  void _openMomentViewer(int index) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MomentDetailScreen(
-          moments: _allMoments,
-          initialIndex: index,
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: context.bgColor,
-      appBar: _buildAppBar(),
-      body: _buildBody());
-  }
-  
-  Widget _buildBody() {
-    return CustomScrollView(
-      physics: const BouncingScrollPhysics(),
-      slivers: [
-        SliverToBoxAdapter(
-          child: _safeTopSection()),
-
-        if (_dropData?.status != 'live')
-          SliverToBoxAdapter(
-            child: _buildViewToggle()),
-        
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 8),
-            child: Text(_carouselSubtitle,
-              style: AppTypography.caption.copyWith(
-                color: context.mutedColor,
-                fontStyle: FontStyle.italic),
-              textAlign: TextAlign.center))),
-        
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _FilterTabsDelegate(
-            selectedTag: _selectedTag,
-            onTagSelected: (tag) => setState(() =>
-              _selectedTag = tag),
-            backgroundColor: context.bgColor)),
-        
-        if (_isLoading && _allMoments.isEmpty)
-          SliverToBoxAdapter(
-            child: const Padding(
-              padding: EdgeInsets.only(top: 40),
-              child: Center(child: PulsingGlassPlaceholder(width: 40, height: 40, borderRadius: 20)),
-            ))
-        else if (filteredMoments.isEmpty)
-          SliverToBoxAdapter(
-            child: _buildTagEmptyState())
-        else
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-              (ctx, i) => _MomentCard(
-                moment: filteredMoments[i],
-                onImageTap: () => _openMomentViewer(_allMoments.indexOf(filteredMoments[i]))),
-              childCount: filteredMoments.length)),
-        
-        const SliverToBoxAdapter(
-          child: SizedBox(height: 80)),
-      ]);
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-        backgroundColor: context.bgColor,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: Colors.white)),
         centerTitle: true,
+        bottom: TabBar(
+          controller: _feedTabController,
+          indicatorColor: AppConstants.primaryRed,
+          labelColor: Colors.white,
+          unselectedLabelColor: Colors.white38,
+          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          tabs: const [
+            Tab(text: 'For You'),
+            Tab(text: 'Connections'),
+            Tab(text: 'Discover'),
+            Tab(text: 'Saved'),
+          ],
+        ),
         actions: [
-          TextButton.icon(
-              icon: Icon(Icons.add_circle_outline,
-                  size: 16, color: context.primaryColor),
-              label: Text('Create',
-                  style: AppTypography.labelMedium.copyWith(
-                      color: context.primaryColor,
-                      fontWeight: FontWeight.w600)),
-              onPressed: openCreateMoment),
-        ]);
-  }
-
-  Widget _buildViewToggle() {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 10),
-        padding: const EdgeInsets.all(3),
-        decoration: BoxDecoration(
-          color: context.surfaceColor,
-          borderRadius: BorderRadius.circular(999),
-          border: Border.all(
-            color: context.borderColor),
-          boxShadow: [BoxShadow(
-            color: Colors.black.withOpacity(0.06),
-            blurRadius: 8,
-            offset: const Offset(0, 2))]),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            GestureDetector(
-              onTap: () => _switchStyle('polaroid'),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _carouselStyle == 'polaroid'
-                    ? context.primaryColor
-                    : Colors.transparent,
-                  borderRadius: 
-                    BorderRadius.circular(999)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.photo_album_outlined,
-                      size: 14,
-                      color: _carouselStyle == 'polaroid'
-                        ? Colors.white
-                        : context.mutedColor),
-                    const SizedBox(width: 5),
-                    Text('Polaroid',
-                      style: AppTypography.caption
-                        .copyWith(
-                          color: _carouselStyle == 
-                            'polaroid'
-                            ? Colors.white
-                            : context.mutedColor,
-                          fontWeight: _carouselStyle == 
-                            'polaroid'
-                            ? FontWeight.w600
-                            : FontWeight.w400)),
-                  ])),
-            ),
-            GestureDetector(
-              onTap: () => _switchStyle(
-                'constellation'),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeInOut,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 7),
-                decoration: BoxDecoration(
-                  color: _carouselStyle == 
-                    'constellation'
-                    ? context.primaryColor
-                    : Colors.transparent,
-                  borderRadius: 
-                    BorderRadius.circular(999)),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.auto_awesome_outlined,
-                      size: 14,
-                      color: _carouselStyle == 
-                        'constellation'
-                        ? Colors.white
-                        : context.mutedColor),
-                    const SizedBox(width: 5),
-                    Text('Stars',
-                      style: AppTypography.caption
-                        .copyWith(
-                          color: _carouselStyle == 
-                            'constellation'
-                            ? Colors.white
-                            : context.mutedColor,
-                          fontWeight: _carouselStyle == 
-                            'constellation'
-                            ? FontWeight.w600
-                            : FontWeight.w400)),
-                  ])),
-            ),
-          ])));
-  }
-  
-  Widget _safeTopSection() {
-    try {
-      return _buildTopSection();
-    } catch (e) {
-      return Container(
-        height: 200,
-        margin: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: context.isDark ? context.surfaceColor : Colors.grey.shade100,
-          borderRadius: BorderRadius.circular(20)),
-        child: Center(child: Icon(
-          Icons.photo_library_outlined,
-          size: 48, color: context.mutedColor)));
-    }
-  }
-
-  Widget _buildTopSection() {
-    if (_dropData != null && (_dropData!.status == 'live' || _dropData!.secondsUntilDrop > 0)) {
-       return Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: TheDropWidget(
-          dropData: _dropData!,
-          onRefresh: _loadDropData));
-    }
-
-    if (_carouselStyle == 'constellation') {
-      return Padding(
-          padding: const EdgeInsets.only(top: 12),
-          child: ConstellationView(
-              moments: _allMoments, 
-              onTap: (m) => _openMomentViewer(_allMoments.indexOf(m))));
-    }
-
-    return Padding(
-        padding: const EdgeInsets.only(top: 12),
-        child: PolaroidStack(
-            moments: _allMoments,
-            onTap: (m) => _openMomentViewer(_allMoments.indexOf(m))));
-  }
-
-  Widget _buildTagEmptyState() {
-    return Center(
-        child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Icon(Icons.photo_library_outlined,
-                  size: 44, color: context.mutedColor),
-              const SizedBox(height: 12),
-              Text(
-                  _selectedTag == 'All'
-                      ? 'No moments yet'
-                      : 'No $_selectedTag moments yet',
-                  style:
-                      AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
-              const SizedBox(height: 6),
-              Text('Be the first to share one',
-                  style:
-                      AppTypography.caption.copyWith(color: context.mutedColor)),
-              const SizedBox(height: 16),
-              LiquidGlassButton(
-                  size: LiquidButtonSize.md,
-                  onPressed: openCreateMoment,
-                  child: Text('Create Moment', style: AppTypography.buttonText)),
-            ])));
-  }
-}
-
-class _FilterTabsDelegate extends SliverPersistentHeaderDelegate {
-  final String selectedTag;
-  final Function(String) onTagSelected;
-  final Color backgroundColor;
-
-  _FilterTabsDelegate({
-    required this.selectedTag,
-    required this.onTagSelected,
-    required this.backgroundColor,
-  });
-
-  @override
-  double get minExtent => 52;
-  @override
-  double get maxExtent => 52;
-  
-  @override
-  bool shouldRebuild(_FilterTabsDelegate old) =>
-    old.selectedTag != selectedTag ||
-    old.backgroundColor != backgroundColor;
-
-  @override
-  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return Container(
-          color: backgroundColor,
-          child: OverflowBox(
-            minHeight: 52,
-            maxHeight: 52,
-            alignment: Alignment.topCenter,
-            child: _buildTabs(context),
+          IconButton(
+            icon: const Icon(Icons.add_a_photo_outlined, color: Colors.white),
+            onPressed: () async {
+              final result = await Navigator.push(context, MaterialPageRoute(builder: (_) => const MomentCreationFlow()));
+              if (result == true) _loadMoments();
+            },
           ),
-        );
-      }
-    );
-  }
-
-  Widget _buildTabs(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        border: Border(
-          bottom: BorderSide(
-            color: context.borderColor))),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: ['All', 'Event', 'Meetup', 'Vibe']
-            .map((tag) => Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                  child: GestureDetector(
-                    onTap: () => onTagSelected(tag),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-                      decoration: BoxDecoration(
-                        color: selectedTag == tag ? context.primaryColor : context.surfaceColor,
-                        borderRadius: BorderRadius.circular(999),
-                        border: Border.all(
-                            color: selectedTag == tag ? context.primaryColor : context.borderColor,
-                            width: 1),
-                      ),
-                      child: Text(tag,
-                          style: TextStyle(
-                            fontFamily: 'DMSans',
-                            fontSize: 13,
-                            color: selectedTag == tag ? Colors.white : context.mutedColor,
-                            fontWeight: selectedTag == tag ? FontWeight.w600 : FontWeight.w400)),
-                    ),
-                  ),
-                ))
-            .toList(),
+        ],
+      ),
+      body: TabBarView(
+        controller: _feedTabController,
+        children: [
+          _buildFeed(),
+          _buildPlaceholder('Connections Feed'),
+          _buildPlaceholder('Discover Moments'),
+          _buildPlaceholder('Saved Moments'),
+        ],
       ),
     );
   }
+
+  Widget _buildFeed() {
+    if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_moments.isEmpty) return _buildEmptyState();
+
+    return RefreshIndicator(
+      onRefresh: _loadMoments,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        itemCount: _moments.length,
+        itemBuilder: (context, index) => _NewMomentCard(moment: _moments[index]),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.photo_library_outlined, size: 64, color: Colors.white24),
+          const SizedBox(height: 16),
+          const Text('No moments yet', style: TextStyle(color: Colors.white54)),
+          const SizedBox(height: 24),
+          ElevatedButton(
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const MomentCreationFlow())),
+            style: ElevatedButton.styleFrom(backgroundColor: AppConstants.primaryRed),
+            child: const Text('Share your first moment'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPlaceholder(String text) {
+    return Center(child: Text(text, style: const TextStyle(color: Colors.white54)));
+  }
 }
 
-class _MomentCard extends StatefulWidget {
+class _NewMomentCard extends StatelessWidget {
   final Moment moment;
-  final VoidCallback onImageTap;
-
-  const _MomentCard({
-    required this.moment,
-    required this.onImageTap,
-  });
-
-  @override
-  State<_MomentCard> createState() => _MomentCardState();
-}
-
-class _MomentCardState extends State<_MomentCard> {
-  late bool _isLiked;
-  late int _likeCount;
-  late bool _isSaved;
-
-  @override
-  void initState() {
-    super.initState();
-    _isLiked = widget.moment.isLiked;
-    _likeCount = widget.moment.likeCount;
-    _isSaved = widget.moment.isSaved;
-  }
-
-  Future<void> _toggleLike() async {
-    final wasLiked = _isLiked;
-    setState(() {
-      _isLiked = !wasLiked;
-      _likeCount += wasLiked ? -1 : 1;
-    });
-    try {
-      await ApiClient.instance.dio.post('/api/v1/moments/${widget.moment.id}/like/', data: {});
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isLiked = wasLiked;
-          _likeCount += wasLiked ? 1 : -1;
-        });
-      }
-    }
-  }
-
-  Future<void> _toggleSave() async {
-    final wasSaved = _isSaved;
-    setState(() {
-      _isSaved = !wasSaved;
-    });
-    try {
-      await ApiClient.instance.dio.post('/api/v1/moments/${widget.moment.id}/save/', data: {});
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSaved = wasSaved;
-        });
-      }
-    }
-  }
+  const _NewMomentCard({required this.moment});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: context.surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.borderColor, width: 1),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 12,
-            offset: const Offset(0, 3),
-          )
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 12, 8, 8),
-            child: Row(
-              children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundImage: (widget.moment.userAvatarUrl != null && widget.moment.userAvatarUrl!.isNotEmpty) 
-                      ? NetworkImage(widget.moment.userAvatarUrl!) 
-                      : null,
-                  backgroundColor: context.primaryColor.withOpacity(0.1),
-                  child: (widget.moment.userAvatarUrl == null || widget.moment.userAvatarUrl!.isEmpty) 
-                      ? Icon(Icons.person_outline, size: 18, color: context.primaryColor) 
-                      : null,
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(widget.moment.userName,
-                          style: AppTypography.labelMedium
-                              .copyWith(fontWeight: FontWeight.w600, color: context.textColor)),
-                      if (widget.moment.trackName != null && widget.moment.trackName!.isNotEmpty)
-                        Row(children: [
-                          const Icon(Icons.music_note, size: 10, color: Color(0xFF1DB954)),
-                          const SizedBox(width: 4),
-                          Expanded(child: Text(
-                            '${widget.moment.trackName} — ${widget.moment.trackArtist ?? ''}',
-                            style: AppTypography.caption.copyWith(color: const Color(0xFF1DB954), fontSize: 10),
-                            maxLines: 1, overflow: TextOverflow.ellipsis)),
-                        ]),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: context.primaryColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    widget.moment.type.name.toUpperCase(),
-                    style: AppTypography.caption.copyWith(color: context.primaryColor, fontWeight: FontWeight.w600, fontSize: 10),
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          GestureDetector(
-            onDoubleTap: _toggleLike,
-            onTap: widget.onImageTap,
-            child: ClipRRect(
-              borderRadius: BorderRadius.zero,
-              child: Hero(
-                tag: 'moment_${widget.moment.id}',
-                child: SafeNetworkImage(
-                  url: widget.moment.photoUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: 300,
-                ),
-              ),
-            ),
-          ),
-
-          if (widget.moment.location != null)
+    return GestureDetector(
+      onLongPress: () => ReportModal.show(context, targetType: 'moment', targetId: moment.id),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Icon(Icons.location_on_outlined, size: 13, color: context.mutedColor),
-                  const SizedBox(width: 3),
-                  Text(widget.moment.location!, style: AppTypography.caption.copyWith(color: context.mutedColor)),
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundImage: moment.userAvatarUrl != null ? NetworkImage(moment.userAvatarUrl!) : null,
+                    child: moment.userAvatarUrl == null ? const Icon(Icons.person) : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(moment.userName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                        if (moment.location != null)
+                          Text(moment.location!, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.more_vert, color: Colors.white54),
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        backgroundColor: Colors.grey[900],
+                        builder: (ctx) => Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ListTile(
+                              leading: const Icon(Icons.report, color: Colors.white),
+                              title: const Text('Report', style: TextStyle(color: Colors.white)),
+                              onTap: () {
+                                Navigator.pop(ctx);
+                                ReportModal.show(context, targetType: 'moment', targetId: moment.id);
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
-            child: Text(
-              widget.moment.caption,
-              style: AppTypography.bodyMedium.copyWith(color: context.textColor),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            // Multi-media Carousel
+            AspectRatio(
+              aspectRatio: 1,
+              child: moment.gallery.isEmpty
+                  ? SafeNetworkImage(url: moment.photoUrl, fit: BoxFit.cover)
+                  : PageView.builder(
+                      itemCount: moment.gallery.length,
+                      itemBuilder: (context, index) => SafeNetworkImage(
+                        url: moment.gallery[index].imageUrl,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
             ),
-          ),
 
-          Padding(
-            padding: const EdgeInsets.fromLTRB(8, 0, 8, 10),
-            child: Row(
-              children: [
-                _MomentAction(
-                  icon: _isLiked ? Icons.favorite : Icons.favorite_border,
-                  color: _isLiked ? context.primaryColor : context.mutedColor,
-                  label: '$_likeCount',
-                  onTap: _toggleLike,
-                ),
-                const SizedBox(width: 4),
-                _MomentAction(
-                  icon: Icons.chat_bubble_outline,
-                  label: '${widget.moment.commentCount}',
-                  onTap: () => showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (_) => CommentsBottomSheet(momentId: widget.moment.id)),
-                ),
-                const Spacer(),
-                _MomentAction(
-                  icon: _isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  color: _isSaved ? context.primaryColor : context.mutedColor,
-                  label: '',
-                  onTap: _toggleSave,
-                ),
-              ],
+            // Reactions Row
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                children: [
+                  const _ReactionItem(icon: Icons.favorite_border, label: '❤️'),
+                  const _ReactionItem(icon: Icons.chat_bubble_outline, label: '😂'),
+                  const _ReactionItem(icon: Icons.sentiment_satisfied_alt_outlined, label: '😮'),
+                  const _ReactionItem(icon: Icons.local_fire_department_outlined, label: '🔥'),
+                  const Spacer(),
+                  const Icon(Icons.bookmark_border, color: Colors.white),
+                ],
+              ),
             ),
-          ),
-        ],
+
+            // Music Indicator
+            if (moment.trackName != null)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(
+                  children: [
+                    const Icon(Icons.music_note, color: Colors.white54, size: 14),
+                    const SizedBox(width: 4),
+                    Text('${moment.trackName} • ${moment.trackArtist}', style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                  ],
+                ),
+              ),
+
+            // Caption
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: RichText(
+                text: TextSpan(
+                  style: const TextStyle(color: Colors.white),
+                  children: [
+                    TextSpan(text: moment.userName, style: const TextStyle(fontWeight: FontWeight.bold)),
+                    const TextSpan(text: ' '),
+                    TextSpan(text: moment.caption),
+                  ],
+                ),
+              ),
+            ),
+            
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text('View all ${moment.commentCount} comments', style: const TextStyle(color: Colors.white38, fontSize: 13)),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _MomentAction extends StatelessWidget {
+class _ReactionItem extends StatelessWidget {
   final IconData icon;
   final String label;
-  final Color? color;
-  final VoidCallback onTap;
-
-  const _MomentAction({
-    required this.icon,
-    required this.label,
-    this.color,
-    required this.onTap,
-  });
+  const _ReactionItem({required this.icon, required this.label});
 
   @override
   Widget build(BuildContext context) {
-    return TextButton.icon(
-      onPressed: onTap,
-      icon: Icon(icon, size: 16, color: color ?? context.mutedColor),
-      label: label.isNotEmpty ? Text(label, style: AppTypography.caption.copyWith(color: context.mutedColor)) : const SizedBox.shrink(),
-      style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        minimumSize: Size.zero,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+    return Padding(
+      padding: const EdgeInsets.only(right: 20),
+      child: Column(
+        children: [
+          Icon(icon, color: Colors.white, size: 24),
+          const SizedBox(height: 2),
+          Text(label, style: const TextStyle(fontSize: 10)),
+        ],
       ),
     );
   }

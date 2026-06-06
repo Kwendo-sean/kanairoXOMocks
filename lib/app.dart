@@ -9,9 +9,14 @@ import 'package:kanairoxo/screens/couples/couple_home_screen.dart';
 import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
-import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
+import 'package:kanairoxo/screens/onboarding/new_onboarding_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/settings/settings_screen.dart';
+import 'package:kanairoxo/screens/settings/blocked_accounts_screen.dart';
+import 'package:kanairoxo/screens/settings/privacy_settings_screen.dart';
+import 'package:kanairoxo/screens/settings/notification_settings_screen.dart';
+import 'package:kanairoxo/screens/settings/delete_account_screen.dart';
+import 'package:kanairoxo/screens/premium/premium_screen.dart';
 import 'package:kanairoxo/screens/messages/date_requests_screen.dart';
 import 'package:kanairoxo/screens/messages/date_payment_screen.dart';
 import 'package:kanairoxo/models/date_request_model.dart';
@@ -52,7 +57,7 @@ class KanairoXOApp extends StatelessWidget {
         return null;
       },
       routes: {
-        '/onboarding': (context) => OnboardingScreen(onComplete: () => Navigator.pushReplacementNamed(context, '/signup')),
+        '/onboarding': (context) => const NewOnboardingScreen(),
         '/login': (context) => LoginScreen(
               onLoginSuccess: () {
                 Navigator.of(context).pushReplacementNamed('/');
@@ -61,12 +66,7 @@ class KanairoXOApp extends StatelessWidget {
             ),
         '/signup': (context) => SignupScreen(
               onSignupSuccess: () {
-                final authProvider = Provider.of<AuthProvider>(context, listen: false);
-                if (authProvider.isCoupleAccount) {
-                  Navigator.pushReplacementNamed(context, '/partner_selection');
-                } else {
-                  Navigator.pushReplacementNamed(context, '/profile_editor');
-                }
+                Navigator.pushReplacementNamed(context, '/onboarding');
               },
               onLoginTap: () => Navigator.pushNamed(context, '/login'),
             ),
@@ -78,6 +78,11 @@ class KanairoXOApp extends StatelessWidget {
         '/main_couple': (context) => CoupleHomeScreen(),
         '/notifications': (context) => const NotificationScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/settings/blocked': (context) => const BlockedAccountsScreen(),
+        '/settings/privacy': (context) => const PrivacySettingsScreen(),
+        '/settings/notifications': (context) => const NotificationSettingsScreen(),
+        '/settings/delete-account': (context) => const DeleteAccountScreen(),
+        '/premium': (context) => const PremiumScreen(),
         '/date-requests': (context) => const DateRequestsScreen(),
         '/my-tickets': (context) => const MyTicketsScreen(),
       },

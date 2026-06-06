@@ -1,7 +1,7 @@
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'dart:io';
-import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart' as dio;
 import 'dart:convert';
 
 class MomentService {
@@ -51,15 +51,13 @@ class MomentService {
     final response = await _api.get('api/v1/moments/$id/comments/');
     final List list = response is List 
         ? response 
-        : (response['results'] ?? response['comments'] ?? []);
+        : (response['results'] ?? []);
     return list;
   }
 
   Future<dynamic> addComment(String id, String text) async {
     return await _api.post('api/v1/moments/$id/comments/', {'text': text});
   }
-
-  Future<dynamic> postComment(String id, String text) => addComment(id, text);
 
   Future<List<LinkedEvent>> getLinkableEvents() async {
     try {
@@ -71,44 +69,63 @@ class MomentService {
     }
   }
 
+  // --- NEW ENDPOINTS FOR ROLLOUT ---
+
   Future<Moment> createMoment({
     required String caption,
     required String type,
-    required File photo,
+    required File photo, // First/main media
     String? location,
     int? linkedEventId,
     Map<String, String>? trackData,
+    String? visibility,
   }) async {
-    final token = await _api.getAccessToken();
-    final request = http.MultipartRequest(
-      'POST',
-      Uri.parse('${ApiClient.baseUrl}/api/v1/moments/'),
-    );
+    final formData = dio.FormData.fromMap({
+      'caption': caption,
+      'tag': type,
+      'location_name': location,
+      'linked_event': linkedEventId,
+      'visibility': visibility?.toLowerCase(),
+      'photo': await dio.MultipartFile.fromFile(photo.path),
+    });
 
-    request.headers['Authorization'] = 'Bearer $token';
-    request.fields['caption'] = caption;
-    request.fields['tag'] = type; // The API uses 'tag' based on Model mapping
-    if (location != null) request.fields['location_name'] = location;
-    if (linkedEventId != null) request.fields['linked_event'] = linkedEventId.toString();
-    
     if (trackData != null) {
-      request.fields['track_name'] = trackData['name'] ?? '';
-      request.fields['track_artist'] = trackData['artist'] ?? '';
-      request.fields['track_image_url'] = trackData['image_url'] ?? '';
-      request.fields['track_preview_url'] = trackData['preview_url'] ?? '';
+      formData.fields.addAll([
+        dio.MapEntry('track_name', trackData['name'] ?? ''),
+        dio.MapEntry('track_artist', trackData['artist'] ?? ''),
+        dio.MapEntry('track_image_url', trackData['image_url'] ?? ''),
+        dio.MapEntry('track_preview_url', trackData['preview_url'] ?? ''),
+      ]);
     }
-    
-    request.files.add(
-      await http.MultipartFile.fromPath('photo', photo.path),
-    );
 
-    final streamedResponse = await request.send();
-    final response = await http.Response.fromStream(streamedResponse);
+    final response = await _api.post('api/v1/moments/', formData);
+    return Moment.fromJson(response);
+  }
 
-    if (response.statusCode == 201) {
-      return Moment.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to create moment: ${response.body}');
-    }
+  Future<void> attachMedia({
+    required String momentId,
+    required File file,
+    required String mediaType,
+    required int position,
+    int? durationMs,
+  }) async {
+    final formData = dio.FormData.fromMap({
+      'file': await dio.MultipartFile.fromFile(file.path),
+      'media_type': mediaType,
+      'position': position,
+      'duration_ms': durationMs,
+    });
+    await _api.post('api/v1/moments/$momentId/media/', formData);
+  }
+
+  Future<void> saveDraft(Map<String, dynamic> payload) async {
+    await _api.post('api/v1/moments/drafts/', payload);
+  }
+
+  Future<void> scheduleMoment(DateTime publishAt, Map<String, dynamic> payload) async {
+    await _api.post('api/v1/moments/schedule/', {
+      'publish_at': publishAt.toIso8601String(),
+      'payload': payload,
+    });
   }
 }

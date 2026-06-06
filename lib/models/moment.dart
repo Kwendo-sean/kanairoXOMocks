@@ -33,14 +33,32 @@ class LinkedEvent {
   }
 }
 
+class MomentMedia {
+  final String imageUrl;
+  final String mediaType; // photo, video
+  final int? durationMs;
+
+  MomentMedia({required this.imageUrl, required this.mediaType, this.durationMs});
+
+  factory MomentMedia.fromJson(Map<String, dynamic> json) {
+    return MomentMedia(
+      imageUrl: ApiConstants.fixMediaUrl(json['image_url'] ?? json['file']),
+      mediaType: json['media_type'] ?? 'photo',
+      durationMs: json['duration_ms'],
+    );
+  }
+}
+
 class Moment {
   final String id;
   final String userName;
+  final String userId;
   final String? userAvatarUrl;
   final String? eventName;
   final DateTime date;
   final MomentType type;
-  final String photoUrl;
+  final String photoUrl; // Legacy/Main photo
+  final List<MomentMedia> gallery;
   final String caption;
   final String? location;
   
@@ -67,11 +85,13 @@ class Moment {
   Moment({
     required this.id,
     required this.userName,
+    required this.userId,
     this.userAvatarUrl,
     this.eventName,
     required this.date,
     required this.type,
     required this.photoUrl,
+    this.gallery = const [],
     required this.caption,
     this.location,
     required this.likesCount,
@@ -111,17 +131,24 @@ class Moment {
         ?? userJson?['profile_photo'];
     
     final userName = userJson?['full_name'] ?? userJson?['display_name'] ?? userJson?['username'] ?? json['author_name'] ?? 'User';
+    final userId = userJson?['id']?.toString() ?? userJson?['public_id']?.toString() ?? json['author_id']?.toString() ?? '';
 
     LinkedEvent? linked;
     if (json['linked_event'] != null) {
       linked = LinkedEvent.fromJson(json['linked_event']);
     }
 
+    final List<MomentMedia> gallery = (json['gallery'] as List? ?? [])
+        .map((m) => MomentMedia.fromJson(m as Map<String, dynamic>))
+        .toList();
+
     return Moment(
       id: json['id']?.toString() ?? '',
+      userId: userId,
       caption: json['caption'] ?? json['description'] ?? '',
       type: MomentTypeExtension.fromString(json['tag'] ?? json['category'] ?? json['type'] ?? 'vibe'),
       photoUrl: ApiConstants.fixMediaUrl(rawImageUrl?.toString()),
+      gallery: gallery,
       date: DateTime.tryParse(json['created_at'] ?? json['timestamp'] ?? '') ?? DateTime.now(),
       userName: userName.toString(),
       userAvatarUrl: rawUserPhoto != null ? ApiConstants.fixMediaUrl(rawUserPhoto.toString()) : null,
