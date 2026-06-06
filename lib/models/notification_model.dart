@@ -1,143 +1,96 @@
 import 'package:flutter/foundation.dart';
 
-enum NotificationType {
-  connectionRequest,
-  connectionAccepted,
-  connectionRejected,
-  newMessage,
-  eventInvitation,
-  eventReminder,
-  ticketReady,
-  paymentSuccess,
-  paymentFailed,
-  newComment,
-  newLike,
-  momentLike,
-  momentComment,
-  profileView,
-  systemAlert,
-  communityUpdate,
-}
-
-extension NotificationTypeExtension on NotificationType {
-  String get value {
-    return switch (this) {
-      NotificationType.momentLike => 'moment_like',
-      NotificationType.momentComment => 'moment_comment',
-      NotificationType.connectionRequest => 'connection_request',
-      NotificationType.connectionAccepted => 'connection_accepted',
-      NotificationType.connectionRejected => 'connection_rejected',
-      NotificationType.newMessage => 'new_message',
-      NotificationType.eventInvitation => 'event_invitation',
-      NotificationType.eventReminder => 'event_reminder',
-      NotificationType.ticketReady => 'ticket_ready',
-      NotificationType.paymentSuccess => 'payment_success',
-      NotificationType.paymentFailed => 'payment_failed',
-      NotificationType.newComment => 'new_comment',
-      NotificationType.newLike => 'new_like',
-      NotificationType.profileView => 'profile_view',
-      NotificationType.systemAlert => 'system_alert',
-      NotificationType.communityUpdate => 'community_update',
-    };
-  }
-
-  static NotificationType fromString(String value) {
-    return switch (value) {
-      'moment_like' => NotificationType.momentLike,
-      'moment_comment' => NotificationType.momentComment,
-      'connection_request' => NotificationType.connectionRequest,
-      'connection_accepted' => NotificationType.connectionAccepted,
-      'connection_rejected' => NotificationType.connectionRejected,
-      'new_message' => NotificationType.newMessage,
-      'event_invitation' => NotificationType.eventInvitation,
-      'event_reminder' => NotificationType.eventReminder,
-      'ticket_ready' => NotificationType.ticketReady,
-      'payment_success' => NotificationType.paymentSuccess,
-      'payment_failed' => NotificationType.paymentFailed,
-      'new_comment' => NotificationType.newComment,
-      'new_like' => NotificationType.newLike,
-      'profile_view' => NotificationType.profileView,
-      'system_alert' => NotificationType.systemAlert,
-      'community_update' => NotificationType.communityUpdate,
-      _ => NotificationType.systemAlert,
-    };
-  }
-}
-
 @immutable
-class Notification {
-  final String id;
-  final String userId;
-  final NotificationType type;
-  final String title;
-  final String body;
-  final String? icon;
-  final String? imageUrl;
-  final Map<String, dynamic> data;
-  final DateTime timestamp;
-  final String timeAgo; // Added as per API requirement
+class NotificationModel {
+  final int id;
+  final String notificationType;
+  final String message;
+  final NotificationSender? sender;
+  final int? referenceId;
   final bool isRead;
-  final Map<String, dynamic>? sender;
+  final DateTime createdAt;
+  final Map<String, dynamic> data; // Added to handle extra fields like connection_id
 
-  const Notification({
+  const NotificationModel({
     required this.id,
-    required this.userId,
-    required this.type,
-    required this.title,
-    required this.body,
-    this.icon,
-    this.imageUrl,
-    this.data = const {},
-    required this.timestamp,
-    required this.timeAgo,
-    this.isRead = false,
+    required this.notificationType,
+    required this.message,
     this.sender,
+    this.referenceId,
+    required this.isRead,
+    required this.createdAt,
+    this.data = const {},
   });
 
-  factory Notification.fromJson(Map<String, dynamic> json) {
-    return Notification(
-      id: json['id']?.toString() ?? '',
-      userId: json['user']?.toString() ?? '',
-      type: NotificationTypeExtension.fromString(json['type'] ?? ''),
-      title: json['title'] ?? '',
-      body: json['body'] ?? '',
-      icon: json['icon'],
-      imageUrl: json['image_url'],
-      data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : {},
-      timestamp: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
-      timeAgo: json['time_ago'] ?? '',
+  bool get isMomentNotification => [
+        'moment_like',
+        'moment_comment',
+        'moment_save',
+        'new_like',
+        'new_comment'
+      ].contains(notificationType);
+
+  bool get isConnectionNotification => [
+        'connection_request',
+        'connection_accepted',
+        'connection_rejected'
+      ].contains(notificationType);
+
+  factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    return NotificationModel(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      notificationType: json['notification_type'] ?? json['type'] ?? '',
+      message: json['message'] ?? json['body'] ?? '',
+      sender: json['sender'] != null ? NotificationSender.fromJson(json['sender']) : null,
+      referenceId: json['reference_id'] is int ? json['reference_id'] : int.tryParse(json['reference_id']?.toString() ?? ''),
       isRead: json['is_read'] ?? false,
-      sender: json['sender'] is Map ? Map<String, dynamic>.from(json['sender']) : null,
+      createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
+      data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : (json['results_data'] is Map ? Map<String, dynamic>.from(json['results_data']) : {}),
     );
   }
 
-  Notification copyWith({
-    String? id,
-    String? userId,
-    NotificationType? type,
-    String? title,
-    String? body,
-    String? icon,
-    String? imageUrl,
-    Map<String, dynamic>? data,
-    DateTime? timestamp,
-    String? timeAgo,
+  NotificationModel copyWith({
+    int? id,
+    String? notificationType,
+    String? message,
+    NotificationSender? sender,
+    int? referenceId,
     bool? isRead,
-    Map<String, dynamic>? sender,
+    DateTime? createdAt,
+    Map<String, dynamic>? data,
   }) {
-    return Notification(
+    return NotificationModel(
       id: id ?? this.id,
-      userId: userId ?? this.userId,
-      type: type ?? this.type,
-      title: title ?? this.title,
-      body: body ?? this.body,
-      icon: icon ?? this.icon,
-      imageUrl: imageUrl ?? this.imageUrl,
-      data: data ?? this.data,
-      timestamp: timestamp ?? this.timestamp,
-      timeAgo: timeAgo ?? this.timeAgo,
-      isRead: isRead ?? this.isRead,
+      notificationType: notificationType ?? this.notificationType,
+      message: message ?? this.message,
       sender: sender ?? this.sender,
+      referenceId: referenceId ?? this.referenceId,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      data: data ?? this.data,
+    );
+  }
+}
+
+class NotificationSender {
+  final int id;
+  final String name;
+  final String? photo;
+  final bool isOfficial; // Added as per item 5
+
+  const NotificationSender({
+    required this.id,
+    required this.name,
+    this.photo,
+    this.isOfficial = false,
+  });
+
+  factory NotificationSender.fromJson(Map<String, dynamic> json) {
+    return NotificationSender(
+      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      name: json['name'] ?? json['username'] ?? 'User',
+      photo: json['photo'] ?? json['profile_photo'] ?? json['avatar_url'],
+      isOfficial: json['is_official'] ?? false,
     );
   }
 }

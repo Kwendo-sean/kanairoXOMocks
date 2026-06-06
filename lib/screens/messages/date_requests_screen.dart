@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../models/date_request_model.dart';
 import '../../providers/date_plan_provider.dart';
 
@@ -95,7 +96,7 @@ class _DateRequestsScreenState extends State<DateRequestsScreen> with SingleTick
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.themePrimary(context),
+              backgroundColor: const Color(0xFF9B111E),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
               elevation: 0,
             ),
@@ -125,33 +126,32 @@ class _DateRequestsScreenState extends State<DateRequestsScreen> with SingleTick
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: theme.scaffoldBackgroundColor,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: theme.colorScheme.onSurface),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           "Date Requests",
-          style: GoogleFonts.cormorantGaramond(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: theme.colorScheme.onSurface,
-          ),
+          style: AppTypography.screenTitle.copyWith(color: textColor),
         ),
         bottom: TabBar(
           controller: _tabController,
-          indicatorColor: AppColors.themePrimary(context),
+          indicatorColor: const Color(0xFF9B111E),
           indicatorWeight: 2,
-          labelColor: AppColors.themePrimary(context),
-          unselectedLabelColor: theme.hintColor,
-          labelStyle: const TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w600),
-          unselectedLabelStyle: const TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w400),
+          labelColor: const Color(0xFF9B111E),
+          unselectedLabelColor: const Color(0xFF999999),
+          labelStyle: const TextStyle(fontFamily: 'DMSans', fontSize: 14, fontWeight: FontWeight.w600),
+          unselectedLabelStyle: const TextStyle(fontFamily: 'DMSans', fontSize: 14, fontWeight: FontWeight.w500),
           tabs: const [
             Tab(text: "Received"),
             Tab(text: "Sent"),
@@ -206,7 +206,7 @@ class _DateRequestsScreenState extends State<DateRequestsScreen> with SingleTick
           const SizedBox(height: 20),
           Text(
             "No date requests yet",
-            style: TextStyle(fontFamily: 'DM Sans', fontSize: 17, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+            style: TextStyle(fontFamily: 'DMSans', fontSize: 17, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
           ),
           const SizedBox(height: 8),
           Padding(
@@ -214,7 +214,7 @@ class _DateRequestsScreenState extends State<DateRequestsScreen> with SingleTick
             child: Text(
               "When someone plans a date with you, it will appear here",
               textAlign: TextAlign.center,
-              style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, color: theme.hintColor),
+              style: TextStyle(fontFamily: 'DMSans', fontSize: 14, color: theme.hintColor),
             ),
           ),
         ],
@@ -334,7 +334,7 @@ class _RequestCard extends StatelessWidget {
                     ),
                     child: Text(
                       request.status.toUpperCase(),
-                      style: const TextStyle(fontFamily: 'DM Sans', color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                      style: const TextStyle(fontFamily: 'DMSans', color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                     ),
                   ),
                 ),
@@ -354,7 +354,7 @@ class _RequestCard extends StatelessWidget {
                       backgroundColor: theme.dividerColor.withOpacity(0.1),
                       backgroundImage: hasPersonPhoto ? NetworkImage(personPhoto) : null,
                       child: !hasPersonPhoto 
-                          ? Text(person.name.isNotEmpty ? person.name[0] : '?', style: GoogleFonts.cormorantGaramond(fontSize: 20, color: AppColors.themePrimary(context), fontWeight: FontWeight.bold))
+                          ? Text(person.name.isNotEmpty ? person.name[0] : '?', style: GoogleFonts.cormorantGaramond(fontSize: 20, color: const Color(0xFF9B111E), fontWeight: FontWeight.bold))
                           : null,
                     ),
                     const SizedBox(width: 12),
@@ -364,14 +364,14 @@ class _RequestCard extends StatelessWidget {
                         children: [
                           Text(
                             isReceived ? person.name : 'Date planned for ${person.name}',
-                            style: TextStyle(fontFamily: 'DM Sans', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
+                            style: TextStyle(fontFamily: 'DMSans', fontSize: 16, fontWeight: FontWeight.bold, color: theme.colorScheme.onSurface),
                           ),
                           if (isReceived)
-                            Text("wants to take you out", style: TextStyle(fontFamily: 'DM Sans', fontSize: 12, color: theme.hintColor)),
+                            Text("wants to take you out", style: TextStyle(fontFamily: 'DMSans', fontSize: 12, color: theme.hintColor)),
                         ],
                       ),
                     ),
-                    Text(_timeAgo(request.createdAt), style: TextStyle(fontFamily: 'DM Sans', fontSize: 11, color: theme.hintColor.withOpacity(0.7))),
+                    Text(_timeAgo(request.createdAt), style: TextStyle(fontFamily: 'DMSans', fontSize: 11, color: theme.hintColor.withOpacity(0.7))),
                   ],
                 ),
                 if (request.message != null && request.message!.isNotEmpty) ...[
@@ -410,7 +410,7 @@ class _RequestCard extends StatelessWidget {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                           ),
-                          child: Text("Decline", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.bold, color: theme.hintColor)),
+                          child: Text("Decline", style: TextStyle(fontFamily: 'DMSans', fontSize: 14, fontWeight: FontWeight.bold, color: theme.hintColor)),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -418,14 +418,14 @@ class _RequestCard extends StatelessWidget {
                         child: ElevatedButton(
                           onPressed: isProcessing ? null : () => onRespond?.call(request.id, 'accepted'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.themePrimary(context),
+                            backgroundColor: const Color(0xFF9B111E),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             elevation: 0,
                           ),
                           child: isProcessing 
                               ? const SizedBox(height: 18, width: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                              : const Text("Accept", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
+                              : const Text("Accept", style: TextStyle(fontFamily: 'DMSans', fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white)),
                         ),
                       ),
                     ],
@@ -443,9 +443,9 @@ class _RequestCard extends StatelessWidget {
                       ),
                       child: Column(
                         children: [
-                          const Text("Booking Confirmed", style: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
+                          const Text("Booking Confirmed", style: TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.bold, color: Color(0xFF2E7D32))),
                           const SizedBox(height: 2),
-                          Text("Receipt: ${request.paymentReference}", style: const TextStyle(fontFamily: 'DM Sans', fontSize: 11, color: Color(0xFF2E7D32))),
+                          Text("Receipt: ${request.paymentReference}", style: const TextStyle(fontFamily: 'DMSans', fontSize: 11, color: Color(0xFF2E7D32))),
                         ],
                       ),
                     )
@@ -460,7 +460,7 @@ class _RequestCard extends StatelessWidget {
                       ),
                       child: isProcessing 
                           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                          : const Text("Pay Reservation — KES 500", style: TextStyle(fontFamily: 'DM Sans', fontWeight: FontWeight.bold, color: Colors.white)),
+                          : const Text("Pay Reservation — KES 500", style: TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                 ],
               ],
@@ -475,7 +475,7 @@ class _RequestCard extends StatelessWidget {
     return Container(
       height: 140,
       color: Theme.of(context).dividerColor.withOpacity(0.1),
-      child: Center(child: Icon(Icons.restaurant_outlined, color: AppColors.themePrimary(context).withOpacity(0.5), size: 40)),
+      child: Center(child: Icon(Icons.restaurant_outlined, color: const Color(0xFF9B111E).withOpacity(0.5), size: 40)),
     );
   }
 
@@ -483,11 +483,11 @@ class _RequestCard extends StatelessWidget {
     final theme = Theme.of(context);
     return Row(
       children: [
-        Icon(icon, size: 16, color: AppColors.themePrimary(context)),
+        Icon(icon, size: 16, color: const Color(0xFF9B111E)),
         const SizedBox(width: 10),
-        Text(label, style: TextStyle(fontFamily: 'DM Sans', fontSize: 13, color: theme.hintColor, fontWeight: FontWeight.w500)),
+        Text(label, style: TextStyle(fontFamily: 'DMSans', fontSize: 13, color: theme.hintColor, fontWeight: FontWeight.w500)),
         const SizedBox(width: 8),
-        Expanded(child: Text(value, style: TextStyle(fontFamily: 'DM Sans', fontSize: 13, color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
+        Expanded(child: Text(value, style: TextStyle(fontFamily: 'DMSans', fontSize: 13, color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
       ],
     );
   }

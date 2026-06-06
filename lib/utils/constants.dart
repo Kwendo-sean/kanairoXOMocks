@@ -15,10 +15,13 @@ class AppConstants {
   static const String categoriesCacheKey = 'cached_categories';
   static const Color primaryBeige = Color(0xFFFAF7F4);
   static const Color primaryRed = Color(0xFF9B111E); // Senior Engineer Update: 9B111E
-  static const Color primaryBlack = Color(0xFF000000);
+  static const Color primaryBlack = Color(0xFF1A1A1A); // Updated to near-black
   static const Color successGreen = Color(0xFF2E7D32);
   static const Color lightGray = Color(0xFFE0E0E0);
   static const Color secondaryGray = Color(0xFF757575);
+
+  static const String ticketRevealRoute = '/ticket-reveal';
+  static const String myTicketsRoute = '/my-tickets';
 }
 
 class AppStrings {

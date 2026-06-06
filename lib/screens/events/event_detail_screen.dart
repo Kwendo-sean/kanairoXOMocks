@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:intl/intl.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import '../../models/data_models.dart';
+import '../../models/ticket_model.dart';
 import '../../providers/events_provider.dart';
-import '../../widgets/loading_indicator.dart';
+import '../../services/api_client.dart';
 import 'ticket_purchase_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -17,11 +21,13 @@ class EventDetailScreen extends StatefulWidget {
 class _EventDetailScreenState extends State<EventDetailScreen> {
   Experience? _experience;
   bool _isLoading = true;
+  bool _hasTicket = false;
 
   @override
   void initState() {
     super.initState();
     _loadEventDetail();
+    _checkTicketStatus();
   }
 
   Future<void> _loadEventDetail() async {
@@ -45,9 +51,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Failed to load event details'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFF9B111E),
         ),
       );
+    }
+  }
+
+  Future<void> _checkTicketStatus() async {
+    try {
+      final response = await ApiClient.instance.get('api/v1/tickets/');
+      final List<dynamic> data = response is List ? response : (response['results'] ?? []);
+      final tickets = data.map((json) => TicketModel.fromJson(json)).toList();
+      
+      if (mounted) {
+        setState(() {
+          _hasTicket = tickets.any((t) => t.event.id.toString() == widget.eventId && t.status == 'confirmed');
+        });
+      }
+    } catch (e) {
+      debugPrint('Error checking ticket status: $e');
     }
   }
 
@@ -58,309 +80,430 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       MaterialPageRoute(
         builder: (context) => TicketPurchaseScreen(event: _experience!),
       ),
-    );
+    ).then((_) => _checkTicketStatus());
   }
 
   Future<void> _handleSaveEvent() async {
     if (_experience == null) return;
-
     try {
-      final result = await Provider.of<EventsProvider>(context, listen: false)
-          .saveExperience(_experience!.id);
-
-      if (!mounted) return;
-
-      if (result['success']) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Event saved successfully'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
+      await Provider.of<EventsProvider>(context, listen: false).toggleSave(_experience!);
+      setState(() {
+        _experience = _experience!.copyWith(isSaved: !(_experience!.isSaved));
+      });
     } catch (e) {
       debugPrint('Error saving event: $e');
     }
   }
 
-  Widget _buildInfoSection(String title, Widget content) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-        ),
-        const SizedBox(height: 8),
-        content,
-        const SizedBox(height: 24),
-      ],
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final primaryColor = const Color(0xFF9B111E);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surfaceColor = isDark ? const Color(0xFF1C1612) : Colors.white;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final mutedTextColor = isDark ? const Color(0xFF999999) : const Color(0xFF444444);
+    final borderColor = isDark ? const Color(0xFF2E2820) : const Color(0xFFE8E0D0);
+
+    if (_isLoading) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: Center(child: CircularProgressIndicator(color: primaryColor)),
+      );
+    }
+
+    if (_experience == null) {
+      return Scaffold(
+        backgroundColor: bgColor,
+        body: const Center(child: Text('Event not found')),
+      );
+    }
+
+    final formattedDate = DateFormat('EEE, d MMM').format(_experience!.startDateTime);
+    final formattedTime = _experience!.formattedTime;
+
     return Scaffold(
-      body: _isLoading
-          ? const Center(child: LoadingIndicator())
-          : _experience == null
-              ? const Center(child: Text('Event not found'))
-              : CustomScrollView(
-                  slivers: [
-                    SliverAppBar(
-                      expandedHeight: 250,
-                      floating: false,
-                      pinned: true,
-                      automaticallyImplyLeading: false,
-                      flexibleSpace: FlexibleSpaceBar(
-                        background: Container(
-                                color: Theme.of(context).primaryColor,
-                              ),
-                        title: Text(_experience!.title),
-                      ),
-                      actions: [
-                        IconButton(
-                          icon: const Icon(Icons.share),
-                          onPressed: () {
-                            // TODO: Implement share
-                          },
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.bookmark_border),
-                          onPressed: _handleSaveEvent,
-                        ),
-                      ],
+      extendBodyBehindAppBar: true,
+      backgroundColor: bgColor,
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(),
+        slivers: [
+          // Hero image — SliverAppBar
+          SliverAppBar(
+            expandedHeight: MediaQuery.of(context).size.height * 0.48,
+            pinned: false,
+            stretch: true,
+            backgroundColor: Colors.transparent,
+            automaticallyImplyLeading: false,
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground],
+              background: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: _experience!.coverUrl ?? _experience!.venueAddress,
+                    fit: BoxFit.cover,
+                    errorWidget: (context, url, error) => Container(
+                      color: isDark ? const Color(0xFF1A1A1A) : const Color(0xFFEDE5D8),
+                      child: Icon(Icons.image_outlined, color: isDark ? Colors.grey[800] : const Color(0xFFBBAA99), size: 56),
                     ),
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            // Organizer section
-                            Row(
-                              children: [
-                                CircleAvatar(
-                                  backgroundImage: _experience!.organizer.profilePicture != null
-                                      ? NetworkImage(_experience!.organizer.profilePicture!)
-                                      : null,
-                                  child: _experience!.organizer.profilePicture == null
-                                      ? Text(_experience!.organizer.firstName.isNotEmpty ? _experience!.organizer.firstName[0] : '')
-                                      : null,
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Hosted by ${_experience!.organizer.firstName}',
-                                        style: Theme.of(context).textTheme.bodyLarge,
-                                      ),
-                                      if (_experience!.organizer.trustScore > 0)
-                                        Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.verified,
-                                              color: Colors.green,
-                                              size: 16,
-                                            ),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              'Trust Score: ${_experience!.organizer.trustScore}',
-                                              style: TextStyle(
-                                                fontSize: 12,
-                                                color: Colors.grey[600],
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
-
-                            const SizedBox(height: 24),
-
-                            // Date and time
-                            _buildInfoSection(
-                              'Date & Time',
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.calendar_today, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(_experience!.formattedDate),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.access_time, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(_experience!.formattedTime),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Location
-                            _buildInfoSection(
-                              'Location',
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.location_on, size: 20),
-                                      const SizedBox(width: 8),
-                                      Text(_experience!.venueName),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    _experience!.venueAddress,
-                                    style: Theme.of(context).textTheme.bodyMedium,
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            // Description
-                            _buildInfoSection(
-                              'About this Experience',
-                              Text(
-                                _experience!.description,
-                                style: Theme.of(context).textTheme.bodyMedium,
-                              ),
-                            ),
-
-                            // Schedule
-                            if (_experience!.schedule.isNotEmpty)
-                              _buildInfoSection(
-                                'Schedule',
-                                Column(
-                                  children: _experience!.schedule.map<Widget>((item) {
-                                    return ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: Container(
-                                        width: 4,
-                                        color: item.isBreak ? Colors.orange : Theme.of(context).primaryColor,
-                                      ),
-                                      title: Text(item.title),
-                                      subtitle: Text(item.description),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-
-                            // Pricing
-                            if (_experience!.pricingTiers.isNotEmpty)
-                              _buildInfoSection(
-                                'Pricing',
-                                Column(
-                                  children: _experience!.pricingTiers.map<Widget>((tier) {
-                                    return Card(
-                                      child: ListTile(
-                                        title: Text(tier.name),
-                                        subtitle: Text(tier.description),
-                                        trailing: Text(
-                                          '${tier.currency} ${tier.price.toStringAsFixed(0)}',
-                                          style: Theme.of(context).textTheme.titleMedium,
-                                        ),
-                                      ),
-                                    );
-                                  }).toList(),
-                                ),
-                              ),
-
-                            // Capacity
-                            _buildInfoSection(
-                              'Capacity',
-                              LinearProgressIndicator(
-                                value: _experience!.capacityPercentage / 100,
-                                backgroundColor: Colors.grey[200],
-                                valueColor: AlwaysStoppedAnimation<Color>(
-                                  _experience!.capacityPercentage > 80
-                                      ? Colors.red
-                                      : Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-
-                            const SizedBox(height: 40),
+                  ),
+                  Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: const [0.4, 1.0],
+                          colors: [
+                            Colors.transparent,
+                            bgColor,
                           ],
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-      bottomNavigationBar: _experience == null
-          ? null
-          : Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.1),
-                    blurRadius: 10,
-                    offset: const Offset(0, -5),
-                  ),
-                ],
-              ),
-              child: Row(
-                children: [
-                  // Price
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          _experience!.priceDisplay,
-                          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
-                        ),
-                        Text(
-                          '${_experience!.ticketsAvailable} spots left',
-                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: Colors.grey[600],
-                              ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Join button
-                  ElevatedButton(
-                    onPressed: _experience!.isFull ? null : _navigateToPurchase,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 32,
-                        vertical: 16,
-                      ),
-                    ),
-                    child: Text(
-                      _experience!.isFull ? 'FULL' : 'JOIN NOW',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
                       ),
                     ),
                   ),
                 ],
               ),
             ),
+            leading: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: CircleAvatar(
+                  backgroundColor: Colors.black.withOpacity(0.35),
+                  radius: 18,
+                  child: IconButton(
+                    padding: EdgeInsets.zero,
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    color: Colors.white,
+                    iconSize: 16,
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          // Content sheet — SliverToBoxAdapter
+          SliverToBoxAdapter(
+            child: Container(
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(28),
+                  topRight: Radius.circular(28),
+                ),
+              ),
+              padding: const EdgeInsets.fromLTRB(24, 28, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Row — title + price
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _experience!.title,
+                          style: TextStyle(
+                            fontFamily: 'CormorantGaramond',
+                            fontSize: 28,
+                            fontWeight: FontWeight.w600,
+                            color: textColor,
+                          ),
+                          maxLines: 3,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        decoration: BoxDecoration(
+                          color: _experience!.basePrice == 0
+                              ? Colors.green.withOpacity(0.1)
+                              : primaryColor.withOpacity(0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _experience!.basePrice == 0
+                                ? Colors.green.withOpacity(0.3)
+                                : primaryColor.withOpacity(0.25),
+                          ),
+                        ),
+                        child: Text(
+                          _experience!.priceDisplay,
+                          style: TextStyle(
+                            fontFamily: 'DMSans',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: _experience!.basePrice == 0
+                                ? Colors.green
+                                : primaryColor,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+
+                  // Organiser row
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor: isDark ? const Color(0xFF2E2820) : const Color(0xFFF0E8E0),
+                        backgroundImage: _experience!.organizer.profilePicture != null
+                            ? NetworkImage(_experience!.organizer.profilePicture!)
+                            : null,
+                        child: _experience!.organizer.profilePicture == null
+                            ? Text(
+                                _experience!.organizer.firstName.isNotEmpty
+                                    ? _experience!.organizer.firstName[0].toUpperCase()
+                                    : '',
+                                style: TextStyle(
+                                  color: textColor,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            "Hosted by",
+                            style: TextStyle(
+                              fontFamily: 'DMSans',
+                              fontSize: 11,
+                              color: Color(0xFF999999),
+                            ),
+                          ),
+                          Text(
+                            _experience!.organizer.firstName,
+                            style: TextStyle(
+                              fontFamily: 'DMSans',
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: textColor,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: 20),
+                  Divider(color: borderColor, height: 1),
+                  const SizedBox(height: 20),
+
+                  // Info rows
+                  _buildInfoRow(
+                    context,
+                    Icons.calendar_today_outlined,
+                    "Date & Time",
+                    "$formattedDate · $formattedTime",
+                  ),
+                  const SizedBox(height: 14),
+                  _buildInfoRow(
+                    context,
+                    Icons.location_on_outlined,
+                    "Location",
+                    "${_experience!.venueName} · ${_experience!.neighborhood}",
+                  ),
+                  const SizedBox(height: 14),
+                  _buildInfoRow(
+                    context,
+                    Icons.confirmation_number_outlined,
+                    "Availability",
+                    "${_experience!.ticketsAvailable} tickets left",
+                  ),
+
+                  const SizedBox(height: 24),
+                  Divider(color: borderColor, height: 1),
+                  const SizedBox(height: 24),
+
+                  // Description section
+                  Text(
+                    "About this Experience",
+                    style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: textColor,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Text(
+                    _experience!.description,
+                    style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 14,
+                      color: mutedTextColor,
+                      height: 1.6,
+                    ),
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Ticket action section
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: surfaceColor,
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: borderColor),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  _experience!.priceDisplay,
+                                  style: TextStyle(
+                                    fontFamily: 'CormorantGaramond',
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w600,
+                                    color: primaryColor,
+                                  ),
+                                ),
+                                Text(
+                                  "${_experience!.ticketsAvailable} tickets left",
+                                  style: const TextStyle(
+                                    fontFamily: 'DMSans',
+                                    fontSize: 12,
+                                    color: Color(0xFF999999),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const Spacer(),
+                            if (_experience!.ticketsAvailable < 20)
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: Colors.orange.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(color: Colors.orange.withOpacity(0.3)),
+                                ),
+                                child: Text(
+                                  "Limited",
+                                  style: TextStyle(
+                                    fontFamily: 'DMSans',
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.orange[700],
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        _hasTicket
+                            ? Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(32),
+                                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.check_circle_outline_rounded, color: Colors.green[600], size: 18),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      "You're Going",
+                                      style: TextStyle(
+                                        color: Colors.green[700],
+                                        fontFamily: 'DMSans',
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: _navigateToPurchase,
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: primaryColor,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(32),
+                                    ),
+                                    elevation: 0,
+                                  ),
+                                  child: const Text(
+                                    "Get Tickets",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontFamily: 'DMSans',
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoRow(BuildContext context, IconData icon, String label, String value) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final primaryColor = const Color(0xFF9B111E);
+
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: primaryColor.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: primaryColor, size: 18),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 11,
+                color: Color(0xFF999999),
+              ),
+            ),
+            Text(
+              value,
+              style: TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }

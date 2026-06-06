@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:kanairoxo/models/notification_model.dart' as model;
+import 'package:kanairoxo/models/notification_model.dart';
 import 'package:kanairoxo/services/notification_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
 
@@ -7,115 +7,84 @@ class NotificationProvider with ChangeNotifier {
   final NotificationService _notificationService = NotificationService();
   final ApiClient _apiClient = ApiClient();
 
-  List<model.Notification> _notifications = [];
-  List<model.Notification> _connectionRequests = [];
-  List<model.Notification> _momentNotifications = [];
+  List<NotificationModel> _all = [];
   int _unreadCount = 0;
-  bool _isLoading = false;
+  bool _isLoading = true;
   String? _error;
 
   // Getters
-  List<model.Notification> get notifications => _notifications;
-  List<model.Notification> get connectionRequests => _connectionRequests;
-  List<model.Notification> get momentNotifications => _momentNotifications;
+  List<NotificationModel> get all => _all;
   int get unreadCount => _unreadCount;
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  int get pendingConnectionRequests => _connectionRequests
-      .where((n) => n.type == model.NotificationType.connectionRequest)
-      .length;
+  // ITEM 4: NOTIFICATIONS — tab filtering
+  List<NotificationModel> get moments => _all.where((n) => [
+        'moment_like',
+        'moment_comment',
+        'moment_save',
+        'new_like',
+        'new_comment'
+      ].contains(n.notificationType)).toList();
+
+  List<NotificationModel> get connections => _all.where((n) => [
+        'connection_request',
+        'connection_accepted',
+        'connection_rejected'
+      ].contains(n.notificationType)).toList();
+
+  bool get hasUnreadMoments => moments.any((n) => !n.isRead);
+  bool get hasUnreadConnections => connections.any((n) => !n.isRead);
+
+  // For backward compatibility
+  List<NotificationModel> get notifications => _all;
+  List<NotificationModel> get momentNotifications => moments;
+  List<NotificationModel> get connectionRequests => connections;
 
   Future<void> loadNotifications() async {
-    if (_isLoading) return;
     _isLoading = true;
     _error = null;
     notifyListeners();
 
     try {
-      _unreadCount = await _notificationService.getUnreadCount();
-      _notifications = await _notificationService.getNotifications();
+      // ITEM 3: Read unread_count from metadata
+      final result = await _notificationService.getNotificationsWithMetadata();
+      _all = result['notifications'] as List<NotificationModel>;
+      _unreadCount = result['unread_count'] as int;
     } catch (e) {
       _error = e.toString();
+      debugPrint('Error loading notifications: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> loadConnections() async {
-    try {
-      _connectionRequests = await _notificationService.getNotifications(type: 'connections');
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading connections: $e');
-    }
+  Future<void> refreshNotifications() async {
+    await loadNotifications();
   }
 
-  Future<void> loadMoments() async {
-    try {
-      _momentNotifications = await _notificationService.getNotifications(type: 'moments');
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error loading moments: $e');
-    }
-  }
+  Future<void> loadConnections() async => loadNotifications();
+  Future<void> loadMoments() async => loadNotifications();
 
-  Future<bool> acceptConnection(String connectionId, String notificationId) async {
+  Future<void> markAsRead(int id) async {
     try {
-      await _apiClient.post('api/v1/connections/$connectionId/accept/', {});
-    } catch (e) {
-      final msg = e.toString();
-      // 404 = already processed — still dismiss the card
-      if (!msg.contains('404')) {
-        debugPrint('Error accepting connection: $e');
-        return false;
-      }
-    }
-    _removeFromAllLists(notificationId);
-    notifyListeners();
-    return true;
-  }
-
-  Future<bool> declineConnection(String connectionId, String notificationId) async {
-    try {
-      await _apiClient.post('api/v1/connections/$connectionId/reject/', {});
-    } catch (e) {
-      final msg = e.toString();
-      // 404 = already processed — still dismiss the card
-      if (!msg.contains('404')) {
-        debugPrint('Error declining connection: $e');
-        return false;
-      }
-    }
-    _removeFromAllLists(notificationId);
-    notifyListeners();
-    return true;
-  }
-
-  void _removeFromAllLists(String notificationId) {
-    _connectionRequests.removeWhere((n) => n.id == notificationId);
-    _notifications.removeWhere((n) => n.id == notificationId);
-  }
-
-  Future<void> markAsRead(String notificationId) async {
-    try {
-      await _notificationService.markAsRead(notificationId);
-      final index = _notifications.indexWhere((n) => n.id == notificationId);
-      if (index != -1 && !_notifications[index].isRead) {
-        _notifications[index] = _notifications[index].copyWith(isRead: true);
+      await _notificationService.markAsRead(id);
+      final index = _all.indexWhere((n) => n.id == id);
+      if (index != -1 && !_all[index].isRead) {
+        _all[index] = _all[index].copyWith(isRead: true);
         if (_unreadCount > 0) _unreadCount--;
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error marking notification as read: $e');
+      debugPrint('Error marking as read: $e');
     }
   }
 
   Future<void> markAllAsRead() async {
     try {
       await _notificationService.markAllAsRead();
-      _notifications = _notifications.map((n) => n.copyWith(isRead: true)).toList();
+      _all = _all.map((n) => n.copyWith(isRead: true)).toList();
       _unreadCount = 0;
       notifyListeners();
     } catch (e) {
@@ -123,9 +92,27 @@ class NotificationProvider with ChangeNotifier {
     }
   }
 
-  Future<void> refreshNotifications() async {
-    await loadNotifications();
-    await loadConnections();
-    await loadMoments();
+  Future<bool> acceptConnection(String connectionId, int notificationId) async {
+    try {
+      await _apiClient.post('api/v1/connections/$connectionId/accept/', {});
+      _all.removeWhere((n) => n.id == notificationId);
+      await loadNotifications(); // Refresh count
+      return true;
+    } catch (e) {
+      debugPrint('Error accepting connection: $e');
+      return false;
+    }
+  }
+
+  Future<bool> declineConnection(String connectionId, int notificationId) async {
+    try {
+      await _apiClient.post('api/v1/connections/$connectionId/reject/', {});
+      _all.removeWhere((n) => n.id == notificationId);
+      await loadNotifications(); // Refresh count
+      return true;
+    } catch (e) {
+      debugPrint('Error declining connection: $e');
+      return false;
+    }
   }
 }

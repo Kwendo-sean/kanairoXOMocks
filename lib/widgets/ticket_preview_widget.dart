@@ -1,7 +1,7 @@
-// lib/widgets/ticket_preview_widget.dart
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:barcode_widget/barcode_widget.dart';
+import '../core/theme/app_theme.dart';
 
 class TicketPreviewWidget extends StatelessWidget {
   final String designType;
@@ -44,9 +44,10 @@ class TicketPreviewWidget extends StatelessWidget {
   }
 
   Widget _buildLetterDesign(BuildContext context) {
-    final bgColor = backgroundColor ?? Colors.white;
-    final txtColor = textColor ?? Colors.black;
-    final accColor = accentColor ?? Theme.of(context).primaryColor;
+    final isDark = context.isDark;
+    final bgColor = backgroundColor ?? (isDark ? const Color(0xFF1C1612) : Colors.white);
+    final txtColor = textColor ?? context.textColor;
+    final accColor = accentColor ?? context.primaryColor;
 
     return Container(
       width: double.infinity,
@@ -57,16 +58,15 @@ class TicketPreviewWidget extends StatelessWidget {
         border: Border.all(color: accColor.withOpacity(0.3), width: 2),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // KanairoXO Logo
           Container(
             width: 80,
             height: 80,
@@ -80,10 +80,7 @@ class TicketPreviewWidget extends StatelessWidget {
               color: accColor,
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Invitation Text
           Text(
             'You\'re Invited!',
             style: TextStyle(
@@ -93,10 +90,7 @@ class TicketPreviewWidget extends StatelessWidget {
               letterSpacing: 1.2,
             ),
           ),
-
           const SizedBox(height: 8),
-
-          // Event Title
           Text(
             eventTitle,
             style: TextStyle(
@@ -107,14 +101,9 @@ class TicketPreviewWidget extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: 24),
-
           Divider(color: accColor.withOpacity(0.3), thickness: 1),
-
           const SizedBox(height: 24),
-
-          // Personal Invitation
           Text(
             '$organizerName invites you to',
             style: TextStyle(
@@ -124,9 +113,7 @@ class TicketPreviewWidget extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: 8),
-
           Text(
             eventTitle,
             style: TextStyle(
@@ -136,10 +123,7 @@ class TicketPreviewWidget extends StatelessWidget {
             ),
             textAlign: TextAlign.center,
           ),
-
           const SizedBox(height: 24),
-
-          // Event Details
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -149,18 +133,15 @@ class TicketPreviewWidget extends StatelessWidget {
             ),
             child: Column(
               children: [
-                _buildDetailRow(Icons.calendar_today, 'Date', date),
+                _buildDetailRow(context, Icons.calendar_today, 'Date', date),
                 const SizedBox(height: 8),
-                _buildDetailRow(Icons.access_time, 'Time', time),
+                _buildDetailRow(context, Icons.access_time, 'Time', time),
                 const SizedBox(height: 8),
-                _buildDetailRow(Icons.location_on, 'Venue', venue),
+                _buildDetailRow(context, Icons.location_on, 'Venue', venue),
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Footer
           Text(
             'kanairoxo.com',
             style: TextStyle(
@@ -175,9 +156,10 @@ class TicketPreviewWidget extends StatelessWidget {
   }
 
   Widget _buildQRCodeDesign(BuildContext context) {
-    final bgColor = backgroundColor ?? Colors.white;
-    final txtColor = textColor ?? Colors.black;
-    final accColor = accentColor ?? Theme.of(context).primaryColor;
+    final isDark = context.isDark;
+    final bgColor = backgroundColor ?? (isDark ? const Color(0xFF1C1612) : Colors.white);
+    final txtColor = textColor ?? context.textColor;
+    final accColor = accentColor ?? context.primaryColor;
 
     return Container(
       width: double.infinity,
@@ -187,15 +169,14 @@ class TicketPreviewWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.1),
             blurRadius: 10,
-            offset: Offset(0, 4),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Header with logo and title
           Row(
             children: [
               Container(
@@ -205,7 +186,7 @@ class TicketPreviewWidget extends StatelessWidget {
                   color: accColor,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.event,
                   color: Colors.white,
                   size: 24,
@@ -240,10 +221,7 @@ class TicketPreviewWidget extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          // QR Code
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
@@ -263,7 +241,7 @@ class TicketPreviewWidget extends StatelessWidget {
                   ),
                   dataModuleStyle: QrDataModuleStyle(
                     dataModuleShape: QrDataModuleShape.square,
-                    color: txtColor,
+                    color: Colors.black,
                   ),
                 ),
                 const SizedBox(height: 16),
@@ -279,30 +257,24 @@ class TicketPreviewWidget extends StatelessWidget {
               ],
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Event Details
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: Colors.grey[50],
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.grey[50],
               borderRadius: BorderRadius.circular(12),
             ),
             child: Column(
               children: [
-                _buildDetailRow(Icons.calendar_today, date, time),
+                _buildDetailRow(context, Icons.calendar_today, date, time),
                 const SizedBox(height: 12),
-                _buildDetailRow(Icons.location_on, venue, ''),
+                _buildDetailRow(context, Icons.location_on, venue, ''),
                 const SizedBox(height: 12),
-                _buildDetailRow(Icons.person, 'Host', organizerName),
+                _buildDetailRow(context, Icons.person, 'Host', organizerName),
               ],
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Barcode
           BarcodeWidget(
             barcode: Barcode.code128(),
             data: 'KX-${DateTime.now().millisecondsSinceEpoch}',
@@ -317,9 +289,10 @@ class TicketPreviewWidget extends StatelessWidget {
   }
 
   Widget _buildDigitalDesign(BuildContext context) {
-    final bgColor = backgroundColor ?? Color(0xFF1A1A2E);
+    final isDark = context.isDark;
+    final bgColor = backgroundColor ?? (isDark ? const Color(0xFF0A0A1A) : const Color(0xFF1A1A2E));
     final txtColor = textColor ?? Colors.white;
-    final accColor = accentColor ?? Color(0xFF00D4FF);
+    final accColor = accentColor ?? const Color(0xFF00D4FF);
 
     return Container(
       width: double.infinity,
@@ -338,13 +311,12 @@ class TicketPreviewWidget extends StatelessWidget {
           BoxShadow(
             color: accColor.withOpacity(0.3),
             blurRadius: 20,
-            offset: Offset(0, 10),
+            offset: const Offset(0, 10),
           ),
         ],
       ),
       child: Column(
         children: [
-          // Animated header
           Row(
             children: [
               Container(
@@ -356,7 +328,7 @@ class TicketPreviewWidget extends StatelessWidget {
                   ),
                   borderRadius: BorderRadius.circular(25),
                 ),
-                child: Icon(
+                child: const Icon(
                   Icons.bolt,
                   color: Colors.white,
                   size: 28,
@@ -391,10 +363,7 @@ class TicketPreviewWidget extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 32),
-
-          // Glowing QR Code
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -428,17 +397,14 @@ class TicketPreviewWidget extends StatelessWidget {
                   eyeShape: QrEyeShape.circle,
                   color: accColor,
                 ),
-                dataModuleStyle: QrDataModuleStyle(
+                dataModuleStyle: const QrDataModuleStyle(
                   dataModuleShape: QrDataModuleShape.circle,
                   color: Colors.black,
                 ),
               ),
             ),
           ),
-
           const SizedBox(height: 32),
-
-          // Event info in cards
           Wrap(
             spacing: 12,
             runSpacing: 12,
@@ -472,9 +438,10 @@ class TicketPreviewWidget extends StatelessWidget {
   }
 
   Widget _buildMinimalDesign(BuildContext context) {
-    final bgColor = backgroundColor ?? Colors.white;
-    final txtColor = textColor ?? Colors.black;
-    final accColor = accentColor ?? Colors.grey[800]!;
+    final isDark = context.isDark;
+    final bgColor = backgroundColor ?? (isDark ? const Color(0xFF1C1612) : Colors.white);
+    final txtColor = textColor ?? context.textColor;
+    final accColor = accentColor ?? (isDark ? Colors.white70 : Colors.grey[800]!);
 
     return Container(
       width: double.infinity,
@@ -482,12 +449,11 @@ class TicketPreviewWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: bgColor,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[300]!, width: 1),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Simple header
           Text(
             'TICKET',
             style: TextStyle(
@@ -497,14 +463,9 @@ class TicketPreviewWidget extends StatelessWidget {
               letterSpacing: 2,
             ),
           ),
-
           const SizedBox(height: 8),
-
-          Divider(color: Colors.grey[300]!),
-
+          Divider(color: isDark ? Colors.white10 : Colors.grey[300]!),
           const SizedBox(height: 16),
-
-          // Event title
           Text(
             eventTitle,
             style: TextStyle(
@@ -514,10 +475,7 @@ class TicketPreviewWidget extends StatelessWidget {
               height: 1.3,
             ),
           ),
-
           const SizedBox(height: 24),
-
-          // Simple details grid
           Row(
             children: [
               Expanded(
@@ -568,10 +526,7 @@ class TicketPreviewWidget extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 16),
-
-          // Venue
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -593,15 +548,12 @@ class TicketPreviewWidget extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 24),
-
-          // Simple QR Code
           Center(
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                border: Border.all(color: Colors.grey[300]!),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.grey[300]!),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: QrImageView(
@@ -620,10 +572,7 @@ class TicketPreviewWidget extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(height: 16),
-
-          // Simple footer
           Center(
             child: Text(
               'kanairoxo.com',
@@ -638,10 +587,11 @@ class TicketPreviewWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildDetailRow(IconData icon, String label, String value) {
+  Widget _buildDetailRow(BuildContext context, IconData icon, String label, String value) {
+    final txtColor = textColor ?? context.textColor;
     return Row(
       children: [
-        Icon(icon, size: 16, color: textColor?.withOpacity(0.6)),
+        Icon(icon, size: 16, color: txtColor.withOpacity(0.6)),
         const SizedBox(width: 12),
         Expanded(
           child: Column(
@@ -651,7 +601,7 @@ class TicketPreviewWidget extends StatelessWidget {
                 label,
                 style: TextStyle(
                   fontSize: 12,
-                  color: textColor?.withOpacity(0.6),
+                  color: txtColor.withOpacity(0.6),
                 ),
               ),
               if (value.isNotEmpty)
@@ -660,7 +610,7 @@ class TicketPreviewWidget extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
-                    color: textColor,
+                    color: txtColor,
                   ),
                 ),
             ],

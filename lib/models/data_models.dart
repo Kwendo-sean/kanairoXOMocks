@@ -34,11 +34,50 @@ class Mood {
   });
 }
 
+class Partner {
+  final String id;
+  final String name;
+  final String? type;
+  final String? logoUrl;
+  final bool isVerified;
+  final bool isOfficial;
+
+  Partner({
+    required this.id,
+    required this.name,
+    this.type,
+    this.logoUrl,
+    this.isVerified = false,
+    this.isOfficial = false,
+  });
+
+  factory Partner.fromJson(Map<String, dynamic> json) {
+    return Partner(
+      id: json['id']?.toString() ?? '',
+      name: json['name'] ?? '',
+      type: json['type'],
+      logoUrl: json['logo_url'],
+      isVerified: json['is_verified'] ?? false,
+      isOfficial: json['is_official'] ?? false,
+    );
+  }
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'type': type,
+    'logo_url': logoUrl,
+    'is_verified': isVerified,
+    'is_official': isOfficial,
+  };
+}
+
 class Experience {
   final String id;
   final String title;
   final String description;
   final String shortDescription;
+  final String? coverUrl;
   final String venueName;
   final String venueAddress;
   final String neighborhood;
@@ -62,6 +101,8 @@ class Experience {
   final ExperienceCategory? category;
   final List<ExperienceTag> tags;
   final ExperienceOrganizer organizer;
+  final Partner? partner;
+  final bool isSaved;
   final List<ExperienceCollaborator> collaborators;
   final List<ExperienceSchedule> schedule;
   final List<ExperiencePricingTier> pricingTiers;
@@ -76,6 +117,7 @@ class Experience {
     required this.title,
     required this.description,
     required this.shortDescription,
+    this.coverUrl,
     required this.venueName,
     required this.venueAddress,
     required this.neighborhood,
@@ -99,6 +141,8 @@ class Experience {
     this.category,
     required this.tags,
     required this.organizer,
+    this.partner,
+    this.isSaved = false,
     required this.collaborators,
     required this.schedule,
     required this.pricingTiers,
@@ -110,15 +154,16 @@ class Experience {
   });
 
   factory Experience.fromJson(Map<String, dynamic> json) {
-    // Map backend fields to model fields with safe fallbacks
     final startStr = json['start_datetime'] ?? json['start_at'];
     final endStr = json['end_datetime'] ?? json['end_at'];
+    final basePriceValue = double.tryParse(json['base_price']?.toString() ?? '0') ?? 0.0;
     
     return Experience(
       id: json['id']?.toString() ?? '',
       title: json['title'] ?? 'Untitled Experience',
       description: json['description'] ?? json['short_description'] ?? '',
       shortDescription: json['short_description'] ?? '',
+      coverUrl: json['cover_url'] ?? json['image_url'],
       venueName: json['venue_name'] ?? 'TBD',
       venueAddress: json['venue_address'] ?? '',
       neighborhood: json['neighborhood'] ?? 'other',
@@ -128,8 +173,8 @@ class Experience {
       maxCapacity: json['max_capacity'] ?? 0,
       currentAttendees: json['current_attendees'] ?? json['attendee_count'] ?? 0,
       isFull: json['is_full'] ?? json['is_sold_out'] ?? false,
-      pricingTier: json['pricing_tier'] ?? 'free',
-      basePrice: double.tryParse(json['base_price']?.toString() ?? '0') ?? 0.0,
+      pricingTier: json['pricing_tier'] ?? (basePriceValue == 0.0 ? 'free' : 'paid'),
+      basePrice: basePriceValue,
       currency: json['currency'] ?? 'KES',
       primaryMood: json['primary_mood'] ?? 'social',
       secondaryMoods: List<String>.from(json['secondary_moods'] ?? []),
@@ -154,6 +199,8 @@ class Experience {
               id: '', 
               firstName: json['organizer_name'] ?? 'Organizer', 
               trustScore: 0),
+      partner: json['partner'] != null ? Partner.fromJson(json['partner']) : null,
+      isSaved: json['is_saved'] ?? false,
       collaborators: json['collaborators'] != null
           ? List<ExperienceCollaborator>.from(
               json['collaborators']
@@ -181,6 +228,7 @@ class Experience {
         'title': title,
         'description': description,
         'short_description': shortDescription,
+        'cover_url': coverUrl,
         'venue_name': venueName,
         'venue_address': venueAddress,
         'neighborhood': neighborhood,
@@ -204,6 +252,8 @@ class Experience {
         'category': category?.toJson(),
         'tags': tags.map((x) => x.toJson()).toList(),
         'organizer': organizer.toJson(),
+        'partner': partner?.toJson(),
+        'is_saved': isSaved,
         'collaborators': collaborators.map((x) => x.toJson()).toList(),
         'schedules': schedule.map((x) => x.toJson()).toList(),
         'pricing_tiers': pricingTiers.map((x) => x.toJson()).toList(),
@@ -216,12 +266,16 @@ class Experience {
   Experience copyWith({
     int? currentAttendees,
     bool? isFull,
+    bool? isSaved,
+    String? coverUrl,
+    int? savesCount,
   }) {
     return Experience(
       id: id,
       title: title,
       description: description,
       shortDescription: shortDescription,
+      coverUrl: coverUrl ?? this.coverUrl,
       venueName: venueName,
       venueAddress: venueAddress,
       neighborhood: neighborhood,
@@ -245,11 +299,13 @@ class Experience {
       category: category,
       tags: tags,
       organizer: organizer,
+      partner: partner,
+      isSaved: isSaved ?? this.isSaved,
       collaborators: collaborators,
       schedule: schedule,
       pricingTiers: pricingTiers,
       analytics: analytics,
-      savesCount: savesCount,
+      savesCount: savesCount ?? this.savesCount,
       sharesCount: sharesCount,
       createdAt: createdAt,
       updatedAt: updatedAt,
@@ -257,9 +313,10 @@ class Experience {
   }
 
   String get priceDisplay {
+    if (basePrice == 0.0) {
+      return 'Free';
+    }
     switch (pricingTier) {
-      case 'free':
-        return 'Free';
       case 'donation':
         return 'Donation';
       default:

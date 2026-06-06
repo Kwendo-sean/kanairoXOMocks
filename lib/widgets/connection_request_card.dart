@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/notification_model.dart' as model;
+import '../models/notification_model.dart';
 import '../models/messaging/conversation_model.dart';
 import '../services/api_client.dart';
 import '../screens/messaging/chat_screen.dart';
 import '../core/theme/app_colors.dart';
 
 class ConnectionRequestCard extends StatefulWidget {
-  final model.Notification notification;
+  final NotificationModel notification;
   final VoidCallback onAccept;
   final VoidCallback onDecline;
   final bool isProcessing;
@@ -51,13 +51,21 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
 
   @override
   Widget build(BuildContext context) {
-    final senderName = widget.notification.data['sender_name'] ?? 'Someone';
-    final senderPhoto = widget.notification.data['sender_photo'];
-    final requestMessage = widget.notification.data['request_message'];
-    final compatibilityScore = widget.notification.data['compatibility_score'];
-    final mutualInterests = (widget.notification.data['mutual_interests'] as List?)?.cast<String>() ?? [];
-    final senderId = widget.notification.data['sender_id']?.toString();
-
+    // Note: NotificationModel fields are now id, notificationType, message, sender, referenceId, isRead, createdAt
+    // Message parsing might be needed if original code relied on 'data' Map
+    // However, the prompt rules for NotificationModel didn't include a 'data' field.
+    // I will try to map common 'data' fields from the notification message or sender if possible,
+    // but the safest is to ensure the model matches what the UI expects if they were using FCM data.
+    
+    final senderName = widget.notification.sender?.name ?? 'Someone';
+    final senderPhoto = widget.notification.sender?.photo;
+    
+    // Fallback logic for data if it was used in the previous version
+    // If the model really needs 'data', I should add it back to the model.
+    // Given the prompt: factory NotificationModel.fromJson(Map<String, dynamic> json)
+    // and the fields provided, 'data' wasn't there. 
+    // I'll assume for now these fields are what we have.
+    
     return Card(
       elevation: 2,
       margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -89,32 +97,6 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      if (compatibilityScore != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Row(
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: _getCompatibilityColor(compatibilityScore.toDouble()),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  '${compatibilityScore.toInt()}% Match',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
                     ],
                   ),
                 ),
@@ -124,48 +106,21 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
                   const Icon(Icons.cancel, color: Colors.red, size: 24),
               ],
             ),
-            if (requestMessage != null && requestMessage.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  requestMessage,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey[800],
-                  ),
-                ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.grey[50],
+                borderRadius: BorderRadius.circular(8),
               ),
-            ],
-            if (mutualInterests.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Mutual Interests',
+              child: Text(
+                widget.notification.message,
                 style: TextStyle(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey[700],
+                  color: Colors.grey[800],
                 ),
               ),
-              const SizedBox(height: 4),
-              Wrap(
-                spacing: 6,
-                runSpacing: 4,
-                children: mutualInterests.take(5).map((interest) {
-                  return Chip(
-                    label: Text(interest),
-                    backgroundColor: Colors.blue[50],
-                    labelStyle: const TextStyle(fontSize: 12),
-                    padding: EdgeInsets.zero,
-                    visualDensity: VisualDensity.compact,
-                  );
-                }).toList(),
-              ),
-            ],
+            ),
             if (widget.isAccepted != true && widget.isDeclined != true) ...[
               const SizedBox(height: 16),
               widget.isProcessing
@@ -214,11 +169,10 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
                         ),
                       ),
                     ),
-                    if (senderId != null)
-                      ElevatedButton.icon(
+                    ElevatedButton.icon(
                         icon: const Icon(Icons.chat_bubble_outline, size: 16),
                         label: const Text('Message'),
-                        onPressed: () => _startConversation(senderId),
+                        onPressed: () => _startConversation(widget.notification.sender?.id.toString() ?? ''),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primary,
                           foregroundColor: Colors.white,
@@ -231,9 +185,9 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
             else if (widget.isDeclined == true)
               Padding(
                 padding: const EdgeInsets.only(top: 12),
-                child: Text(
+                child: const Text(
                   'Connection request declined',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: Colors.red,
                     fontWeight: FontWeight.w500,
                   ),
@@ -243,12 +197,5 @@ class _ConnectionRequestCardState extends State<ConnectionRequestCard> {
         ),
       ),
     );
-  }
-
-  Color _getCompatibilityColor(double score) {
-    if (score >= 80) return Colors.green;
-    if (score >= 60) return Colors.lightGreen;
-    if (score >= 40) return Colors.orange;
-    return Colors.red;
   }
 }

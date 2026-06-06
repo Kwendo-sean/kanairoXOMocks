@@ -145,7 +145,8 @@ class GalleryPhotoModel {
   factory GalleryPhotoModel.fromJson(Map<String, dynamic> json) {
     return GalleryPhotoModel(
       id: json['id'] ?? 0,
-      imageUrl: UrlHelper.fixMediaUrl(json['image_url']),
+      // ITEM 1: Ensure we use 'image_url' and don't prefix if it's already absolute
+      imageUrl: json['image_url'] ?? '', 
       caption: json['caption'] ?? '',
       uploadedAt: DateTime.tryParse(json['uploaded_at'] ?? '') ?? DateTime.now(),
     );

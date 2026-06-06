@@ -1,4 +1,4 @@
-// lib/providers/events_provider.dart
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/data_models.dart';
 import '../services/events_api_service.dart';
@@ -6,166 +6,162 @@ import './auth_provider.dart';
 
 class EventsProvider with ChangeNotifier {
   final EventsApiService _eventsApiService = EventsApiService();
-  List<Experience> _experiences = [];
-  List<Experience> _featuredExperiences = [];
-  List<ExperienceCategory> _categories = [];
+  
+  Map<String, List<Experience>> _feed = {};
+  List<Experience> _searchResults = [];
+  List<Experience> _savedEvents = [];
   bool _isLoading = false;
+  bool _isSearching = false;
+  bool _isSavedLoading = false;
   String? _error;
-  bool _hasInitialData = false;
+  Timer? _searchDebounce;
 
-  List<Experience> get experiences => _experiences;
-  List<Experience> get featuredExperiences => _featuredExperiences;
-  List<ExperienceCategory> get categories => _categories;
+  Map<String, List<Experience>> get feed => _feed;
+  List<Experience> get searchResults => _searchResults;
+  List<Experience> get savedEvents => _savedEvents;
   bool get isLoading => _isLoading;
-  bool get hasInitialData => _hasInitialData;
+  bool get isSearching => _isSearching;
+  bool get isSavedLoading => _isSavedLoading;
   String? get error => _error;
 
   void update(AuthProvider authProvider) {
     if (!authProvider.isAuthenticated) {
-      _experiences = [];
-      _featuredExperiences = [];
-      _categories = [];
-      _hasInitialData = false;
+      _feed = {};
+      _savedEvents = [];
       notifyListeners();
     } else {
-      // Prefetch data when authenticated if not already loaded
-      if (!_hasInitialData && !_isLoading) {
-        prefetch();
+      if (_feed.isEmpty && !_isLoading) {
+        fetchFeed();
       }
     }
   }
 
-  Future<void> prefetch() async {
-    // Fire and forget individual loads to populate lists in background
-    fetchCategories();
-    fetchExperiences();
-  }
-
-  Future<void> fetchExperiences({bool refresh = false}) async {
-    if (_isLoading && !refresh) return;
-
+  Future<void> fetchFeed() async {
     _isLoading = true;
-    if (refresh) _error = null;
+    _error = null;
     notifyListeners();
 
     try {
-      // Run in parallel for speed
-      final results = await Future.wait([
-        _eventsApiService.fetchExperiences(),
-        _eventsApiService.fetchFeaturedExperiences(),
-      ]);
-      
-      _experiences = results[0];
-      _featuredExperiences = results[1];
-      _hasInitialData = true;
+      _feed = await _eventsApiService.fetchEventFeed();
     } catch (e) {
       _error = e.toString();
-      debugPrint('Error fetching experiences: $e');
+      debugPrint('Error fetching feed: $e');
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
 
-  Future<void> fetchCategories() async {
-    try {
-      _categories = await _eventsApiService.fetchCategories();
+  // ITEM 2: Wire search TextField onChanged → debounce 300ms → call this endpoint
+  Future<void> search(String query) async {
+    _searchDebounce?.cancel();
+    
+    if (query.isEmpty) {
+      _searchResults = [];
+      _isSearching = false;
       notifyListeners();
-    } catch (e) {
-      debugPrint('Error fetching categories: $e');
+      return;
     }
+
+    _isSearching = true;
+    notifyListeners();
+
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
+      try {
+        _searchResults = await _eventsApiService.searchEvents(query);
+      } catch (e) {
+        debugPrint('Search error: $e');
+      } finally {
+        _isSearching = false;
+        notifyListeners();
+      }
+    });
+  }
+
+  Future<void> fetchSavedEvents() async {
+    _isSavedLoading = true;
+    notifyListeners();
+
+    try {
+      _savedEvents = await _eventsApiService.fetchSavedEvents();
+    } catch (e) {
+      debugPrint('Error fetching saved events: $e');
+    } finally {
+      _isSavedLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> toggleSave(Experience event) async {
+    // Optimistic Update
+    final originalStatus = event.isSaved;
+    final originalCount = event.savesCount;
+    
+    _updateEventSaveStatus(event.id, !originalStatus, 
+      newCount: !originalStatus ? originalCount + 1 : (originalCount > 0 ? originalCount - 1 : 0));
+    
+    try {
+      final response = await _eventsApiService.toggleSave(event.id);
+      final newStatus = response['status'] == 'saved';
+      final newCountFromApi = response['saves_count'];
+      
+      if (newStatus != !originalStatus || (newCountFromApi != null && newCountFromApi != event.savesCount)) {
+        _updateEventSaveStatus(event.id, newStatus, newCount: newCountFromApi);
+      }
+    } catch (e) {
+      // Revert on error
+      _updateEventSaveStatus(event.id, originalStatus, newCount: originalCount);
+      debugPrint('Toggle save error: $e');
+    }
+  }
+
+  void _updateEventSaveStatus(String id, bool isSaved, {int? newCount}) {
+    // Update in feed
+    _feed.forEach((key, list) {
+      final index = list.indexWhere((e) => e.id == id);
+      if (index != -1) {
+        list[index] = list[index].copyWith(
+          isSaved: isSaved,
+          savesCount: newCount ?? list[index].savesCount,
+        );
+      }
+    });
+
+    // Update in search results
+    final searchIndex = _searchResults.indexWhere((e) => e.id == id);
+    if (searchIndex != -1) {
+      _searchResults[searchIndex] = _searchResults[searchIndex].copyWith(
+        isSaved: isSaved,
+        savesCount: newCount ?? _searchResults[searchIndex].savesCount,
+      );
+    }
+
+    // Update in saved events list
+    if (isSaved) {
+      final existingIndex = _savedEvents.indexWhere((e) => e.id == id);
+      if (existingIndex == -1) {
+        Experience? found;
+        _feed.values.forEach((list) {
+          final matchIndex = list.indexWhere((e) => e.id == id);
+          if (matchIndex != -1) found = list[matchIndex];
+        });
+        if (found != null) {
+          _savedEvents.insert(0, found!.copyWith(isSaved: true, savesCount: newCount ?? found!.savesCount));
+        }
+      } else {
+        _savedEvents[existingIndex] = _savedEvents[existingIndex].copyWith(
+          isSaved: true,
+          savesCount: newCount ?? _savedEvents[existingIndex].savesCount,
+        );
+      }
+    } else {
+      _savedEvents.removeWhere((e) => e.id == id);
+    }
+    
+    notifyListeners();
   }
 
   Future<Experience> fetchExperienceDetail(String id) async {
     return await _eventsApiService.fetchExperienceDetail(id);
-  }
-
-  Future<Map<String, dynamic>> saveExperience(String experienceId) async {
-    return await _eventsApiService.saveExperience(experienceId);
-  }
-
-  Future<bool> loadMoreExperiences() async {
-    // TODO: Implement pagination
-    return false;
-  }
-
-  Future<Map<String, dynamic>> joinWaitlist(String experienceId) async {
-    try {
-      final result = await _eventsApiService.joinWaitlist(experienceId);
-      return {'success': true, ...result};
-    } catch (e) {
-      return {'success': false, 'error': e.toString()};
-    }
-  }
-
-  Future<Map<String, dynamic>> registerForExperience(
-      {required String experienceId}) async {
-    try {
-      final result =
-          await _eventsApiService.registerForExperience(experienceId: experienceId);
-      return {'success': true, ...result};
-    } catch (e) {
-      return {'success': false, 'error': e.toString()};
-    }
-  }
-
-  Future<Map<String, dynamic>> checkHostingEligibility() async {
-    try {
-      final response = await _eventsApiService.checkHostingEligibility();
-
-      return {
-        'eligible': response['eligible'],
-        'requirements': response['requirements'],
-        'trust_score': response['trust_score'],
-      };
-    } catch (e) {
-      debugPrint('Error checking hosting eligibility: $e');
-      return {
-        'eligible': false,
-        'requirements': [],
-        'error': 'Failed to check eligibility',
-      };
-    }
-  }
-
-  Future<Map<String, dynamic>> hostEvent(Map<String, dynamic> eventData) async {
-    try {
-      final response = await _eventsApiService.hostEvent(eventData);
-
-      // Parse the event from response
-      final eventJson = response['event'];
-      final event = Experience.fromJson(eventJson);
-
-      // Add to local list
-      _experiences.insert(0, event);
-
-      notifyListeners();
-
-      return {
-        'success': true,
-        'event': event,
-        'message': 'Event created successfully',
-      };
-    } catch (e) {
-      debugPrint('Error hosting event: $e');
-      return {
-        'success': false,
-        'error': e.toString(),
-      };
-    }
-  }
-
-  Future<List<Map<String, dynamic>>> getTicketTemplates() async {
-    try {
-      return await _eventsApiService.getTicketTemplates();
-    } catch (e) {
-      debugPrint('Error getting ticket templates: $e');
-      return [];
-    }
-  }
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
   }
 }

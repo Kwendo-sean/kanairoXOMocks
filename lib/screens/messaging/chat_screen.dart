@@ -190,6 +190,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
       isRead: false,
       sentAt: DateTime.now(),
       isDeleted: false,
+      isMine: true,
     );
     
     setState(() {
@@ -244,7 +245,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   }
 
   void _showLockedDialog(dynamic data) {
-    final reason = data?['error'] ?? 'Messaging limit reached';
+    final reason = data?['error'] ?? 'Messaging paused';
     showDialog(context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
@@ -346,17 +347,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
             style: AppTypography.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w500)),
         ]));
     }
-    if (!conv.sparkStatus.active && conv.messagesRemaining != null) {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-        color: Colors.orange.withOpacity(0.08),
-        child: Row(children: [
-          Icon(Icons.info_outline, size: 14, color: Colors.orange.shade700),
-          const SizedBox(width: 6),
-          Text('${conv.messagesRemaining} messages remaining today',
-            style: AppTypography.caption.copyWith(color: Colors.orange.shade700)),
-        ]));
-    }
+    // MESSAGES — remove daily limit UI
+    // Daily limit UI (messagesRemaining) removed as per requirements.
     return const SizedBox.shrink();
   }
   
@@ -469,7 +461,7 @@ class _MessageBubble extends StatelessWidget {
   
   @override
   Widget build(BuildContext context) {
-    final isMe = message.isFromMe;
+    final isMe = message.isMine;
     final myBubble = AppColors.primary;
     final theirBubble = isDark ? const Color(0xFF1C1612) : Colors.white;
     final myText = Colors.white;

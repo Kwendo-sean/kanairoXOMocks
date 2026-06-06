@@ -31,7 +31,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
 
   Future<void> _load() async {
     try {
-      final r = await ApiClient.instance.get('/api/v1/moments/${widget.momentId}/comments/');
+      final r = await ApiClient.instance.get('api/v1/moments/${widget.momentId}/comments/');
       if (mounted) {
         setState(() {
           // The API returns a paginated response: { "count": ..., "next": ..., "previous": ..., "results": [...] }
@@ -51,7 +51,7 @@ class _CommentsBottomSheetState extends State<CommentsBottomSheet> {
     setState(() => _sending = true);
     try {
       await ApiClient.instance.post(
-        '/api/v1/moments/${widget.momentId}/comments/',
+        'api/v1/moments/${widget.momentId}/comments/',
         {'text': text},
       );
       _ctrl.clear();

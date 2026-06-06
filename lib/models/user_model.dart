@@ -191,11 +191,11 @@ class UserProfile {
           final typedPhoto = Map<String, dynamic>.from(photoMap);
           return {
             ...typedPhoto,
-            'url': UrlHelper.fixMediaUrl(typedPhoto['url'] as String?),
+            'url': UrlHelper.fixMediaUrl(typedPhoto['url']?.toString()),
           };
         }).toList();
 
-    String mainPhotoUrl = UrlHelper.fixMediaUrl(profileData['main_profile_photo'] as String?);
+    String mainPhotoUrl = UrlHelper.fixMediaUrl(profileData['main_profile_photo']?.toString());
     if (mainPhotoUrl.isEmpty) {
       try {
         mainPhotoUrl = photos.firstWhere((p) => p['is_main'] == true)['url'];
@@ -221,7 +221,7 @@ class UserProfile {
       profileCompletionPercentage: int.tryParse(profileData['profile_completion_percentage']?.toString() ?? '0') ?? 0,
       profileViewsCount: int.tryParse(profileData['profile_views_count']?.toString() ?? '0') ?? 0,
       profileSavesCount: int.tryParse(profileData['profile_saves_count']?.toString() ?? '0') ?? 0,
-      voiceIntro: UrlHelper.fixMediaUrl(profileData['voice_intro'] as String?),
+      voiceIntro: UrlHelper.fixMediaUrl(profileData['voice_intro']?.toString()),
       voiceIntroStatus: profileData['voice_intro_status']?.toString(),
       journalEntry: accountType == 'couple' ? profileData['journal_entry']?.toString() : null,
       specialMessage: accountType == 'couple' ? profileData['special_message']?.toString() : null,

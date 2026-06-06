@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/core/theme/app_colors.dart';
-import 'package:kanairoxo/core/theme/app_typography.dart';
-import 'package:kanairoxo/core/theme/app_theme.dart';
-import 'package:kanairoxo/models/notification_model.dart' as model;
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:kanairoxo/models/notification_model.dart';
 import 'package:kanairoxo/providers/notification_provider.dart';
 import 'package:kanairoxo/screens/singles/profile_preview_screen.dart';
-import 'package:kanairoxo/widgets/safe_network_image.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
+import 'package:shimmer/shimmer.dart';
+import 'package:intl/intl.dart';
 
 class NotificationScreen extends StatefulWidget {
   final int initialTab;
@@ -18,541 +16,429 @@ class NotificationScreen extends StatefulWidget {
   State<NotificationScreen> createState() => _NotificationScreenState();
 }
 
-class _NotificationScreenState extends State<NotificationScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
+class _NotificationScreenState extends State<NotificationScreen> {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(
-        length: 3, vsync: this, initialIndex: widget.initialTab);
-
-    _tabController.addListener(() {
-      if (!_tabController.indexIsChanging) {
-        _loadTabContent(_tabController.index);
-      }
-    });
-
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _loadTabContent(_tabController.index);
+      context.read<NotificationProvider>().loadNotifications();
     });
   }
 
-  void _loadTabContent(int index) {
-    final p = Provider.of<NotificationProvider>(context, listen: false);
-    switch (index) {
-      case 0:
-        p.loadNotifications();
+  void _handleTap(NotificationModel notification) {
+    context.read<NotificationProvider>().markAsRead(notification.id);
+
+    switch (notification.notificationType) {
+      case 'moment_like':
+      case 'moment_comment':
+      case 'moment_save':
+      case 'new_like':
+      case 'new_comment':
+        if (notification.referenceId != null) {
+          // Navigate to MomentDetailScreen
+          // Navigator.pushNamed(context, '/moment-detail', arguments: notification.referenceId);
+        }
         break;
-      case 1:
-        p.loadMoments();
+      case 'connection_request':
+        // ITEM 4: Restore Profile Preview with connection_id
+        final senderId = notification.sender?.id.toString();
+        final connectionId = notification.data['connection_id']?.toString();
+        if (senderId != null) {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => ProfilePreviewScreen(
+              userId: senderId,
+              requestId: connectionId, // Using existing requestId field for connection_id
+            ),
+          ));
+        }
         break;
-      case 2:
-        p.loadConnections();
+      case 'connection_accepted':
+      case 'connection_rejected':
+        if (notification.sender != null) {
+          Navigator.push(context, MaterialPageRoute(
+            builder: (_) => ProfilePreviewScreen(
+              userId: notification.sender!.id.toString(),
+            ),
+          ));
+        }
         break;
     }
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _openPreview(model.Notification n) {
-    final senderId = n.sender?['id']?.toString();
-    if (senderId == null) return;
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ProfilePreviewScreen(
-          userId: senderId,
-          onAccept: () => Navigator.pop(context),
-          onDecline: () => Navigator.pop(context),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<NotificationProvider>();
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final textColor = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final primaryColor = const Color(0xFF9B111E);
 
-    return Scaffold(
-      backgroundColor: context.bgColor,
-      appBar: AppBar(
-        backgroundColor: context.bgColor,
-        elevation: 0,
-        leading: IconButton(
-          icon: Icon(PhosphorIconsBold.caretLeft, color: context.textColor, size: 24),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: Text('Notifications',
-            style: AppTypography.screenTitle.copyWith(color: context.textColor, fontWeight: FontWeight.w800)),
-        centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: context.primaryColor,
-          unselectedLabelColor: context.mutedColor,
-          indicatorColor: context.primaryColor,
-          indicatorWeight: 3,
-          dividerColor: context.borderColor.withOpacity(0.5),
-          labelStyle: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.bold),
-          tabs: const [
-            Tab(text: 'All'),
-            Tab(text: 'Moments'),
-            Tab(text: 'Connections'),
-          ],
-        ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _NotificationListView(
-            tabName: 'notifications',
-            emptyIcon: PhosphorIconsRegular.bellSimpleSlash,
-            notifications: provider.notifications,
-            isLoading: provider.isLoading,
-            onRefresh: provider.loadNotifications,
-            onTap: _openPreview,
-            showConnectionActions: true,
+    return DefaultTabController(
+      length: 3,
+      initialIndex: widget.initialTab,
+      child: Scaffold(
+        backgroundColor: bgColor,
+        appBar: AppBar(
+          backgroundColor: bgColor,
+          elevation: 0,
+          centerTitle: true,
+          title: Text(
+            "Notifications",
+            style: TextStyle(
+              fontFamily: 'DMSans',
+              fontSize: 20,
+              fontWeight: FontWeight.w600,
+              color: textColor,
+            ),
           ),
-          _NotificationListView(
-            tabName: 'moments',
-            emptyIcon: PhosphorIconsRegular.imageSquare,
-            notifications: provider.momentNotifications,
-            isLoading: provider.isLoading,
-            onRefresh: provider.loadMoments,
-            onTap: (_) {},
-            showConnectionActions: false,
-          ),
-          _NotificationListView(
-            tabName: 'connections',
-            emptyIcon: PhosphorIconsRegular.userPlus,
-            notifications: provider.connectionRequests,
-            isLoading: provider.isLoading,
-            onRefresh: provider.loadConnections,
-            onTap: _openPreview,
-            showConnectionActions: true,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _NotificationListView extends StatelessWidget {
-  final String tabName;
-  final IconData emptyIcon;
-  final List<model.Notification> notifications;
-  final bool isLoading;
-  final Future<void> Function() onRefresh;
-  final Function(model.Notification) onTap;
-  final bool showConnectionActions;
-
-  const _NotificationListView({
-    required this.tabName,
-    required this.emptyIcon,
-    required this.notifications,
-    required this.isLoading,
-    required this.onRefresh,
-    required this.onTap,
-    required this.showConnectionActions,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    if (isLoading && notifications.isEmpty) {
-      return Center(
-          child: CircularProgressIndicator(color: context.primaryColor));
-    }
-
-    if (notifications.isEmpty) {
-      return RefreshIndicator(
-        onRefresh: onRefresh,
-        color: context.primaryColor,
-        backgroundColor: context.surfaceColor,
-        child: Stack(
-          children: [
-            ListView(),
-            Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(emptyIcon, size: 64, color: context.mutedColor.withOpacity(0.2)),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No $tabName yet',
-                    style: AppTypography.bodyLarge.copyWith(color: context.textColor, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'We\'ll let you know when something happens',
-                    style: AppTypography.caption.copyWith(color: context.mutedColor),
-                  ),
-                ],
+          leading: BackButton(color: textColor),
+          actions: [
+            TextButton(
+              onPressed: () => provider.markAllAsRead(),
+              child: Text(
+                "Mark all read",
+                style: TextStyle(
+                  fontFamily: 'DMSans',
+                  fontSize: 13,
+                  color: primaryColor,
+                ),
               ),
             ),
           ],
-        ),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: onRefresh,
-      color: context.primaryColor,
-      backgroundColor: context.surfaceColor,
-      child: ListView.separated(
-        padding: const EdgeInsets.all(16),
-        itemCount: notifications.length,
-        separatorBuilder: (_, __) => const SizedBox(height: 12),
-        itemBuilder: (ctx, i) {
-          final n = notifications[i];
-          if (showConnectionActions &&
-              n.type == model.NotificationType.connectionRequest) {
-            return _ConnectionRequestItem(notification: n);
-          }
-          return _NotificationItem(
-            notification: n,
-            onTap: () => onTap(n),
-          );
-        },
-      ),
-    );
-  }
-}
-
-// ── Connection request card ──────────────────────────────────────────────────
-
-class _ConnectionRequestItem extends StatefulWidget {
-  final model.Notification notification;
-  const _ConnectionRequestItem({required this.notification});
-
-  @override
-  State<_ConnectionRequestItem> createState() => _ConnectionRequestItemState();
-}
-
-class _ConnectionRequestItemState extends State<_ConnectionRequestItem> {
-  bool _isActing = false;
-  bool _showSuccess = false;
-
-  String? get _connectionId =>
-      widget.notification.data['connection_id']?.toString();
-
-  Future<void> _accept() async {
-    final cid = _connectionId;
-    if (cid == null) return;
-    setState(() => _isActing = true);
-    final provider =
-        Provider.of<NotificationProvider>(context, listen: false);
-    final ok = await provider.acceptConnection(cid, widget.notification.id);
-    if (mounted) {
-      if (ok) {
-        setState(() {
-          _isActing = false;
-          _showSuccess = true;
-        });
-      } else {
-        setState(() => _isActing = false);
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Could not accept — try again')));
-      }
-    }
-  }
-
-  Future<void> _decline() async {
-    final cid = _connectionId;
-    if (cid == null) return;
-    setState(() => _isActing = true);
-    final provider =
-        Provider.of<NotificationProvider>(context, listen: false);
-    final ok = await provider.declineConnection(cid, widget.notification.id);
-    if (mounted && !ok) {
-      setState(() => _isActing = false);
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Could not decline — try again')));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = context.surfaceColor;
-    final textColor = context.textColor;
-    final mutedColor = context.mutedColor;
-    final accentColor = context.primaryColor;
-
-    final sender = widget.notification.sender;
-    final photoUrl = sender?['photo_url'];
-    final name = sender?['name'] ?? 'Someone';
-
-    if (_showSuccess) {
-      return AnimatedContainer(
-        duration: const Duration(milliseconds: 300),
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.green.withOpacity(0.5)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(PhosphorIconsFill.checkCircle, color: Colors.green, size: 24),
-            const SizedBox(width: 12),
-            Text('Connected with $name!', style: AppTypography.labelMedium.copyWith(color: textColor, fontWeight: FontWeight.bold)),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: surfaceColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: widget.notification.isRead
-              ? context.borderColor.withOpacity(0.1)
-              : accentColor.withOpacity(0.3),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(12),
-                child: SafeNetworkImage(
-                  url: photoUrl != null
-                      ? ApiConstants.fixMediaUrl(photoUrl)
-                      : null,
-                  width: 52,
-                  height: 52,
-                  fit: BoxFit.cover,
-                  placeholder: Container(
-                    color: accentColor.withOpacity(0.1),
-                    child: Center(
-                      child: Text(
-                        name.isNotEmpty ? name[0].toUpperCase() : '?',
-                        style: TextStyle(
-                            color: accentColor, fontWeight: FontWeight.bold, fontSize: 18),
+          bottom: TabBar(
+            tabs: [
+              const Tab(text: "All"),
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Text("Moments"),
+                    if (provider.hasUnreadMoments) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
+                        ),
                       ),
-                    ),
-                  ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              Tab(
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          name,
-                          style: AppTypography.bodyLarge.copyWith(
-                            fontWeight: FontWeight.w800,
-                            color: textColor,
-                          ),
+                    const Text("Connections"),
+                    if (provider.hasUnreadConnections) ...[
+                      const SizedBox(width: 4),
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: primaryColor,
+                          shape: BoxShape.circle,
                         ),
-                        Text(
-                          widget.notification.timeAgo,
-                          style: AppTypography.caption
-                              .copyWith(color: mutedColor, fontSize: 11),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      widget.notification.body,
-                      style:
-                          AppTypography.bodyMedium.copyWith(color: mutedColor, fontSize: 13, height: 1.4),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
+                      ),
+                    ],
                   ],
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          if (_isActing)
-            Center(
-                child: SizedBox(
-                    height: 32,
-                    width: 32,
-                    child: CircularProgressIndicator(
-                        strokeWidth: 2, color: accentColor)))
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: _decline,
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: textColor,
-                      side: BorderSide(color: context.borderColor.withOpacity(0.5)),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text('Decline',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: _accept,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: accentColor,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
-                    child: const Text('Accept',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
-                  ),
-                ),
-              ],
+            labelColor: primaryColor,
+            unselectedLabelColor: const Color(0xFF999999),
+            labelStyle: const TextStyle(
+              fontFamily: 'DMSans',
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
             ),
-        ],
+            unselectedLabelStyle: const TextStyle(
+              fontFamily: 'DMSans',
+              fontSize: 14,
+              fontWeight: FontWeight.w400,
+            ),
+            indicator: UnderlineTabIndicator(
+              borderSide: BorderSide(color: primaryColor, width: 2),
+              insets: const EdgeInsets.symmetric(horizontal: 16),
+            ),
+            indicatorSize: TabBarIndicatorSize.label,
+          ),
+        ),
+        body: TabBarView(
+          children: [
+            _buildNotificationList(provider.all, provider.isLoading, "All"),
+            _buildNotificationList(provider.moments, provider.isLoading, "Moments"),
+            _buildNotificationList(provider.connections, provider.isLoading, "Connections"),
+          ],
+        ),
       ),
     );
   }
-}
 
-// ── Generic & Moment notification item ───────────────────────────────────────
+  Widget _buildNotificationList(List<NotificationModel> notifications, bool isLoading, String tabType) {
+    if (isLoading && notifications.isEmpty) {
+      return _buildShimmerList();
+    }
 
-class _NotificationItem extends StatelessWidget {
-  final model.Notification notification;
-  final VoidCallback onTap;
+    if (notifications.isEmpty) {
+      IconData emptyIcon;
+      String emptyMessage;
+      switch (tabType) {
+        case "Moments":
+          emptyIcon = Icons.image_outlined;
+          emptyMessage = "No moment activity yet";
+          break;
+        case "Connections":
+          emptyIcon = Icons.people_outline;
+          emptyMessage = "No connection requests";
+          break;
+        default:
+          emptyIcon = Icons.notifications_none_rounded;
+          emptyMessage = "No notifications yet";
+      }
 
-  const _NotificationItem(
-      {required this.notification, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final surfaceColor = context.surfaceColor;
-    final textColor = context.textColor;
-    final mutedColor = context.mutedColor;
-    final accentColor = context.primaryColor;
-
-    final isMoment = notification.type == model.NotificationType.momentLike ||
-                     notification.type == model.NotificationType.momentComment;
-    
-    final sender = notification.sender;
-    final photoUrl = sender?['photo_url'];
-    final name = sender?['name'] ?? 'Someone';
-    final momentPhoto = notification.data['moment_photo'];
-
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: notification.isRead
-                ? Colors.transparent
-                : accentColor.withOpacity(0.1),
-          ),
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(emptyIcon, size: 48, color: const Color(0xFFDDD5C8)),
+            const SizedBox(height: 16),
+            Text(
+              emptyMessage,
+              style: const TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: Color(0xFF999999),
+              ),
+            ),
+          ],
         ),
+      );
+    }
+
+    return ListView.separated(
+      itemCount: notifications.length,
+      separatorBuilder: (context, index) => const Divider(
+        color: Color(0xFFE8E0D0),
+        height: 1,
+        indent: 72,
+      ),
+      itemBuilder: (context, index) => _buildNotificationItem(notifications[index]),
+    );
+  }
+
+  Widget _buildNotificationItem(NotificationModel notification) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryColor = const Color(0xFF9B111E);
+    final nearBlack = isDark ? const Color(0xFFF5EFE6) : const Color(0xFF1A1A1A);
+    final bodyColor = isDark ? Colors.white70 : const Color(0xFF444444);
+
+    return InkWell(
+      onTap: () => _handleTap(notification),
+      child: Container(
+        color: notification.isRead
+            ? Colors.transparent
+            : primaryColor.withOpacity(0.04),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Stack(
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(10),
-                  child: SafeNetworkImage(
-                    url: photoUrl != null
-                        ? ApiConstants.fixMediaUrl(photoUrl)
-                        : null,
-                    width: 46,
-                    height: 46,
-                    fit: BoxFit.cover,
-                    placeholder: Container(
-                      color: accentColor.withOpacity(0.1),
-                      child: Center(
-                        child: Text(
-                          name.isNotEmpty ? name[0].toUpperCase() : '?',
-                          style: TextStyle(
-                              color: accentColor,
-                              fontWeight: FontWeight.bold),
-                        ),
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: const Color(0xFFF0E8E0),
+                  backgroundImage: notification.sender?.photo != null
+                      ? CachedNetworkImageProvider(notification.sender!.photo!)
+                      : null,
+                  child: notification.sender?.photo == null
+                      ? Text(
+                          notification.sender?.name.isNotEmpty == true
+                              ? notification.sender!.name[0].toUpperCase()
+                              : 'K',
+                          style: const TextStyle(
+                            fontFamily: 'CormorantGaramond',
+                            fontSize: 20,
+                            color: Color(0xFF9B111E),
+                          ),
+                        )
+                      : null,
+                ),
+                Positioned(
+                  bottom: 0,
+                  right: 0,
+                  child: Container(
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      color: _typeColor(notification.notificationType),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        width: 2,
                       ),
+                    ),
+                    child: Icon(
+                      _typeIcon(notification.notificationType),
+                      size: 11,
+                      color: Colors.white,
                     ),
                   ),
                 ),
-                if (!notification.isRead)
-                  Positioned(
-                    top: 0,
-                    right: 0,
-                    child: Container(
-                      width: 10,
-                      height: 10,
-                      decoration: BoxDecoration(
-                        color: accentColor,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: surfaceColor, width: 2),
-                      ),
-                    ),
-                  ),
               ],
             ),
-            const SizedBox(width: 12),
+            const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   RichText(
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
                     text: TextSpan(
-                      style: AppTypography.bodyMedium.copyWith(color: textColor, height: 1.3),
+                      style: TextStyle(
+                        fontFamily: 'DMSans',
+                        fontSize: 14,
+                        color: nearBlack,
+                      ),
                       children: [
                         TextSpan(
-                          text: '$name ',
-                          style: const TextStyle(fontWeight: FontWeight.w800),
+                          text: notification.sender?.name ?? 'KanairoXO',
+                          style: const TextStyle(fontWeight: FontWeight.w600),
                         ),
+                        if (notification.sender?.isOfficial == true) ...[
+                          const WidgetSpan(
+                            child: Padding(
+                              padding: EdgeInsets.only(left: 4),
+                              child: Icon(Icons.verified, size: 14, color: Colors.blue),
+                            ),
+                          ),
+                        ],
+                        const TextSpan(text: ' '),
                         TextSpan(
-                          text: isMoment ? (notification.type == model.NotificationType.momentLike ? 'liked your moment' : 'commented on your moment') : notification.body,
-                          style: TextStyle(color: textColor.withOpacity(0.9)),
+                          text: _bodyText(notification),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w400,
+                            color: bodyColor,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    notification.timeAgo,
-                    style: AppTypography.caption
-                        .copyWith(color: mutedColor, fontSize: 10),
+                    _formatTimeAgo(notification.createdAt),
+                    style: const TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 12,
+                      color: Color(0xFF999999),
+                    ),
                   ),
                 ],
               ),
             ),
-            if (isMoment && momentPhoto != null) ...[
-              const SizedBox(width: 8),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: SafeNetworkImage(
-                  url: ApiConstants.fixMediaUrl(momentPhoto),
-                  width: 46,
-                  height: 46,
-                  fit: BoxFit.cover,
+            if (!notification.isRead)
+              Container(
+                width: 8,
+                height: 8,
+                margin: const EdgeInsets.only(top: 4),
+                decoration: BoxDecoration(
+                  color: primaryColor,
+                  shape: BoxShape.circle,
                 ),
               ),
-            ],
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildShimmerList() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[300]!,
+      highlightColor: Colors.grey[100]!,
+      child: ListView.builder(
+        itemCount: 5,
+        itemBuilder: (context, index) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+          child: Row(
+            children: [
+              const CircleAvatar(radius: 24, backgroundColor: Colors.white),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(width: double.infinity, height: 14, color: Colors.white),
+                    const SizedBox(height: 8),
+                    Container(width: 100, height: 12, color: Colors.white),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  IconData _typeIcon(String type) {
+    switch (type) {
+      case 'moment_like':
+      case 'new_like':
+        return Icons.favorite_rounded;
+      case 'moment_comment':
+      case 'new_comment':
+        return Icons.chat_bubble_rounded;
+      case 'moment_save':
+        return Icons.bookmark_rounded;
+      case 'connection_request':
+        return Icons.person_add_rounded;
+      case 'connection_accepted':
+        return Icons.handshake_outlined;
+      default:
+        return Icons.notifications_rounded;
+    }
+  }
+
+  Color _typeColor(String type) {
+    if (['moment_like', 'moment_comment', 'moment_save', 'new_like', 'new_comment'].contains(type)) {
+      return const Color(0xFF9B111E);
+    }
+    if (['connection_request', 'connection_accepted', 'connection_rejected'].contains(type)) {
+      return const Color(0xFF2E7D32);
+    }
+    return const Color(0xFF666666);
+  }
+
+  String _bodyText(NotificationModel n) {
+    switch (n.notificationType) {
+      case 'moment_like':
+      case 'new_like':
+        return 'liked your moment';
+      case 'moment_comment':
+      case 'new_comment':
+        return 'commented: "${n.message}"';
+      case 'moment_save':
+        return 'saved your moment';
+      case 'connection_request':
+        return 'wants to connect with you';
+      case 'connection_accepted':
+        return 'accepted your connection';
+      case 'connection_rejected':
+        return 'declined your connection';
+      default:
+        return n.message;
+    }
+  }
+
+  String _formatTimeAgo(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inDays > 7) return DateFormat('d MMM').format(dt);
+    if (diff.inDays >= 1) return '${diff.inDays}d ago';
+    if (diff.inHours >= 1) return '${diff.inHours}h ago';
+    if (diff.inMinutes >= 1) return '${diff.inMinutes}m ago';
+    return 'Just now';
   }
 }

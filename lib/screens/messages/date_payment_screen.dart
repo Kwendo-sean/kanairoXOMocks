@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../core/theme/app_colors.dart';
+import '../../core/theme/app_typography.dart';
 import '../../models/date_request_model.dart';
 import '../../services/api_client.dart';
 import '../../providers/date_plan_provider.dart';
@@ -70,16 +71,22 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
   }
 
   void _showSuccessSheet() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bgColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final subColor = isDark ? Colors.grey[400] : const Color(0xFF666666);
+
     showModalBottomSheet(
       context: context,
       isDismissible: false,
       enableDrag: false,
+      backgroundColor: bgColor,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
       builder: (_) => Container(
         padding: const EdgeInsets.all(32),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -88,13 +95,17 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
             const SizedBox(height: 16),
             Text(
               "Booking Confirmed",
-              style: GoogleFonts.cormorantGaramond(fontSize: 24, fontWeight: FontWeight.w600),
+              style: GoogleFonts.cormorantGaramond(
+                fontSize: 24, 
+                fontWeight: FontWeight.w600,
+                color: textColor,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               "Your date at ${widget.request.venue.name} is confirmed. Enjoy the evening.",
               textAlign: TextAlign.center,
-              style: const TextStyle(fontFamily: 'DM Sans', fontSize: 14, color: Color(0xFF666666)),
+              style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, color: subColor),
             ),
             const SizedBox(height: 24),
             SizedBox(
@@ -104,7 +115,7 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
                   Navigator.of(context).popUntil((route) => route.isFirst);
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: const Color(0xFF9B111E),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
                 ),
@@ -119,6 +130,11 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+
     final provider = context.watch<DatePlanProvider>();
     final resFee = provider.config?.reservationFee ?? 500.0;
     final commissionRate = provider.config?.commissionRate ?? 0.1;
@@ -130,22 +146,18 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
     final hasSenderPhoto = senderPhoto != null && senderPhoto.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.warmBeige,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: AppColors.warmBeige,
+        backgroundColor: bgColor,
         elevation: 0,
         centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.nearBlack),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           "Complete Booking",
-          style: GoogleFonts.cormorantGaramond(
-            fontSize: 22,
-            fontWeight: FontWeight.w600,
-            color: AppColors.nearBlack,
-          ),
+          style: AppTypography.screenTitle.copyWith(color: textColor),
         ),
       ),
       body: SingleChildScrollView(
@@ -157,7 +169,7 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
             Container(
               width: double.infinity,
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 12, offset: const Offset(0, 4))
@@ -175,9 +187,9 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
                               height: 140,
                               width: double.infinity,
                               fit: BoxFit.cover,
-                              errorWidget: (_, __, ___) => Container(color: const Color(0xFFF0E8E0), height: 140),
+                              errorWidget: (_, __, ___) => Container(color: isDark ? Colors.grey[800] : const Color(0xFFF0E8E0), height: 140),
                             )
-                          : Container(color: const Color(0xFFF0E8E0), height: 140),
+                          : Container(color: isDark ? Colors.grey[800] : const Color(0xFFF0E8E0), height: 140),
                         Positioned.fill(
                           child: Container(
                             decoration: BoxDecoration(
@@ -208,32 +220,32 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
                           children: [
                             CircleAvatar(
                               radius: 18,
-                              backgroundColor: const Color(0xFFF0E8E0),
+                              backgroundColor: isDark ? Colors.grey[800] : const Color(0xFFF0E8E0),
                               backgroundImage: hasSenderPhoto ? NetworkImage(senderPhoto) : null,
                               child: !hasSenderPhoto 
-                                ? Text(widget.request.sender.name[0], style: GoogleFonts.cormorantGaramond(fontSize: 18, color: AppColors.primary))
+                                ? Text(widget.request.sender.name[0], style: GoogleFonts.cormorantGaramond(fontSize: 18, color: const Color(0xFF9B111E)))
                                 : null,
                             ),
                             const SizedBox(width: 10),
                             Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text("Date with ${widget.request.sender.name}", style: const TextStyle(fontFamily: 'DM Sans', fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.nearBlack)),
-                                Text(widget.request.vibe, style: const TextStyle(fontFamily: 'DM Sans', fontSize: 12, color: AppColors.primary)),
+                                Text("Date with ${widget.request.sender.name}", style: TextStyle(fontFamily: 'DM Sans', fontSize: 15, fontWeight: FontWeight.w600, color: textColor)),
+                                Text(widget.request.vibe, style: const TextStyle(fontFamily: 'DM Sans', fontSize: 12, color: Color(0xFF9B111E))),
                               ],
                             )
                           ],
                         ),
                         const SizedBox(height: 16),
-                        const Divider(color: Color(0xFFE8E0D0)),
+                        Divider(color: isDark ? Colors.grey[800] : const Color(0xFFE8E0D0)),
                         const SizedBox(height: 16),
-                        _buildPayRow("Package", widget.request.package.name, "KES ${widget.request.package.price}"),
+                        _buildPayRow(context, "Package", widget.request.package.name, "KES ${widget.request.package.price}"),
                         const SizedBox(height: 10),
-                        _buildPayRow("KXO Fee", "Platform service fee", "KES ${kxoFee.toInt()}"),
+                        _buildPayRow(context, "KXO Fee", "Platform service fee", "KES ${kxoFee.toInt()}"),
                         const SizedBox(height: 10),
-                        const Divider(color: Color(0xFFE8E0D0)),
+                        Divider(color: isDark ? Colors.grey[800] : const Color(0xFFE8E0D0)),
                         const SizedBox(height: 10),
-                        _buildPayRow("Reservation Deposit", "Due now to confirm", "KES ${resFee.toInt()}", bold: true),
+                        _buildPayRow(context, "Reservation Deposit", "Due now to confirm", "KES ${resFee.toInt()}", bold: true),
                       ],
                     ),
                   ),
@@ -243,31 +255,32 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
             
             const SizedBox(height: 24),
             
-            const Text("Pay with M-Pesa", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.nearBlack)),
+            Text("Pay with M-Pesa", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
             const SizedBox(height: 4),
             const Text("Enter your M-Pesa registered phone number", style: TextStyle(fontFamily: 'DM Sans', fontSize: 12, color: Color(0xFF999999))),
             const SizedBox(height: 12),
             
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: cardColor,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE8E0D0)),
+                border: Border.all(color: isDark ? Colors.grey[800]! : const Color(0xFFE8E0D0)),
               ),
               child: Row(
                 children: [
-                  const Padding(
-                    padding: EdgeInsets.only(left: 16),
-                    child: Text("+254", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.nearBlack)),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 16),
+                    child: Text("+254", style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: FontWeight.w600, color: textColor)),
                   ),
-                  const SizedBox(height: 24, child: VerticalDivider(color: Color(0xFFE8E0D0), width: 24)),
+                  SizedBox(height: 24, child: VerticalDivider(color: isDark ? Colors.grey[800] : const Color(0xFFE8E0D0), width: 24)),
                   Expanded(
                     child: TextField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      style: const TextStyle(fontFamily: 'DM Sans', fontSize: 14),
+                      style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, color: textColor),
                       decoration: const InputDecoration(
                         hintText: "7XX XXX XXX",
+                        hintStyle: TextStyle(color: Color(0xFF999999)),
                         border: InputBorder.none,
                         isDense: true,
                         contentPadding: EdgeInsets.symmetric(vertical: 16),
@@ -317,18 +330,21 @@ class _DatePaymentScreenState extends State<DatePaymentScreen> {
     );
   }
 
-  Widget _buildPayRow(String label, String subtitle, String amount, {bool bold = false}) {
+  Widget _buildPayRow(BuildContext context, String label, String subtitle, String amount, {bool bold = false}) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+
     return Row(
       children: [
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontFamily: 'DM Sans', fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.nearBlack)),
+            Text(label, style: TextStyle(fontFamily: 'DM Sans', fontSize: 13, fontWeight: FontWeight.w600, color: textColor)),
             Text(subtitle, style: const TextStyle(fontFamily: 'DM Sans', fontSize: 11, color: Color(0xFF999999))),
           ],
         ),
         const Spacer(),
-        Text(amount, style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, color: AppColors.primary)),
+        Text(amount, style: TextStyle(fontFamily: 'DM Sans', fontSize: 14, fontWeight: bold ? FontWeight.w700 : FontWeight.w500, color: const Color(0xFF9B111E))),
       ],
     );
   }

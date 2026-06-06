@@ -20,6 +20,7 @@ import 'package:kanairoxo/screens/messaging/chat_screen.dart';
 import 'package:kanairoxo/screens/music/spotify_connect_screen.dart';
 import 'package:kanairoxo/providers/notification_provider.dart';
 import 'package:kanairoxo/screens/messages/date_planner_screen.dart';
+import 'package:kanairoxo/utils/feature_flags.dart';
 
 class DiscoveryScreen extends StatefulWidget {
   const DiscoveryScreen({Key? key}) : super(key: key);
@@ -166,6 +167,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   Future<void> _loadMusicCompat(String userId) async {
+    if (!FeatureFlags.spotifyEnabled) return;
     try {
       final compat = await SpotifyService().getCompatibility(userId);
       if (compat != null && mounted) {
@@ -470,7 +472,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                         },
                       ),
                     ),
-                    if (_musicCompat[profile.userId] != null && _musicCompat[profile.userId]!.score > 0)
+                    if (FeatureFlags.spotifyEnabled && _musicCompat[profile.userId] != null && _musicCompat[profile.userId]!.score > 0)
                       Positioned(
                         top: 12, left: 12,
                         child: MusicCompatChip(
@@ -527,7 +529,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         ),
       
       ContextType.musicTeaser =>
-        _MusicTeaserCard(data: _contextCard!.data),
+        FeatureFlags.spotifyEnabled ? _MusicTeaserCard(data: _contextCard!.data) : const SizedBox.shrink(),
       
       _ => const SizedBox.shrink(),
     };

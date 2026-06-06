@@ -1,5 +1,4 @@
 import '../../core/utils/url_helper.dart';
-import '../../utils/auth_storage.dart';
 
 class MessageModel {
   final String id;
@@ -17,9 +16,7 @@ class MessageModel {
   final bool isRead;
   final DateTime sentAt;
   final bool isDeleted;
-  
-  bool get isFromMe =>
-    senderId == AuthStorage.getCachedUserId();
+  final bool isMine; // Added as per requirement
   
   MessageModel({
     required this.id,
@@ -36,6 +33,7 @@ class MessageModel {
     required this.isRead,
     required this.sentAt,
     required this.isDeleted,
+    required this.isMine,
   });
   
   factory MessageModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +52,7 @@ class MessageModel {
       isRead: json['is_read'] ?? false,
       sentAt: DateTime.tryParse(json['sent_at'] ?? '') ?? DateTime.now(),
       isDeleted: json['is_deleted'] ?? false,
+      isMine: json['is_mine'] ?? false, // Added as per requirement
     );
   }
 }

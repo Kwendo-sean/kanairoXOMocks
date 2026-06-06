@@ -88,8 +88,15 @@ class ProfileApiService {
   }
 
   Future<User> updateProfile(UserProfileUpdate update) async {
-    // Consistent with profile/edit/ endpoint
-    final response = await _apiClient.patch('api/v1/profiles/edit/', update.toJson());
+    final json = update.toJson();
+
+    // Interests have a dedicated bulk endpoint — send separately
+    final interests = json.remove('interests');
+    if (interests != null && interests is List && interests.isNotEmpty) {
+      await _apiClient.post('api/v1/profiles/interests/bulk/', {'interests': interests});
+    }
+
+    final response = await _apiClient.patch('api/v1/profiles/edit/', json);
     return User.fromJson(response);
   }
 

@@ -23,6 +23,7 @@ class _ChatScreenState extends State<ChatScreen> {
       timestamp: DateTime.now().subtract(const Duration(hours: 5)),
       isRead: true,
       isDelivered: true,
+      isMine: false,
     ),
     Message(
       id: '2',
@@ -32,6 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
       timestamp: DateTime.now().subtract(const Duration(hours: 4)),
       isRead: true,
       isDelivered: true,
+      isMine: true,
     ),
     Message(
       id: '3',
@@ -41,6 +43,7 @@ class _ChatScreenState extends State<ChatScreen> {
       timestamp: DateTime.now().subtract(const Duration(hours: 3)),
       isRead: true,
       isDelivered: true,
+      isMine: false,
     ),
     Message(
       id: '4',
@@ -50,10 +53,9 @@ class _ChatScreenState extends State<ChatScreen> {
       timestamp: DateTime.now().subtract(const Duration(minutes: 30)),
       isRead: true,
       isDelivered: true,
+      isMine: false,
     ),
   ];
-  
-  // Removed unused field _isTyping
   
   void _sendMessage() {
     if (_messageController.text.trim().isEmpty) return;
@@ -67,6 +69,7 @@ class _ChatScreenState extends State<ChatScreen> {
       expiresAt: DateTime.now().add(
         const Duration(hours: 48), // Disappearing messages
       ),
+      isMine: true,
     );
     
     setState(() {
@@ -87,6 +90,7 @@ class _ChatScreenState extends State<ChatScreen> {
             expiresAt: DateTime.now().add(
               const Duration(hours: 48),
             ),
+            isMine: false,
           ));
         });
       }
@@ -161,7 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
   
   Widget _buildMessageBubble(Message message) {
-    final isOutgoing = message.senderId == 'current_user_id';
+    final isOutgoing = message.isMine;
     
     return Container(
       margin: const EdgeInsets.symmetric(vertical: 4),

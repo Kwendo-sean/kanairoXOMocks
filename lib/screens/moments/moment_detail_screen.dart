@@ -529,7 +529,7 @@ class _CinematicCommentsSheetState extends State<_CinematicCommentsSheet> {
                   child: Text(
                     "Comments",
                     style: TextStyle(
-                      fontFamily: 'CormorantGaramond',
+                      fontFamily: 'DMSans',
                       color: Colors.white,
                       fontSize: 18,
                       fontWeight: FontWeight.w600,

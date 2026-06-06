@@ -9,6 +9,7 @@ import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/profile_model.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/models/music/spotify_models.dart';
+import 'package:kanairoxo/models/ticket_model.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/services/profile_api_service.dart';
 import 'package:kanairoxo/services/spotify_service.dart';
@@ -23,8 +24,10 @@ import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/widgets/profile/profile_stats.dart';
-import 'package:kanairoxo/screens/moments/saved_moments_screen.dart';
-import 'package:dio/dio.dart';
+import 'package:kanairoxo/screens/profile/saved_screen.dart';
+import 'package:kanairoxo/utils/feature_flags.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? publicId;
@@ -43,6 +46,9 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   SpotifyStatus? _spotifyStatus;
 
   int _connectionsCount = 0;
+  
+  List<TicketModel> _myTickets = [];
+  bool _ticketsLoading = true;
 
   @override
   bool get wantKeepAlive => true;
@@ -64,6 +70,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       _loadGallery(),
       _loadSpotifyStatus(),
       _loadConnectionsCount(),
+      _loadTickets(),
     ]);
   }
 
@@ -98,7 +105,24 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
     }
   }
 
+  Future<void> _loadTickets() async {
+    if (widget.publicId != null) return;
+    try {
+      final response = await ApiClient.instance.get('api/v1/tickets/');
+      final List<dynamic> data = response is List ? response : (response['results'] ?? []);
+      if (mounted) {
+        setState(() {
+          _myTickets = data.map((json) => TicketModel.fromJson(json)).toList();
+          _ticketsLoading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _ticketsLoading = false);
+    }
+  }
+
   Future<void> _loadSpotifyStatus() async {
+    if (!FeatureFlags.spotifyEnabled) return;
     if (widget.publicId != null) return;
     try {
       final status = await SpotifyService().getStatus();
@@ -307,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 16),
                     child: GestureDetector(
-                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedMomentsScreen())),
+                      onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedScreen())),
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(color: surfaceColor, borderRadius: BorderRadius.circular(14), border: Border.all(color: borderColor)),
@@ -315,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                           children: [
                             const Icon(Icons.bookmark_outline, size: 20, color: AppColors.primary),
                             const SizedBox(width: 12),
-                            Expanded(child: Text('Saved Moments', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500))),
+                            Expanded(child: Text('Saved', style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w500))),
                             const Icon(Icons.chevron_right, size: 18, color: AppColors.textMuted),
                           ],
                         ),
@@ -330,11 +354,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                     const SizedBox(height: 16),
                   _buildAboutMe(profile),
                   const SizedBox(height: 16),
-                  _buildMusicSection(),
-                  const SizedBox(height: 16),
+                  if (FeatureFlags.spotifyEnabled) ...[
+                    _buildMusicSection(),
+                    const SizedBox(height: 16),
+                  ],
                   _buildInterests(profile),
                   const SizedBox(height: 16),
                   _buildGallery(profile, imgVersion),
+                  const SizedBox(height: 24),
+                  _buildMyTickets(),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -547,6 +575,7 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                 final index = widget.publicId == null ? i - 1 : i;
                 final photo = _galleryPhotos[index];
                 final photoUrl = photo.imageUrl;
+                // ITEM 1: Use CachedNetworkImage with errorWidget
                 final hasPhoto = photoUrl.isNotEmpty && (photoUrl.startsWith('http') || photoUrl.startsWith('https'));
 
                 return GestureDetector(
@@ -555,7 +584,15 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(10), 
                     child: hasPhoto 
-                      ? SafeNetworkImage(url: photoUrl, fit: BoxFit.cover)
+                      ? CachedNetworkImage(
+                          imageUrl: photoUrl,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => const PulsingGlassPlaceholder(borderRadius: 10),
+                          errorWidget: (context, url, error) => Container(
+                            color: Colors.grey.shade100,
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                          ),
+                        )
                       : Container(color: Colors.grey.shade100, child: const Icon(Icons.image_outlined, color: Colors.grey)),
                   ),
                 );
@@ -572,6 +609,198 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 3, crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: 1),
       itemCount: 6,
       itemBuilder: (_, __) => const PulsingGlassPlaceholder(borderRadius: 10),
+    );
+  }
+
+  Widget _buildMyTickets() {
+    if (widget.publicId != null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                "My Tickets",
+                style: AppTypography.labelMedium.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: context.textColor,
+                ),
+              ),
+              const Spacer(),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/my-tickets'),
+                child: const Text(
+                  "See all",
+                  style: TextStyle(
+                    color: Color(0xFF9B111E),
+                    fontFamily: 'DMSans',
+                    fontSize: 13,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          SizedBox(
+            height: 120,
+            child: _ticketsLoading
+                ? _buildTicketsShimmer()
+                : _myTickets.isEmpty
+                    ? _buildEmptyTickets()
+                    : ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: _myTickets.length > 5 ? 5 : _myTickets.length,
+                        itemBuilder: (context, index) {
+                          return _buildTicketCard(_myTickets[index]);
+                        },
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTicketCard(TicketModel ticket) {
+    return GestureDetector(
+      onTap: () => Navigator.pushNamed(context, '/ticket-reveal', arguments: ticket),
+      child: Container(
+        width: 200,
+        margin: const EdgeInsets.only(right: 12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: context.surfaceColor,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
+            )
+          ],
+        ),
+        child: Stack(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: CachedNetworkImage(
+                imageUrl: ticket.event.coverImage ?? '',
+                height: 120,
+                width: 200,
+                fit: BoxFit.cover,
+                errorWidget: (context, url, error) => Container(color: Colors.grey[200]),
+              ),
+            ),
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      Colors.transparent,
+                      Colors.black.withOpacity(0.65),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              bottom: 10,
+              left: 10,
+              right: 10,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    ticket.event.title,
+                    style: const TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    ticket.event.formattedDate,
+                    style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontSize: 10,
+                      color: Colors.white.withOpacity(0.7),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: ticket.status == 'confirmed'
+                      ? const Color(0xFF9B111E)
+                      : ticket.status == 'attended'
+                          ? Colors.green.shade600
+                          : Colors.grey.shade600,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  ticket.status[0].toUpperCase() + ticket.status.substring(1),
+                  style: const TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTicketsShimmer() {
+    return ListView.builder(
+      scrollDirection: Axis.horizontal,
+      itemCount: 3,
+      itemBuilder: (context, index) {
+        return Shimmer.fromColors(
+          baseColor: context.isDark ? Colors.grey[800]! : Colors.grey[300]!,
+          highlightColor: context.isDark ? Colors.grey[700]! : Colors.grey[100]!,
+          child: Container(
+            width: 200,
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: context.surfaceColor,
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildEmptyTickets() {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.surfaceColor,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.borderColor),
+      ),
+      child: Center(
+        child: Text(
+          "No tickets yet",
+          style: TextStyle(color: context.mutedColor, fontSize: 13),
+        ),
+      ),
     );
   }
 

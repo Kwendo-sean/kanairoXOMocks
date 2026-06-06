@@ -17,6 +17,7 @@ import 'package:kanairoxo/widgets/music/now_playing_bar.dart';
 import 'package:kanairoxo/widgets/music/music_compat_chip.dart';
 import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/utils/feature_flags.dart';
 
 class ProfilePreviewScreen extends StatefulWidget {
   final String userId;
@@ -114,6 +115,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Future<void> _loadMusicData() async {
+    if (!FeatureFlags.spotifyEnabled) return;
     final service = SpotifyService();
     try {
       final results = await Future.wait([
@@ -346,13 +348,13 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        if (_nowPlaying != null)
+                        if (FeatureFlags.spotifyEnabled && _nowPlaying != null)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: NowPlayingBar(track: _nowPlaying!, compact: true),
                           ),
 
-                        if (_musicCompat != null && _musicCompat!.score > 0)
+                        if (FeatureFlags.spotifyEnabled && _musicCompat != null && _musicCompat!.score > 0)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 24),
                             child: MusicCompatChip(
@@ -368,7 +370,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                         ),
                         const SizedBox(height: 32),
 
-                        if (_musicProfile != null && _musicProfile!.topArtists.isNotEmpty) ...[
+                        if (FeatureFlags.spotifyEnabled && _musicProfile != null && _musicProfile!.topArtists.isNotEmpty) ...[
                           _buildSectionTitle('Vibes With'),
                           Wrap(
                             spacing: 8, runSpacing: 8,

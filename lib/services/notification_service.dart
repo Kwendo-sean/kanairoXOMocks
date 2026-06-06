@@ -8,7 +8,9 @@ import 'package:kanairoxo/screens/notification_screen.dart';
 import 'package:kanairoxo/screens/moments_screen.dart';
 import 'package:kanairoxo/screens/messaging/conversations_screen.dart';
 import 'package:kanairoxo/screens/messages/date_requests_screen.dart';
-import 'package:kanairoxo/models/notification_model.dart' as model;
+import 'package:kanairoxo/models/notification_model.dart';
+import 'package:kanairoxo/models/ticket_model.dart';
+import 'package:kanairoxo/features/tickets/screens/ticket_reveal_screen.dart';
 
 class NotificationService {
   static final NotificationService _instance = NotificationService._internal();
@@ -43,33 +45,7 @@ class NotificationService {
     );
 
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
-      final type = message.data['type'] ?? '';
-      
-      // Date Planning Routing
-      if (message.data.containsKey('date_request_id')) {
-        _navigatorKey?.currentState?.push(
-          MaterialPageRoute(builder: (_) => const DateRequestsScreen()));
-        return;
-      }
-
-      switch (type) {
-        case 'new_message':
-          _navigatorKey?.currentState?.push(
-            MaterialPageRoute(builder: (_) => const ConversationsScreen()));
-          break;
-        case 'connection_request':
-        case 'connection_accepted':
-        case 'moment_like':
-        case 'moment_comment':
-        case 'moment_save':
-          _navigatorKey?.currentState?.push(
-            MaterialPageRoute(builder: (_) => const NotificationScreen()));
-          break;
-        case 'drop_reminder':
-          _navigatorKey?.currentState?.push(
-            MaterialPageRoute(builder: (_) => const MomentsScreen()));
-          break;
-      }
+      _handleNotificationRouting(message.data);
     });
 
     // Request permission (required on Android 13+ and iOS)
@@ -99,38 +75,100 @@ class NotificationService {
     // Check for initial message (when app is opened from a terminated state)
     FirebaseMessaging.instance.getInitialMessage().then((message) {
       if (message != null) {
-        if (message.data.containsKey('date_request_id')) {
-          _navigatorKey?.currentState?.push(
-            MaterialPageRoute(builder: (_) => const DateRequestsScreen()));
-        }
+        _handleNotificationRouting(message.data);
       }
     });
   }
 
-  Future<List<model.Notification>> getNotifications({String? type}) async {
+  Future<void> _handleNotificationRouting(Map<String, dynamic> data) async {
+    final type = data['type'] ?? '';
+
+    // Ticket Confirmed Routing
+    if (data.containsKey('ticket_id') && type == 'ticket_confirmed') {
+      final qrHash = data['qr_hash'] ?? data['ticket_id'];
+      try {
+        final response = await _apiClient.get('api/v1/tickets/$qrHash/');
+        final ticket = TicketModel.fromJson(response);
+        _navigatorKey?.currentState?.push(
+          MaterialPageRoute(builder: (_) => TicketRevealScreen(ticket: ticket)));
+      } catch (e) {
+        debugPrint('Error fetching ticket for notification: $e');
+      }
+      return;
+    }
+
+    // Date Planning Routing
+    if (data.containsKey('date_request_id')) {
+      _navigatorKey?.currentState?.push(
+        MaterialPageRoute(builder: (_) => const DateRequestsScreen()));
+      return;
+    }
+
+    switch (type) {
+      case 'new_message':
+        _navigatorKey?.currentState?.push(
+          MaterialPageRoute(builder: (_) => const ConversationsScreen()));
+        break;
+      case 'connection_request':
+      case 'connection_accepted':
+      case 'moment_like':
+      case 'moment_comment':
+      case 'moment_save':
+        _navigatorKey?.currentState?.push(
+          MaterialPageRoute(builder: (_) => const NotificationScreen()));
+        break;
+      case 'drop_reminder':
+        _navigatorKey?.currentState?.push(
+          MaterialPageRoute(builder: (_) => const MomentsScreen()));
+        break;
+    }
+  }
+
+  // Updated to handle metadata like unread_count
+  Future<Map<String, dynamic>> getNotificationsWithMetadata({String? type}) async {
     try {
       final queryParams = type != null ? {'type': type} : null;
       final response = await _apiClient.get('api/v1/notifications/', queryParameters: queryParams);
       
       final List<dynamic> list;
-      if (response is List) {
+      int unreadCount = 0;
+
+      if (response is Map) {
+        unreadCount = response['unread_count'] ?? 0;
+        if (response['results'] != null) {
+          list = response['results'] as List;
+        } else if (response['notifications'] != null) {
+          list = response['notifications'] as List;
+        } else {
+          list = [];
+        }
+      } else if (response is List) {
         list = response;
-      } else if (response['results'] != null) {
-        list = response['results'] as List;
       } else {
-        list = response['notifications'] as List? ?? [];
+        list = [];
       }
       
-      return list.map((n) => model.Notification.fromJson(n)).toList();
+      return {
+        'notifications': list.map((n) => NotificationModel.fromJson(n)).toList(),
+        'unread_count': unreadCount,
+      };
     } catch (e) {
       debugPrint('Error fetching notifications: $e');
-      return [];
+      return {
+        'notifications': <NotificationModel>[],
+        'unread_count': 0,
+      };
     }
   }
 
-  Future<void> markAsRead(String notificationId) async {
+  Future<List<NotificationModel>> getNotifications({String? type}) async {
+    final result = await getNotificationsWithMetadata(type: type);
+    return result['notifications'] as List<NotificationModel>;
+  }
+
+  Future<void> markAsRead(int notificationId) async {
     try {
-      await _apiClient.post('api/v1/notifications/$notificationId/read/', {});
+      await _apiClient.patch('api/v1/notifications/$notificationId/read/', {});
     } catch (e) {
       debugPrint('Error marking notification as read: $e');
     }

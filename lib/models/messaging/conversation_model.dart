@@ -6,7 +6,6 @@ class ConversationModel {
   final String status;
   final SparkStatus sparkStatus;
   final CanSend canSend;
-  final int? messagesRemaining;
   final String? lastMessagePreview;
   final DateTime? lastMessageAt;
   final int unreadCount;
@@ -18,7 +17,6 @@ class ConversationModel {
     required this.status,
     required this.sparkStatus,
     required this.canSend,
-    this.messagesRemaining,
     this.lastMessagePreview,
     this.lastMessageAt,
     required this.unreadCount,
@@ -35,12 +33,11 @@ class ConversationModel {
       status: json['status'] ?? 'active',
       sparkStatus: SparkStatus.fromJson(json['spark_status'] ?? {}),
       canSend: CanSend.fromJson(json['can_send'] ?? {}),
-      messagesRemaining: json['messages_remaining'],
       lastMessagePreview: json['last_message_preview'],
       lastMessageAt: json['last_message_at'] != null
         ? DateTime.tryParse(json['last_message_at'])
         : null,
-      unreadCount: json['unread_count_a'] ?? 0,
+      unreadCount: json['unread_count_a'] ?? json['unread_count'] ?? 0,
       meetupPlanned: json['meetup_planned'] ?? false,
     );
   }

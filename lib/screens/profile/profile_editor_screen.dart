@@ -49,13 +49,13 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
     'Ngong Road', 'Ruaka', 'Kitengela',
     'Thika Road', 'Rongai', 'Other',
   ];
-  
+
   final _lifeStages = [
     'Student', 'Early Career', 'Established Career',
     'Entrepreneur', 'Freelancer', 'Creative',
     'Remote Worker', 'Between Chapters',
   ];
-  
+
   final _socialCircles = [
     'Arts & Culture', 'Tech & Startups',
     'Finance & Business', 'Health & Wellness',

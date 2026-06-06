@@ -15,7 +15,7 @@ class Message {
   final DateTime? expiresAt;
   final bool isDeleted;
   final Map<String, dynamic>? metadata;
-  
+  final bool isMine; // Added for reliable message alignment
   
   const Message({
     required this.id,
@@ -34,11 +34,10 @@ class Message {
     this.expiresAt,
     this.isDeleted = false,
     this.metadata,
+    required this.isMine,
   });
   
   bool get isExpired => expiresAt != null && DateTime.now().isAfter(expiresAt!);
-  
-  bool get isOutgoing => senderId == 'current_user_id'; // Replace with actual user id
   
   Map<String, dynamic> toJson() {
     return {
@@ -58,21 +57,22 @@ class Message {
       'expiresAt': expiresAt?.toIso8601String(),
       'isDeleted': isDeleted,
       'metadata': metadata,
+      'is_mine': isMine,
     };
   }
   
   factory Message.fromJson(Map<String, dynamic> json) {
     return Message(
-      id: json['id'],
-      chatId: json['chatId'],
-      senderId: json['senderId'],
-      receiverId: json['receiverId'],
-      content: json['content'],
+      id: json['id']?.toString() ?? '',
+      chatId: json['chatId']?.toString() ?? '',
+      senderId: json['senderId']?.toString() ?? '',
+      receiverId: json['receiverId']?.toString(),
+      content: json['content'] ?? '',
       type: MessageType.values.firstWhere(
         (e) => e.toString() == json['type'],
         orElse: () => MessageType.text,
       ),
-      timestamp: DateTime.parse(json['timestamp']),
+      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
       isRead: json['isRead'] ?? false,
       readAt: json['readAt'] != null ? DateTime.parse(json['readAt']) : null,
       isDelivered: json['isDelivered'] ?? false,
@@ -82,6 +82,7 @@ class Message {
       expiresAt: json['expiresAt'] != null ? DateTime.parse(json['expiresAt']) : null,
       isDeleted: json['isDeleted'] ?? false,
       metadata: json['metadata'],
+      isMine: json['is_mine'] ?? false,
     );
   }
 }

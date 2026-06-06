@@ -126,7 +126,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     itemCount: _messages.length,
                     itemBuilder: (ctx, i) {
                       final msg = _messages[i];
-                      final isSent = msg['sender_id'].toString() == authProvider.user?.id;
+                      // Use reliable backend field is_mine
+                      final isSent = msg['is_mine'] ?? false;
                       return _buildMessageBubble(msg, isSent);
                     },
                   ),
@@ -150,7 +151,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _buildMessageBubble(dynamic msg, bool isSent) {
     final screenWidth = MediaQuery.of(context).size.width;
-    final sentAt = DateTime.parse(msg['sent_at']);
+    final sentAtStr = msg['sent_at'];
+    final sentAt = sentAtStr != null ? DateTime.parse(sentAtStr) : DateTime.now();
 
     return Align(
       alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,

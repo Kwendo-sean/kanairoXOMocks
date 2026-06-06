@@ -127,26 +127,34 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+
     return Scaffold(
-      backgroundColor: context.bgColor,
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: context.bgColor,
+        backgroundColor: bgColor,
         elevation: 0,
+        centerTitle: true,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
+          icon: Icon(Icons.arrow_back, color: textColor),
           onPressed: () => Navigator.pop(context)),
-        title: Text('Get Tickets', style: AppTypography.screenTitle)),
+        title: Text('Get Tickets', style: AppTypography.screenTitle.copyWith(color: textColor))),
       
       body: _paymentStatus == 'success'
-        ? _buildSuccessState()
+        ? _buildSuccessState(textColor)
         : _paymentStatus == 'polling'
-          ? _buildPollingState()
+          ? _buildPollingState(textColor)
           : _paymentStatus == 'failed'
-            ? _buildFailedState()
-            : _buildPurchaseForm());
+            ? _buildFailedState(textColor)
+            : _buildPurchaseForm(isDark, textColor, bgColor));
   }
   
-  Widget _buildPurchaseForm() {
+  Widget _buildPurchaseForm(bool isDark, Color textColor, Color bgColor) {
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.grey[800]! : Colors.grey.shade200;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(children: [
@@ -155,54 +163,54 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: Colors.grey.shade100)),
+            border: Border.all(color: borderColor)),
           child: Row(children: [
             Expanded(child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(widget.event.title,
-                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+                  style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
                 const SizedBox(height: 4),
                 Text(
                   '${widget.event.venueName} · ${widget.event.neighborhood}',
-                  style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                  style: AppTypography.caption.copyWith(color: isDark ? Colors.grey[400] : AppColors.textMuted)),
                 Text(
                   widget.event.formattedDate,
-                  style: AppTypography.caption.copyWith(color: AppColors.textMuted)),
+                  style: AppTypography.caption.copyWith(color: isDark ? Colors.grey[400] : AppColors.textMuted)),
               ])),
             Text(
               widget.event.basePrice == 0
                 ? 'FREE'
                 : 'KES ${widget.event.basePrice.toInt()}',
               style: AppTypography.displayMedium.copyWith(
-                color: AppColors.primary,
+                color: const Color(0xFF9B111E),
                 fontWeight: FontWeight.w700)),
           ])),
         
         const SizedBox(height: 20),
         
         // Quantity selector
-        const _SectionHeader(title: 'Number of Tickets'),
+        _SectionHeader(title: 'Number of Tickets', textColor: textColor),
         const SizedBox(height: 10),
         Container(
           padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: cardColor,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200)),
+            border: Border.all(color: borderColor)),
           child: Row(children: [
-            Text('Tickets', style: AppTypography.bodyMedium),
+            Text('Tickets', style: AppTypography.bodyMedium.copyWith(color: textColor)),
             const Spacer(),
             IconButton(
               icon: Icon(Icons.remove_circle_outline,
-                color: _quantity > 1 ? AppColors.primary : AppColors.textMuted),
+                color: _quantity > 1 ? const Color(0xFF9B111E) : Colors.grey),
               onPressed: _quantity > 1 ? () => setState(() => _quantity--) : null),
             Text('$_quantity',
-              style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700)),
+              style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
             IconButton(
-              icon: const Icon(Icons.add_circle_outline, color: AppColors.primary),
+              icon: const Icon(Icons.add_circle_outline, color: Color(0xFF9B111E)),
               onPressed: () => setState(() => _quantity++)),
           ])),
         
@@ -210,26 +218,29 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         
         // Phone number for M-Pesa
         if (widget.event.basePrice > 0) ...[
-          const _SectionHeader(title: 'M-Pesa Payment'),
+          _SectionHeader(title: 'M-Pesa Payment', textColor: textColor),
           const SizedBox(height: 10),
           TextField(
             controller: _phoneController,
             keyboardType: TextInputType.phone,
+            style: TextStyle(color: textColor),
             decoration: InputDecoration(
               hintText: '07XXXXXXXX',
-              prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: AppColors.textMuted),
+              hintStyle: const TextStyle(color: Colors.grey),
+              prefixIcon: const Icon(Icons.phone_outlined, size: 18, color: Colors.grey),
               helperText: 'You will receive an M-Pesa prompt',
+              helperStyle: const TextStyle(color: Colors.grey),
               filled: true,
-              fillColor: Colors.white,
+              fillColor: cardColor,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade200)),
+                borderSide: BorderSide(color: borderColor)),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide(color: Colors.grey.shade200)),
+                borderSide: BorderSide(color: borderColor)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide: const BorderSide(color: AppColors.primary, width: 1.5)))),
+                borderSide: const BorderSide(color: Color(0xFF9B111E), width: 1.5)))),
           const SizedBox(height: 20),
         ],
         
@@ -237,15 +248,15 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.primaryGlass,
+            color: const Color(0xFF9B111E).withOpacity(0.1),
             borderRadius: BorderRadius.circular(12)),
           child: Row(children: [
-            Text('Total', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600)),
+            Text('Total', style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
             const Spacer(),
             Text(
               totalAmount == 0 ? 'FREE' : 'KES ${totalAmount.toInt()}',
               style: AppTypography.displayMedium.copyWith(
-                color: AppColors.primary,
+                color: const Color(0xFF9B111E),
                 fontWeight: FontWeight.w700)),
           ])),
         
@@ -269,23 +280,23 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
       ]));
   }
   
-  Widget _buildPollingState() {
+  Widget _buildPollingState(Color textColor) {
     return Center(child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2),
+        const CircularProgressIndicator(color: Color(0xFF9B111E), strokeWidth: 2),
         const SizedBox(height: 24),
         Text('Waiting for payment...',
-          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
         const SizedBox(height: 8),
         Text(
           'Check your phone for the M-Pesa prompt\nand complete the payment',
-          style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+          style: AppTypography.caption.copyWith(color: Colors.grey),
           textAlign: TextAlign.center),
       ]));
   }
   
-  Widget _buildSuccessState() {
+  Widget _buildSuccessState(Color textColor) {
     return Center(child: Padding(
       padding: const EdgeInsets.all(32),
       child: Column(
@@ -293,15 +304,15 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
         children: [
           Container(
             width: 80, height: 80,
-            decoration: BoxDecoration(color: Colors.green.shade50, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: Colors.green.withOpacity(0.1), shape: BoxShape.circle),
             child: const Icon(Icons.check_circle_outline, color: Colors.green, size: 44)),
           const SizedBox(height: 20),
           Text('Ticket Confirmed',
-            style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700)),
+            style: AppTypography.displayMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
           const SizedBox(height: 8),
           Text(
             'Your ticket has been sent to your email and is ready to download',
-            style: AppTypography.bodyMedium.copyWith(color: AppColors.textMuted),
+            style: AppTypography.bodyMedium.copyWith(color: Colors.grey),
             textAlign: TextAlign.center),
           const SizedBox(height: 32),
           SizedBox(
@@ -320,22 +331,22 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
           TextButton(
             onPressed: () => Navigator.pop(context),
             child: Text('Back to Event',
-              style: AppTypography.labelMedium.copyWith(color: AppColors.textMuted))),
+              style: AppTypography.labelMedium.copyWith(color: Colors.grey))),
         ])));
   }
   
-  Widget _buildFailedState() {
+  Widget _buildFailedState(Color textColor) {
     return Center(child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         const Icon(Icons.error_outline, color: Colors.red, size: 48),
         const SizedBox(height: 16),
         Text('Payment Failed',
-          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
+          style: AppTypography.bodyMedium.copyWith(fontWeight: FontWeight.w600, color: textColor)),
         const SizedBox(height: 8),
         Text(
           'The payment was not completed.\nPlease try again.',
-          style: AppTypography.caption.copyWith(color: AppColors.textMuted),
+          style: AppTypography.caption.copyWith(color: Colors.grey),
           textAlign: TextAlign.center),
         const SizedBox(height: 24),
         LiquidGlassButton(
@@ -348,14 +359,15 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
 
 class _SectionHeader extends StatelessWidget {
   final String title;
-  const _SectionHeader({required this.title});
+  final Color textColor;
+  const _SectionHeader({required this.title, required this.textColor});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
       margin: const EdgeInsets.only(bottom: 8),
-      child: Text(title, style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700)),
+      child: Text(title, style: AppTypography.labelMedium.copyWith(fontWeight: FontWeight.w700, color: textColor)),
     );
   }
 }

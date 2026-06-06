@@ -10,6 +10,8 @@ import 'package:kanairoxo/services/moment_service.dart';
 import 'package:kanairoxo/services/spotify_service.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/utils/feature_flags.dart';
+import 'package:kanairoxo/core/theme/app_typography.dart';
 
 class CreateMomentScreen extends StatefulWidget {
   const CreateMomentScreen({super.key});
@@ -59,6 +61,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
   }
 
   Future<void> _attachCurrentSong() async {
+    if (!FeatureFlags.spotifyEnabled) return;
     final track = await SpotifyService().getNowPlaying();
     if (track != null && mounted) {
       setState(() => _attachedTrack = track);
@@ -88,7 +91,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
 
     try {
       Map<String, String>? trackData;
-      if (_attachedTrack != null) {
+      if (FeatureFlags.spotifyEnabled && _attachedTrack != null) {
         trackData = {
           'name': _attachedTrack!.name,
           'artist': _attachedTrack!.artist,
@@ -124,26 +127,24 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
 
   @override
   Widget build(BuildContext context) {
-    const primaryRed = Color(0xFF9B111E);
-    const nearBlack = Color(0xFF1A1A1A);
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+    final cardColor = isDark ? const Color(0xFF1E1E1E) : Colors.white;
+    final borderColor = isDark ? Colors.grey[800]! : const Color(0xFFE8E0D0);
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAF7F4),
+      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: const Color(0xFFFAF7F4),
+        backgroundColor: bgColor,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: nearBlack, size: 22),
-          onPressed: () => Navigator.pop(context)),
-        title: const Text('Create Moment', 
-          style: TextStyle(
-            fontFamily: 'CormorantGaramond',
-            color: nearBlack, 
-            fontSize: 22, 
-            fontWeight: FontWeight.w600
-          )
-        ),
         centerTitle: true,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: textColor, size: 22),
+          onPressed: () => Navigator.pop(context)),
+        title: Text('Create Moment', 
+          style: AppTypography.screenTitle.copyWith(color: textColor)
+        ),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -157,9 +158,9 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                 width: double.infinity,
                 height: 220,
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE8E0D0), width: 1.5),
+                  border: Border.all(color: borderColor, width: 1.5),
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withOpacity(0.06),
@@ -197,24 +198,24 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
             TextField(
               controller: _captionController,
               maxLines: 4,
-              style: const TextStyle(fontFamily: 'DMSans', color: nearBlack, fontSize: 14),
+              style: TextStyle(fontFamily: 'DMSans', color: textColor, fontSize: 14),
               decoration: InputDecoration(
                 hintText: 'Share the vibe...',
                 hintStyle: const TextStyle(fontFamily: 'DMSans', color: Color(0xFFA09080), fontSize: 14),
                 filled: true,
-                fillColor: Colors.white,
+                fillColor: cardColor,
                 contentPadding: const EdgeInsets.all(16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8E0D0)),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: Color(0xFFE8E0D0)),
+                  borderSide: BorderSide(color: borderColor),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: const BorderSide(color: primaryRed, width: 1.2),
+                  borderSide: const BorderSide(color: Color(0xFF9B111E), width: 1.2),
                 ),
               ),
             ),
@@ -249,9 +250,9 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                             decoration: BoxDecoration(
-                              border: Border.all(color: isSelected ? primaryRed : const Color(0xFFDDD5C8)),
+                              border: Border.all(color: isSelected ? const Color(0xFF9B111E) : borderColor),
                               borderRadius: BorderRadius.circular(20),
-                              color: isSelected ? primaryRed : Colors.white,
+                              color: isSelected ? const Color(0xFF9B111E) : cardColor,
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -270,7 +271,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
                                     fontFamily: 'DMSans',
-                                    color: isSelected ? Colors.white : nearBlack,
+                                    color: isSelected ? Colors.white : textColor,
                                     fontSize: 13,
                                     fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
                                   ),
@@ -287,31 +288,33 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
             ],
 
             // Music Attachment
-            _buildLabel("Attach a song?"),
-            GestureDetector(
-              onTap: _attachCurrentSong,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: const Color(0xFFDDD5C8))),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.music_note_rounded, size: 14, color: primaryRed),
-                    const SizedBox(width: 6),
-                    Text(
-                      _attachedTrack != null ? "${_attachedTrack!.name} · ${_attachedTrack!.artist}" : 'Select current track',
-                      style: const TextStyle(
-                        fontFamily: 'DMSans',
-                        color: nearBlack,
-                        fontSize: 13,
-                      )),
-                  ],
+            if (FeatureFlags.spotifyEnabled) ...[
+              _buildLabel("Attach a song?"),
+              GestureDetector(
+                onTap: _attachCurrentSong,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: cardColor,
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: borderColor)),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.music_note_rounded, size: 14, color: Color(0xFF9B111E)),
+                      const SizedBox(width: 6),
+                      Text(
+                        _attachedTrack != null ? "${_attachedTrack!.name} · ${_attachedTrack!.artist}" : 'Select current track',
+                        style: TextStyle(
+                          fontFamily: 'DMSans',
+                          color: textColor,
+                          fontSize: 13,
+                        )),
+                    ],
+                  ),
                 ),
               ),
-            ),
+            ],
             const SizedBox(height: 32),
 
             // Submit Button
