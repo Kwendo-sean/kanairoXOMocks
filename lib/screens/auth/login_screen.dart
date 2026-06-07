@@ -52,9 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       await NotificationService().registerDeviceToken();
       widget.onLoginSuccess();
     } catch (e) {
-      if (e.toString().contains('401')) {
-        // Potential deleted user
-      }
+      // Error handled by provider
     }
   }
 
@@ -274,7 +272,7 @@ class _LoginScreenState extends State<LoginScreen> {
             contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.all(color: context.primaryColor, width: 1.5)),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide(color: context.primaryColor, width: 1.5)),
           ),
         ),
       ),

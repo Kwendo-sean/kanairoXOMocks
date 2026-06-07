@@ -67,7 +67,7 @@ class NotificationProvider with ChangeNotifier {
   Future<void> loadConnections() async => loadNotifications();
   Future<void> loadMoments() async => loadNotifications();
 
-  Future<void> markAsRead(int id) async {
+  Future<void> markAsRead(String id) async {
     try {
       await _notificationService.markAsRead(id);
       final index = _all.indexWhere((n) => n.id == id);

@@ -2,10 +2,14 @@ import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'dart:io';
 import 'package:dio/dio.dart' as dio;
-import 'dart:convert';
 
 class MomentService {
   final ApiClient _api = ApiClient();
+
+  Future<void> deleteMoment(String id) async {
+    await _api.delete('api/v1/moments/$id/');
+  }
+
 
   Future<List<Moment>> getMoments({String? type}) async {
     final queryParams = type != null ? {'type': type} : <String, String>{};
@@ -59,6 +63,8 @@ class MomentService {
     return await _api.post('api/v1/moments/$id/comments/', {'text': text});
   }
 
+  Future<dynamic> postComment(String id, String text) => addComment(id, text);
+
   Future<List<LinkedEvent>> getLinkableEvents() async {
     try {
       final response = await _api.get('api/v1/moments/linkable-events/');
@@ -74,32 +80,51 @@ class MomentService {
   Future<Moment> createMoment({
     required String caption,
     required String type,
-    required File photo, // First/main media
+    required File photo, // First/main media (image or video file)
+    String mediaType = 'image', // 'image' | 'video'
     String? location,
     int? linkedEventId,
     Map<String, String>? trackData,
     String? visibility,
+    String filterId = 'none',
+    double trimStart = 0,
+    double trimDuration = 0,
   }) async {
+    final fileName = photo.path.split(Platform.pathSeparator).last;
+    final upload = await dio.MultipartFile.fromFile(photo.path, filename: fileName);
+
     final formData = dio.FormData.fromMap({
       'caption': caption,
-      'tag': type,
-      'location_name': location,
-      'linked_event': linkedEventId,
-      'visibility': visibility?.toLowerCase(),
-      'photo': await dio.MultipartFile.fromFile(photo.path),
+      'type': type,
+      'media_type': mediaType,
+      'location_string': location ?? '',
+      if (linkedEventId != null) 'linked_event': linkedEventId,
+      'is_public': (visibility == null || visibility.toLowerCase() == 'public') ? 'true' : 'false',
+      'visibility': (visibility == null || visibility.toLowerCase() == 'public') ? 'public' : 'connections',
+      'filter': filterId,
+      if (mediaType == 'video' && trimDuration > 0) ...{
+        'trim_start': trimStart.toStringAsFixed(3),
+        'trim_duration': trimDuration.toStringAsFixed(3),
+      },
+      // Use 'video' field for videos, 'photo' for images. Backend routes both to raw_upload.
+      if (mediaType == 'video') 'video': upload else 'photo': upload,
     });
 
     if (trackData != null) {
       formData.fields.addAll([
-        dio.MapEntry('track_name', trackData['name'] ?? ''),
-        dio.MapEntry('track_artist', trackData['artist'] ?? ''),
-        dio.MapEntry('track_image_url', trackData['image_url'] ?? ''),
-        dio.MapEntry('track_preview_url', trackData['preview_url'] ?? ''),
+        MapEntry('track_name', trackData['name'] ?? ''),
+        MapEntry('track_artist', trackData['artist'] ?? ''),
+        MapEntry('track_image_url', trackData['image_url'] ?? ''),
+        MapEntry('track_preview_url', trackData['preview_url'] ?? ''),
       ]);
     }
 
-    final response = await _api.post('api/v1/moments/', formData);
-    return Moment.fromJson(response);
+    final response = await ApiClient.instance.dio.post(
+      'api/v1/moments/',
+      data: formData,
+      options: dio.Options(contentType: 'multipart/form-data'),
+    );
+    return Moment.fromJson(response.data);
   }
 
   Future<void> attachMedia({
@@ -115,7 +140,12 @@ class MomentService {
       'position': position,
       'duration_ms': durationMs,
     });
-    await _api.post('api/v1/moments/$momentId/media/', formData);
+    
+    await ApiClient.instance.dio.post(
+      'api/v1/moments/$momentId/media/',
+      data: formData,
+      options: dio.Options(contentType: 'multipart/form-data'),
+    );
   }
 
   Future<void> saveDraft(Map<String, dynamic> payload) async {

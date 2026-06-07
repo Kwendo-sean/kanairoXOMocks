@@ -22,6 +22,9 @@ class _MainAppScreenState extends State<MainAppScreen> {
   late PageController _pageController;
   DateTime? _lastPressedAt;
 
+  // Bumping these keys forces the child screen to rebuild from scratch — a true reload.
+  final List<int> _reloadKeys = List<int>.filled(5, 0);
+
   @override
   void initState() {
     super.initState();
@@ -34,15 +37,24 @@ class _MainAppScreenState extends State<MainAppScreen> {
     super.dispose();
   }
 
-  final List<Widget> _screens = [
-    const DiscoveryScreen(),
-    const EventsScreenWrapper(),
-    const MomentsScreen(),
-    const ConversationsScreen(),
-    const ProfileScreen(),
-  ];
+  Widget _screenAt(int i) {
+    final key = ValueKey('tab_${i}_${_reloadKeys[i]}');
+    switch (i) {
+      case 0: return DiscoveryScreen(key: key);
+      case 1: return EventsScreenWrapper(key: key);
+      case 2: return MomentsScreen(key: key);
+      case 3: return ConversationsScreen(key: key);
+      case 4: return ProfileScreen(key: key);
+      default: return const SizedBox.shrink();
+    }
+  }
 
   void _onItemTapped(int index) {
+    if (index == _currentIndex) {
+      // Re-tap on the active tab — reload that screen
+      setState(() => _reloadKeys[index]++);
+      return;
+    }
     _pageController.jumpToPage(index);
   }
 
@@ -78,11 +90,12 @@ class _MainAppScreenState extends State<MainAppScreen> {
       },
       child: Scaffold(
         backgroundColor: context.bgColor,
-        body: PageView(
+        body: PageView.builder(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),
           onPageChanged: (index) => setState(() => _currentIndex = index),
-          children: _screens,
+          itemCount: 5,
+          itemBuilder: (_, i) => _screenAt(i),
         ),
         bottomNavigationBar: BottomNavBar(
           currentIndex: _currentIndex,

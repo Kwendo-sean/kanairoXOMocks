@@ -2,10 +2,6 @@ import 'package:flutter/material.dart';
 import 'app_colors.dart';
 
 class AppTypography {
-  // Colors are intentionally omitted — text inherits from the active theme's
-  // DefaultTextStyle so dark/light mode color switching works automatically.
-  // Override color with .copyWith(color: ...) at the call site when needed.
-
   static const TextStyle screenTitle = TextStyle(
     fontFamily: 'DMSans',
     fontSize: 20,
@@ -44,14 +40,18 @@ class AppTypography {
     fontWeight: FontWeight.w400,
   );
 
+  static const TextStyle labelLarge = TextStyle(
+    fontFamily: 'DMSans',
+    fontSize: 16,
+    fontWeight: FontWeight.w600,
+  );
+
   static const TextStyle labelMedium = TextStyle(
     fontFamily: 'DMSans',
     fontSize: 13,
     fontWeight: FontWeight.w600,
   );
 
-  // Caption uses muted color — kept as-is; callers can override for dark mode
-  // via .copyWith(color: context.mutedColor) if needed
   static const TextStyle caption = TextStyle(
     fontFamily: 'DMSans',
     fontSize: 12,

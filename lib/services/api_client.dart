@@ -44,7 +44,12 @@ class ApiClient {
     ));
   }
 
-  final _secureStorage = const FlutterSecureStorage();
+  final _secureStorage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      resetOnError: true,
+    ),
+  );
   bool _isRefreshing = false;
   Completer<void>? _refreshCompleter;
 

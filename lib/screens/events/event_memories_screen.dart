@@ -1,452 +1,115 @@
 import 'package:flutter/material.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
-import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
+import 'package:kanairoxo/widgets/skeletons.dart';
 
 class EventMemoriesScreen extends StatefulWidget {
   final String eventId;
-  final String eventName;
-  
+  final String eventTitle;
   const EventMemoriesScreen({
-    super.key,
-    required this.eventId,
-    required this.eventName,
-  });
-  
+    super.key, required this.eventId, required this.eventTitle});
+
   @override
   State<EventMemoriesScreen> createState() => _EventMemoriesScreenState();
 }
 
-class _EventMemoriesScreenState extends State<EventMemoriesScreen> 
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-  
-  final List<Map<String, dynamic>> _photos = [
-    {
-      'url': 'assets/images/kanairoxo_logo.png',
-      'user': 'Sofia',
-      'likes': 24,
-      'comments': 5,
-    },
-    {
-      'url': 'assets/images/kanairoxo_logo.png',
-      'user': 'Marcus',
-      'likes': 42,
-      'comments': 8,
-    },
-    {
-      'url': 'assets/images/kanairoxo_logo.png',
-      'user': 'You',
-      'likes': 18,
-      'comments': 3,
-    },
-  ];
-  
-  final List<Map<String, dynamic>> _reviews = [
-    {
-      'user': 'Sofia',
-      'rating': 5,
-      'comment': 'Amazing conversations! Met some really interesting people.',
-      'time': '2 days ago',
-      'userImage': 'assets/images/kanairoxo_logo.png',
-    },
-    {
-      'user': 'Marcus',
-      'rating': 4,
-      'comment': 'Great coffee and even better company. Will definitely attend again!',
-      'time': '3 days ago',
-      'userImage': 'assets/images/kanairoxo_logo.png',
-    },
-  ];
-  
+class _EventMemoriesScreenState extends State<EventMemoriesScreen> {
+  final ApiClient _api = ApiClient();
+  List<Map<String, dynamic>> _memories = [];
+  bool _loading = true;
+  static const _accent = Color(0xFF9B111E);
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _load();
   }
-  
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
+
+  Future<void> _load() async {
+    setState(() => _loading = true);
+    try {
+      final res = await _api.get('api/v1/events/${widget.eventId}/memories/');
+      final List items = (res is Map ? (res['memories'] ?? []) : []) as List;
+      if (mounted) setState(() {
+        _memories = items.map((m) => Map<String, dynamic>.from(m)).toList();
+        _loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
   }
-  
-  void _addMemory() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      isScrollControlled: true,
-      builder: (context) {
-        return Container(
-          height: MediaQuery.of(context).size.height * 0.8,
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
-          ),
-          child: Column(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  color: AppConstants.primaryRed,
-                  borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon:  Icon(PhosphorIcons.x(), color: Colors.white),
-                    ),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text(
-                        'Add Memory',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(
-                    children: [
-                      GestureDetector(
-                        onTap: () {
-                          // Pick photo/video
-                        },
-                        child: Container(
-                          width: double.infinity,
-                          height: 200,
-                          decoration: BoxDecoration(
-                            color: AppConstants.primaryBeige,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(
-                              color: AppConstants.lightGray,
-                              style: BorderStyle.solid,
-                            ),
-                          ),
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                PhosphorIcons.image(),
-                                size: 48,
-                                color: AppConstants.secondaryGray,
-                              ),
-                              const SizedBox(height: 12),
-                              const Text(
-                                'Add Photo/Video',
-                                style: TextStyle(
-                                  color: AppConstants.secondaryGray,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-                      TextField(
-                        maxLines: 4,
-                        decoration: InputDecoration(
-                          hintText: 'Share your experience...',
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(16),
-                            borderSide: BorderSide(color: AppConstants.lightGray),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        children: [
-                           Icon(PhosphorIcons.star(), color: Colors.amber),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Slider(
-                              value: 5,
-                              min: 1,
-                              max: 5,
-                              divisions: 4,
-                              onChanged: (value) {},
-                            ),
-                          ),
-                          const Text(
-                            '5.0',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const Spacer(),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Memory added successfully'),
-                                backgroundColor: AppConstants.successGreen,
-                              ),
-                            );
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConstants.primaryRed,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 56),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                          ),
-                          child: const Text('Share Memory'),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-  
+
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final bg = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
+
     return Scaffold(
-      backgroundColor: AppConstants.primaryBeige,
+      backgroundColor: bg,
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Event Memories',
-          style: Theme.of(context).textTheme.displayMedium?.copyWith(
-            fontSize: 20,
-          ),
-        ),
+        backgroundColor: bg, elevation: 0,
+        leading: IconButton(icon: Icon(Icons.arrow_back, color: textColor),
+          onPressed: () => Navigator.pop(context)),
+        title: Text(widget.eventTitle,
+          style: TextStyle(fontFamily: 'DMSans', color: textColor,
+            fontSize: 17, fontWeight: FontWeight.w600),
+          maxLines: 1, overflow: TextOverflow.ellipsis),
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppConstants.primaryRed,
-          labelColor: AppConstants.primaryBlack,
-          unselectedLabelColor: AppConstants.secondaryGray,
-          tabs: const [
-            Tab(text: 'Photos'),
-            Tab(text: 'Reviews'),
-          ],
-        ),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _addMemory,
-        backgroundColor: AppConstants.primaryRed,
-        foregroundColor: Colors.white,
-        child: Icon(PhosphorIcons.plus()),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Photos tab
-          GridView.builder(
-            padding: const EdgeInsets.all(16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.8,
-            ),
-            itemCount: _photos.length,
-            itemBuilder: (context, index) {
-              final photo = _photos[index];
-              return Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: ClipRRect(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
+      body: RefreshIndicator(
+        color: _accent, onRefresh: _load,
+        child: _loading
+          ? Skeleton.grid(context, count: 9)
+          : _memories.isEmpty
+            ? Center(child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(mainAxisSize: MainAxisSize.min, children: [
+                  const Icon(Icons.photo_library_outlined, size: 56, color: _accent),
+                  const SizedBox(height: 12),
+                  Text('No memories yet',
+                    style: TextStyle(fontFamily: 'DMSans', fontSize: 16,
+                      fontWeight: FontWeight.w600, color: textColor)),
+                  const SizedBox(height: 6),
+                  Text('Once people post moments tagged to this event, they show up here.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontFamily: 'DMSans', fontSize: 12,
+                      color: textColor.withOpacity(0.55), height: 1.4)),
+                ])))
+            : GridView.builder(
+                padding: const EdgeInsets.all(12),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3, crossAxisSpacing: 6, mainAxisSpacing: 6, childAspectRatio: 0.78),
+                itemCount: _memories.length,
+                itemBuilder: (_, i) {
+                  final m = _memories[i];
+                  final url = (m['media_url'] ?? '').toString();
+                  final type = (m['media_type'] ?? 'image').toString();
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Stack(fit: StackFit.expand, children: [
+                      if (url.isNotEmpty)
+                        NetworkMediaPreview(url: url, mediaType: type,
+                          fit: BoxFit.cover, thumbnailMode: true)
+                      else
+                        Container(color: textColor.withOpacity(0.08)),
+                      if (type == 'video')
+                        const Positioned(top: 6, right: 6,
+                          child: Icon(Icons.videocam, color: Colors.white, size: 16)),
+                      Positioned(left: 0, right: 0, bottom: 0,
                         child: Container(
-                          color: AppConstants.lightGray,
-                          child: photo['url'].startsWith('http') 
-                          ? Image.network(
-                            photo['url'],
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          )
-                          : Image.asset(
-                            photo['url'],
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.all(12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'By ${photo['user']}',
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              Icon(
-                                PhosphorIcons.heart(),
-                                size: 16,
-                                color: AppConstants.secondaryGray,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${photo['likes']}',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Icon(
-                                PhosphorIcons.chatCircle(),
-                                size: 16,
-                                color: AppConstants.secondaryGray,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                '${photo['comments']}',
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-          
-          // Reviews tab
-          ListView.builder(
-            padding: const EdgeInsets.all(20),
-            itemCount: _reviews.length,
-            itemBuilder: (context, index) {
-              final review = _reviews[index];
-              return Container(
-                margin: const EdgeInsets.only(bottom: 16),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(AppConstants.defaultBorderRadius),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 8,
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 20,
-                          backgroundImage: review['userImage'].startsWith('http')
-                              ? NetworkImage(review['userImage'])
-                              : AssetImage(review['userImage']) as ImageProvider,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                review['user'],
-                                style: Theme.of(context).textTheme.titleMedium,
-                              ),
-                              Text(
-                                review['time'],
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                  color: AppConstants.secondaryGray,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Row(
-                          children: List.generate(5, (starIndex) {
-                            return Icon(
-                              starIndex < review['rating']
-                                  ? PhosphorIcons.star(PhosphorIconsStyle.fill)
-                                  : PhosphorIcons.star(),
-                              size: 16,
-                              color: Colors.amber,
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      review['comment'],
-                      style: Theme.of(context).textTheme.bodyLarge,
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        IconButton(
-                          onPressed: () {},
-                          icon: Icon(
-                            PhosphorIcons.heart(),
-                            size: 20,
-                            color: AppConstants.secondaryGray,
-                          ),
-                        ),
-                        Text(
-                          'Helpful',
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppConstants.secondaryGray,
-                          ),
-                        ),
-                        const Spacer(),
-                        TextButton(
-                          onPressed: () {},
-                          child: const Text('Reply'),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              );
-            },
-          ),
-        ],
+                          padding: const EdgeInsets.all(6),
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                              colors: [Colors.transparent, Colors.black.withOpacity(0.7)])),
+                          child: Text(m['creator_name']?.toString() ?? '',
+                            style: const TextStyle(color: Colors.white, fontSize: 10,
+                              fontFamily: 'DMSans'),
+                            maxLines: 1, overflow: TextOverflow.ellipsis))),
+                    ]),
+                  );
+                },
+              ),
       ),
     );
   }

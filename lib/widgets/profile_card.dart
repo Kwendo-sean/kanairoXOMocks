@@ -18,6 +18,7 @@ class ProfileCard extends StatefulWidget {
   final VoidCallback onNotNow;
   final VoidCallback? onConnectionSuccess;
   final VoidCallback? onMessage;
+  final VoidCallback? onTap;
 
   const ProfileCard({
     super.key,
@@ -28,6 +29,7 @@ class ProfileCard extends StatefulWidget {
     required this.onNotNow,
     this.onConnectionSuccess,
     this.onMessage,
+    this.onTap,
   });
 
   @override
@@ -142,7 +144,9 @@ class _ProfileCardState extends State<ProfileCard> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
+        GestureDetector(
+          onTap: widget.onTap,
+          child: Container(
           height: MediaQuery.of(context).size.height * 0.48,
           decoration: BoxDecoration(
             borderRadius: AppRadius.lg,
@@ -273,7 +277,8 @@ class _ProfileCardState extends State<ProfileCard> {
             ),
           ),
         ),
-        
+        ),
+
         const SizedBox(height: 16),
         
         Padding(

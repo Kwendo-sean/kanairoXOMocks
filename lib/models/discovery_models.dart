@@ -189,7 +189,10 @@ class DiscoveryBatch {
   DiscoveryBatch({required this.discoveries});
 
   factory DiscoveryBatch.fromJson(Map<String, dynamic> json) {
-    var list = json['recommendations'] as List? ?? json['discoveries'] as List? ?? [];
+    var list = json['recommendations'] as List?
+        ?? json['discoveries'] as List?
+        ?? json['profiles'] as List?
+        ?? [];
     return DiscoveryBatch(
       discoveries: list.map((item) => DiscoveryItem.fromJson(item)).toList(),
     );

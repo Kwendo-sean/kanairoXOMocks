@@ -22,19 +22,42 @@ import 'package:kanairoxo/screens/messages/date_payment_screen.dart';
 import 'package:kanairoxo/models/date_request_model.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:provider/provider.dart';
+import 'package:kanairoxo/services/deep_links.dart';
 
 // Ticket flow imports
 import 'package:kanairoxo/models/ticket_model.dart';
 import 'package:kanairoxo/features/tickets/screens/ticket_reveal_screen.dart';
 import 'package:kanairoxo/features/tickets/screens/my_tickets_screen.dart';
 
-class KanairoXOApp extends StatelessWidget {
+class KanairoXOApp extends StatefulWidget {
   const KanairoXOApp({super.key});
+
+  @override
+  State<KanairoXOApp> createState() => _KanairoXOAppState();
+}
+
+class _KanairoXOAppState extends State<KanairoXOApp> {
+  final GlobalKey<NavigatorState> _navKey = GlobalKey<NavigatorState>();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      DeepLinks.instance.attach(_navKey);
+    });
+  }
+
+  @override
+  void dispose() {
+    DeepLinks.instance.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     return MaterialApp(
+      navigatorKey: _navKey,
       title: AppConstants.appName,
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
@@ -66,7 +89,7 @@ class KanairoXOApp extends StatelessWidget {
             ),
         '/signup': (context) => SignupScreen(
               onSignupSuccess: () {
-                Navigator.pushReplacementNamed(context, '/onboarding');
+                Navigator.pushReplacementNamed(context, '/main_single');
               },
               onLoginTap: () => Navigator.pushNamed(context, '/login'),
             ),

@@ -66,44 +66,46 @@ class AdCard extends StatelessWidget {
             ),
             Positioned(
               bottom: 0, left: 0, right: 0,
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      if (ad.sponsor?.logoUrl != null)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: CircleAvatar(radius: 10, backgroundImage: NetworkImage(ad.sponsor!.logoUrl!)),
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        if (ad.sponsor?.logoUrl != null)
+                          Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child: CircleAvatar(radius: 10, backgroundImage: NetworkImage(ad.sponsor!.logoUrl!)),
+                          ),
+                        Text(ad.sponsoredByLabel ?? ad.sponsor?.name ?? 'Sponsored', 
+                          style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(ad.title ?? '', style: AppTypography.displaySmall.copyWith(color: Colors.white, fontSize: 22)),
+                    Text(ad.subtitle ?? '', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
+                    const SizedBox(height: 8),
+                    Text(ad.body ?? '', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: LiquidGlassButton(
+                            onPressed: () => _handleCta(context),
+                            child: Text(ad.ctaText ?? 'Learn More'),
+                          ),
                         ),
-                      Text(ad.sponsoredByLabel ?? ad.sponsor?.name ?? 'Sponsored', 
-                        style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(ad.title ?? '', style: AppTypography.displaySmall.copyWith(color: Colors.white, fontSize: 22)),
-                  Text(ad.subtitle ?? '', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 14)),
-                  const SizedBox(height: 8),
-                  Text(ad.body ?? '', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 20),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: LiquidGlassButton(
-                          onPressed: () => _handleCta(context),
-                          child: Text(ad.ctaText ?? 'Learn More'),
+                        const SizedBox(width: 12),
+                        IconButton(
+                          onPressed: onNext,
+                          icon: const Icon(Icons.close, color: Colors.white54),
                         ),
-                      ),
-                      const SizedBox(width: 12),
-                      IconButton(
-                        onPressed: onNext,
-                        icon: const Icon(Icons.close, color: Colors.white54),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ],

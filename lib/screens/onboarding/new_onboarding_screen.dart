@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
+import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/services/api_client.dart';
@@ -18,10 +19,9 @@ class NewOnboardingScreen extends StatefulWidget {
 
 class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
   final PageController _pageController = PageController();
-  int _currentStep = 0; // Steps 2-9 (Step 1 is Phone/OTP)
+  int _currentStep = 0;
   final ApiClient apiClient = ApiClient();
 
-  // Data for steps
   final _nameController = TextEditingController();
   DateTime? _dob;
   String? _gender;
@@ -30,15 +30,15 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
   List<String> _selectedInterests = [];
   String? _neighborhood;
   String? _lifeStage;
-  
+
   final List<String> _intents = ['friendship', 'dating', 'networking', 'events', 'communities'];
   final List<String> _interests = [
-    'Art', 'Music', 'Tech', 'Food', 'Travel', 'Fitness', 'Movies', 'Gaming', 
+    'Art', 'Music', 'Tech', 'Food', 'Travel', 'Fitness', 'Movies', 'Gaming',
     'Photography', 'Fashion', 'Sports', 'Reading', 'Dancing', 'Yoga', 'Coffee',
     'Nightlife', 'Hiking', 'Cooking', 'Startups', 'Design', 'Anime', 'Business',
     'Pets', 'Nature', 'Wellness', 'Parties', 'Concerts', 'Web3', 'AI', 'Coding'
   ];
-  
+
   final List<String> _neighborhoods = ['Kilimani', 'Lavington', 'Westlands', 'Karen', 'South B', 'South C', 'Parklands', 'Kileleshwa', 'Langata', 'Ngong Road'];
   final List<String> _lifeStages = ['Student', 'Professional', 'Entrepreneur', 'New in City', 'Single Parent', 'Retired'];
 
@@ -55,7 +55,6 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
   Future<void> _finishOnboarding() async {
     setState(() => _isSubmitting = true);
     try {
-      // Step-by-step update could also be done, but we'll batch it here
       await apiClient.patch('api/v1/profiles/me/', {
         'full_name': _nameController.text,
         'date_of_birth': _dob?.toIso8601String(),
@@ -85,7 +84,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: context.bgColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -96,14 +95,14 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
                 physics: const NeverScrollableScrollPhysics(),
                 onPageChanged: (i) => setState(() => _currentStep = i),
                 children: [
-                  _buildStep2(), // Name + DOB + Gender
-                  _buildStep3(), // Profile Photo
-                  _buildStep4(), // Intent
-                  _buildStep5(), // Interests
-                  _buildStep6(), // Neighborhood
-                  _buildStep7(), // Life Stage
-                  _buildStep8(), // Voice Intro
-                  _buildStep9(), // Permissions
+                  _buildStep2(),
+                  _buildStep3(),
+                  _buildStep4(),
+                  _buildStep5(),
+                  _buildStep6(),
+                  _buildStep7(),
+                  _buildStep8(),
+                  _buildStep9(),
                 ],
               ),
             ),
@@ -122,12 +121,12 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
         children: [
           if (_currentStep > 0)
             IconButton(
-              icon: const Icon(Icons.arrow_back_ios, color: Colors.white, size: 20),
+              icon: Icon(Icons.arrow_back_ios, color: context.textColor, size: 20),
               onPressed: () => _pageController.previousPage(duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
             )
           else
             const SizedBox(width: 40),
-          Text('${_currentStep + 2} of 9', style: const TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+          Text('${_currentStep + 2} of 9', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.bold)),
           const SizedBox(width: 40),
         ],
       ),
@@ -142,7 +141,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
       case 2: canGoNext = _selectedIntents.isNotEmpty; break;
       case 3: canGoNext = _selectedInterests.length >= 5; break;
       case 4: canGoNext = _neighborhood != null; break;
-      default: canGoNext = true; // Steps 7, 8, 9 are skippable or actions
+      default: canGoNext = true;
     }
 
     return Padding(
@@ -150,7 +149,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
       child: LiquidGlassButton(
         width: double.infinity,
         onPressed: (canGoNext && !_isSubmitting) ? _nextPage : null,
-        child: _isSubmitting 
+        child: _isSubmitting
           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : Text(_currentStep == 7 ? 'Enter KanairoXO' : 'Continue'),
       ),
@@ -165,7 +164,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
         children: [
           TextField(
             controller: _nameController,
-            style: const TextStyle(color: Colors.white, fontSize: 18),
+            style: TextStyle(color: context.textColor, fontSize: 18),
             decoration: _inputDecoration("Full Name"),
             onChanged: (_) => setState(() {}),
           ),
@@ -177,7 +176,6 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
                 initialDate: DateTime.now().subtract(const Duration(days: 18 * 365)),
                 firstDate: DateTime(1950),
                 lastDate: DateTime.now().subtract(const Duration(days: 18 * 365)),
-                builder: (context, child) => Theme(data: ThemeData.dark().copyWith(colorScheme: const ColorScheme.dark(primary: AppConstants.primaryRed)), child: child!),
               );
               if (picked != null) setState(() => _dob = picked);
             },
@@ -186,16 +184,16 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
               decoration: _cardDecoration(),
               child: Row(
                 children: [
-                  const Icon(Icons.calendar_today, color: Colors.white54, size: 20),
+                  Icon(Icons.calendar_today, color: context.mutedColor, size: 20),
                   const SizedBox(width: 12),
-                  Text(_dob == null ? "Date of Birth" : DateFormat('dd MMM yyyy').format(_dob!), 
-                    style: TextStyle(color: _dob == null ? Colors.white54 : Colors.white, fontSize: 16)),
+                  Text(_dob == null ? "Date of Birth" : DateFormat('dd MMM yyyy').format(_dob!),
+                    style: TextStyle(color: _dob == null ? context.mutedColor : context.textColor, fontSize: 16)),
                 ],
               ),
             ),
           ),
           const SizedBox(height: 24),
-          const Align(alignment: Alignment.centerLeft, child: Text("Gender", style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold))),
+          Align(alignment: Alignment.centerLeft, child: Text("Gender", style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.bold))),
           const SizedBox(height: 12),
           Row(
             children: ['Man', 'Woman', 'Non-binary'].map((g) => Expanded(
@@ -205,7 +203,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
                   margin: const EdgeInsets.symmetric(horizontal: 4),
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   decoration: _cardDecoration(isSelected: _gender == g),
-                  child: Center(child: Text(g, style: TextStyle(color: _gender == g ? Colors.white : Colors.white54, fontWeight: FontWeight.w600))),
+                  child: Center(child: Text(g, style: TextStyle(color: _gender == g ? context.primaryColor : context.textColor, fontWeight: FontWeight.w600))),
                 ),
               ),
             )).toList(),
@@ -228,15 +226,19 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
           child: Container(
             width: 260, height: 360,
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.05),
+              color: context.surfaceColor,
               borderRadius: BorderRadius.circular(32),
-              border: Border.all(color: Colors.white10, width: 2),
+              border: Border.all(color: context.borderColor, width: 2),
             ),
-            child: _profilePhoto != null 
+            child: _profilePhoto != null
               ? ClipRRect(borderRadius: BorderRadius.circular(32), child: Image.file(_profilePhoto!, fit: BoxFit.cover))
-              : const Column(
+              : Column(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: [Icon(Icons.add_a_photo, size: 48, color: AppConstants.primaryRed), SizedBox(height: 16), Text('Upload Photo', style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold))],
+                  children: [
+                    const Icon(Icons.add_a_photo, size: 48, color: AppConstants.primaryRed),
+                    const SizedBox(height: 16),
+                    Text('Upload Photo', style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.bold)),
+                  ],
                 ),
           ),
         ),
@@ -262,8 +264,8 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
               decoration: _cardDecoration(isSelected: isSelected),
-              child: Text(intent.replaceFirst(intent[0], intent[0].toUpperCase()), 
-                style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: FontWeight.w600)),
+              child: Text(intent.replaceFirst(intent[0], intent[0].toUpperCase()),
+                style: TextStyle(color: isSelected ? context.primaryColor : context.textColor, fontWeight: FontWeight.w600)),
             ),
           );
         }).toList(),
@@ -290,11 +292,11 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 decoration: BoxDecoration(
-                  color: isSelected ? AppConstants.primaryRed : Colors.white.withOpacity(0.05),
+                  color: isSelected ? AppConstants.primaryRed : context.surfaceColor,
                   borderRadius: BorderRadius.circular(24),
-                  border: Border.all(color: isSelected ? Colors.white24 : Colors.white10),
+                  border: Border.all(color: isSelected ? AppConstants.primaryRed : context.borderColor),
                 ),
-                child: Text(interest, style: TextStyle(color: isSelected ? Colors.white : Colors.white60, fontSize: 13)),
+                child: Text(interest, style: TextStyle(color: isSelected ? Colors.white : context.textColor, fontSize: 13)),
               ),
             );
           }).toList(),
@@ -314,7 +316,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
           final isSelected = _neighborhood == n;
           return ListTile(
             contentPadding: const EdgeInsets.symmetric(vertical: 4),
-            title: Text(n, style: TextStyle(color: isSelected ? AppConstants.primaryRed : Colors.white, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+            title: Text(n, style: TextStyle(color: isSelected ? AppConstants.primaryRed : context.textColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
             trailing: isSelected ? const Icon(Icons.check_circle, color: AppConstants.primaryRed) : null,
             onTap: () => setState(() => _neighborhood = n),
           );
@@ -337,7 +339,7 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
               margin: const EdgeInsets.only(bottom: 12),
               padding: const EdgeInsets.all(18),
               decoration: _cardDecoration(isSelected: isSelected),
-              child: Text(stage, style: TextStyle(color: isSelected ? Colors.white : Colors.white70, fontWeight: FontWeight.w600)),
+              child: Text(stage, style: TextStyle(color: isSelected ? context.primaryColor : context.textColor, fontWeight: FontWeight.w600)),
             ),
           );
         }).toList(),
@@ -355,11 +357,11 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
           children: [
             Container(
               width: 100, height: 100,
-              decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), shape: BoxShape.circle, border: Border.all(color: Colors.white10)),
+              decoration: BoxDecoration(color: context.surfaceColor, shape: BoxShape.circle, border: Border.all(color: context.borderColor)),
               child: const Icon(Icons.mic, color: AppConstants.primaryRed, size: 40),
             ),
             const SizedBox(height: 24),
-            const Text("Hold to record", style: TextStyle(color: Colors.white54, fontWeight: FontWeight.bold)),
+            Text("Hold to record", style: TextStyle(color: context.mutedColor, fontWeight: FontWeight.bold)),
           ],
         ),
       ),
@@ -371,9 +373,9 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
       title: "One last thing...",
       subtitle: "We need these permissions to give you the full KanairoXO experience.",
       child: Column(
-        children: [
+        children: const [
           _PermissionRow(icon: Icons.notifications, title: "Push Notifications", desc: "For new messages and event invites."),
-          const SizedBox(height: 20),
+          SizedBox(height: 20),
           _PermissionRow(icon: Icons.location_on, title: "Location Access", desc: "To find matches and events near you."),
         ],
       ),
@@ -383,9 +385,9 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
   InputDecoration _inputDecoration(String hint) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: const TextStyle(color: Colors.white24),
+      hintStyle: TextStyle(color: context.mutedColor.withOpacity(0.5)),
       filled: true,
-      fillColor: Colors.white.withOpacity(0.05),
+      fillColor: context.surfaceColor,
       contentPadding: const EdgeInsets.all(18),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
     );
@@ -393,9 +395,9 @@ class _NewOnboardingScreenState extends State<NewOnboardingScreen> {
 
   BoxDecoration _cardDecoration({bool isSelected = false}) {
     return BoxDecoration(
-      color: isSelected ? AppConstants.primaryRed.withOpacity(0.15) : Colors.white.withOpacity(0.05),
+      color: isSelected ? AppConstants.primaryRed.withOpacity(0.15) : context.surfaceColor,
       borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: isSelected ? AppConstants.primaryRed : Colors.white10, width: 1.5),
+      border: Border.all(color: isSelected ? AppConstants.primaryRed : context.borderColor, width: 1.5),
     );
   }
 }
@@ -414,9 +416,9 @@ class _StepLayout extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: AppTypography.displayMedium.copyWith(color: Colors.white, fontSize: 26)),
+          Text(title, style: AppTypography.displayMedium.copyWith(color: context.textColor, fontSize: 26)),
           const SizedBox(height: 10),
-          Text(subtitle, style: AppTypography.bodyMedium.copyWith(color: Colors.white60)),
+          Text(subtitle, style: AppTypography.bodyMedium.copyWith(color: context.mutedColor)),
           const SizedBox(height: 32),
           Expanded(child: child),
         ],
@@ -436,15 +438,15 @@ class _PermissionRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.05), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(color: context.surfaceColor, borderRadius: BorderRadius.circular(20)),
       child: Row(
         children: [
           Icon(icon, color: AppConstants.primaryRed, size: 28),
           const SizedBox(width: 16),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+            Text(title, style: TextStyle(color: context.textColor, fontWeight: FontWeight.bold, fontSize: 16)),
             const SizedBox(height: 4),
-            Text(desc, style: const TextStyle(color: Colors.white54, fontSize: 12)),
+            Text(desc, style: TextStyle(color: context.mutedColor, fontSize: 12)),
           ])),
           Switch(value: true, onChanged: (v) {}, activeColor: AppConstants.primaryRed),
         ],

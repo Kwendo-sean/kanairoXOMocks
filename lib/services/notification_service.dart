@@ -166,9 +166,9 @@ class NotificationService {
     return result['notifications'] as List<NotificationModel>;
   }
 
-  Future<void> markAsRead(int notificationId) async {
+  Future<void> markAsRead(String notificationId) async {
     try {
-      await _apiClient.patch('api/v1/notifications/$notificationId/read/', {});
+      await _apiClient.post('api/v1/notifications/$notificationId/read/', {});
     } catch (e) {
       debugPrint('Error marking notification as read: $e');
     }

@@ -3,6 +3,29 @@ import 'package:kanairoxo/models/discovery_models.dart';
 import 'package:kanairoxo/models/connection_context_model.dart';
 import 'api_client.dart';
 
+class UserActionRequest {
+  final String action;
+  final double? rating;
+  final Map<String, dynamic>? context;
+  final String? explanation;
+
+  UserActionRequest({
+    required this.action,
+    this.rating,
+    this.context,
+    this.explanation,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'action': action,
+      if (rating != null) 'rating': rating,
+      if (context != null) 'context': context,
+      if (explanation != null) 'explanation': explanation,
+    };
+  }
+}
+
 class DiscoveryService {
   final ApiClient _apiClient = ApiClient();
 

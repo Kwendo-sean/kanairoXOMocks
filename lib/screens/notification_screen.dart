@@ -40,14 +40,13 @@ class _NotificationScreenState extends State<NotificationScreen> {
         }
         break;
       case 'connection_request':
-        // ITEM 4: Restore Profile Preview with connection_id
         final senderId = notification.sender?.id.toString();
         final connectionId = notification.data['connection_id']?.toString();
         if (senderId != null) {
           Navigator.push(context, MaterialPageRoute(
             builder: (_) => ProfilePreviewScreen(
               userId: senderId,
-              requestId: connectionId, // Using existing requestId field for connection_id
+              connectionId: connectionId,
             ),
           ));
         }

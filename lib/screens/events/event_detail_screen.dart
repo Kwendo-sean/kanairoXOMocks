@@ -9,6 +9,8 @@ import '../../models/ticket_model.dart';
 import '../../providers/events_provider.dart';
 import '../../services/api_client.dart';
 import 'ticket_purchase_screen.dart';
+import 'event_memories_screen.dart';
+import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:kanairoxo/utils/constants.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -135,10 +137,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               background: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
-                    imageUrl: _experience!.coverUrl ?? '',
-                    fit: BoxFit.cover,
-                  ),
+                  if (_experience!.trailerUrl != null && _experience!.trailerUrl!.isNotEmpty)
+                    NetworkMediaPreview(
+                      url: _experience!.trailerUrl!,
+                      mediaType: 'video',
+                      fit: BoxFit.cover,
+                      autoPlay: true,
+                      loop: true,
+                      muted: false)
+                  else if (_experience!.coverUrl != null && _experience!.coverUrl!.isNotEmpty)
+                    CachedNetworkImage(
+                      imageUrl: _experience!.coverUrl!,
+                      fit: BoxFit.cover,
+                      errorWidget: (_, __, ___) => Container(color: Colors.grey.shade900))
+                  else
+                    Container(color: Colors.grey.shade900),
                   const DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -254,6 +267,41 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildPurchaseAction(Color primaryColor, Color surfaceColor, Color borderColor) {
+    final bool isPast = _experience != null
+      && _experience!.endDateTime.isBefore(DateTime.now());
+
+    // For past events: show "View memories" instead of "Get tickets".
+    if (isPast) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(children: [
+          const Text('This experience has ended.',
+            style: TextStyle(color: Colors.white70, fontSize: 13)),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => EventMemoriesScreen(eventId: widget.eventId,
+                  eventTitle: _experience?.title ?? 'Memories'))),
+              icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 20),
+              label: const Text('View memories',
+                style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryColor,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32))),
+            ),
+          ),
+        ]),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(

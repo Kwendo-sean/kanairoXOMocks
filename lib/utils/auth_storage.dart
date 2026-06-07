@@ -4,7 +4,12 @@ import 'package:uuid/uuid.dart';
 import '../models/user_model.dart';
 
 class AuthStorage {
-  static const _storage = FlutterSecureStorage();
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(
+      encryptedSharedPreferences: true,
+      resetOnError: true,
+    ),
+  );
   static const _deviceIdKey = 'device_id';
   static const _userIdKey = 'user_id';
   static const _userCacheKey = 'cached_user_data';

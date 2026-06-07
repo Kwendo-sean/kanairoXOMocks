@@ -1,3 +1,5 @@
+import 'package:kanairoxo/utils/constants.dart';
+
 class UserProfile {
   final String name;
   final int age;
@@ -78,6 +80,7 @@ class Experience {
   final String description;
   final String shortDescription;
   final String? coverUrl;
+  final String? trailerUrl;
   final String venueName;
   final String venueAddress;
   final String neighborhood;
@@ -118,6 +121,7 @@ class Experience {
     required this.description,
     required this.shortDescription,
     this.coverUrl,
+    this.trailerUrl,
     required this.venueName,
     required this.venueAddress,
     required this.neighborhood,
@@ -163,7 +167,14 @@ class Experience {
       title: json['title'] ?? 'Untitled Experience',
       description: json['description'] ?? json['short_description'] ?? '',
       shortDescription: json['short_description'] ?? '',
-      coverUrl: json['cover_url'] ?? json['image_url'],
+      coverUrl: (() {
+        final fixed = ApiConstants.fixMediaUrl(json['cover_url'] ?? json['image_url'] ?? json['cover_image']);
+        return fixed.isEmpty ? null : fixed;
+      })(),
+      trailerUrl: (() {
+        final fixed = ApiConstants.fixMediaUrl(json['trailer_url'] ?? json['trailer_video']);
+        return fixed.isEmpty ? null : fixed;
+      })(),
       venueName: json['venue_name'] ?? 'TBD',
       venueAddress: json['venue_address'] ?? '',
       neighborhood: json['neighborhood'] ?? 'other',

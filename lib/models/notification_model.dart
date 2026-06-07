@@ -2,14 +2,14 @@ import 'package:flutter/foundation.dart';
 
 @immutable
 class NotificationModel {
-  final int id;
+  final String id;
   final String notificationType;
   final String message;
   final NotificationSender? sender;
-  final int? referenceId;
+  final String? referenceId;
   final bool isRead;
   final DateTime createdAt;
-  final Map<String, dynamic> data; // Added to handle extra fields like connection_id
+  final Map<String, dynamic> data;
 
   const NotificationModel({
     required this.id,
@@ -38,11 +38,11 @@ class NotificationModel {
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
     return NotificationModel(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: json['id']?.toString() ?? '',
       notificationType: json['notification_type'] ?? json['type'] ?? '',
       message: json['message'] ?? json['body'] ?? '',
       sender: json['sender'] != null ? NotificationSender.fromJson(json['sender']) : null,
-      referenceId: json['reference_id'] is int ? json['reference_id'] : int.tryParse(json['reference_id']?.toString() ?? ''),
+      referenceId: json['reference_id']?.toString(),
       isRead: json['is_read'] ?? false,
       createdAt: DateTime.tryParse(json['created_at'] ?? '') ?? DateTime.now(),
       data: json['data'] is Map ? Map<String, dynamic>.from(json['data']) : (json['results_data'] is Map ? Map<String, dynamic>.from(json['results_data']) : {}),
@@ -50,11 +50,11 @@ class NotificationModel {
   }
 
   NotificationModel copyWith({
-    int? id,
+    String? id,
     String? notificationType,
     String? message,
     NotificationSender? sender,
-    int? referenceId,
+    String? referenceId,
     bool? isRead,
     DateTime? createdAt,
     Map<String, dynamic>? data,
@@ -73,10 +73,10 @@ class NotificationModel {
 }
 
 class NotificationSender {
-  final int id;
+  final String id;
   final String name;
   final String? photo;
-  final bool isOfficial; // Added as per item 5
+  final bool isOfficial;
 
   const NotificationSender({
     required this.id,
@@ -87,7 +87,7 @@ class NotificationSender {
 
   factory NotificationSender.fromJson(Map<String, dynamic> json) {
     return NotificationSender(
-      id: json['id'] is int ? json['id'] : int.tryParse(json['id']?.toString() ?? '0') ?? 0,
+      id: json['id']?.toString() ?? '',
       name: json['name'] ?? json['username'] ?? 'User',
       photo: json['photo'] ?? json['profile_photo'] ?? json['avatar_url'],
       isOfficial: json['is_official'] ?? false,

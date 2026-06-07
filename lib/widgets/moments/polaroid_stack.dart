@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
@@ -6,6 +7,10 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:gal/gal.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:dio/dio.dart';
+import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/services/polaroid_video_composer.dart';
+import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/moment.dart';
@@ -33,6 +38,7 @@ class _PolaroidStackState extends State<PolaroidStack>
   int _visibleStartIndex = 0;
   double _dragOffset = 0;
   double _dragAngle = 0;
+  bool _isExporting = false;  // true while snapshotting — hides action icons
   final GlobalKey _polaroidKey = GlobalKey();
 
   late AnimationController _dismissController;
@@ -237,6 +243,7 @@ class _PolaroidStackState extends State<PolaroidStack>
                                         isLiked: _likedMap[topMoment.id] ?? false,
                                         likeCount: _likesMap[topMoment.id] ?? 0,
                                         isSaved: _savedMap[topMoment.id] ?? false,
+                                        exportMode: _isExporting,
                                         onLike: () => _toggleLike(topMoment.id),
                                         onSave: () => _toggleSave(topMoment.id),
                                         onComment: () => showModalBottomSheet(
@@ -285,48 +292,116 @@ class _PolaroidStackState extends State<PolaroidStack>
         ])));
   }
 
+  Future<File?> _downloadRemoteFile(String url, String savePath) async {
+    try {
+      await Dio().download(url, savePath);
+      return File(savePath);
+    } catch (e) {
+      debugPrint('Download remote file error: $e');
+      return null;
+    }
+  }
+
   Future<void> _downloadPolaroid(Moment moment) async {
+    void _toast(String msg, {bool isError = false}) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(msg),
+        backgroundColor: isError ? Colors.red.shade700 : AppColors.primary,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+    }
+
+    try {
+      // 1. Snapshot the polaroid frame regardless of media type — that's the
+      //    branded image users get. For videos, we ALSO save the raw video.
+      final pngBytes = await _snapshotPolaroid();
+      final dir = await getTemporaryDirectory();
+      final pngFile = File('${dir.path}/KanairoXO_${moment.id}.png');
+      await pngFile.writeAsBytes(pngBytes);
+
+      // Permission check
+      final ok = await Gal.hasAccess() || await Gal.requestAccess();
+      if (!ok) {
+        _toast('Allow gallery access to save', isError: true);
+        return;
+      }
+
+      if (moment.mediaType != 'video') {
+        await Gal.putImage(pngFile.path);
+        _toast('Polaroid saved to gallery');
+        return;
+      }
+
+      // Video moment — bake polaroid frame on the SERVER
+      _toast('Wrapping video in polaroid…');
+      final composedOut = '${dir.path}/KanairoXO_${moment.id}.mp4';
+      final composed = await PolaroidVideoComposer.composeForMoment(
+        momentId: moment.id, out: composedOut);
+
+      if (composed) {
+        await Gal.putVideo(composedOut);
+        _toast('Polaroid video saved to gallery');
+        return;
+      }
+
+      // Server compose failed — fall back: save raw video + polaroid PNG
+      final url = moment.photoUrl.startsWith('http')
+        ? moment.photoUrl
+        : '${ApiConstants.baseUrl}/${moment.photoUrl.replaceAll(RegExp(r'^/'), '')}';
+      final rawOut = '${dir.path}/KanairoXO_${moment.id}_raw.mp4';
+      final rawFile = await _downloadRemoteFile(url, rawOut);
+      if (rawFile != null) await Gal.putVideo(rawFile.path);
+      await Gal.putImage(pngFile.path);
+      _toast('Saved (server polaroid bake failed)', isError: true);
+    } catch (e) {
+      debugPrint('Download error: $e');
+      _toast('Save failed: $e', isError: true);
+    }
+  }
+
+  Future<Uint8List> _snapshotPolaroid() async {
+    setState(() => _isExporting = true);
+    // Wait two frames so the rebuild without actions is committed before capture
+    await WidgetsBinding.instance.endOfFrame;
+    await WidgetsBinding.instance.endOfFrame;
     try {
       final boundary = _polaroidKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
       final image = await boundary.toImage(pixelRatio: 3.0);
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData!.buffer.asUint8List();
-      
-      final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/KanairoXO_${moment.id}.png');
-      await file.writeAsBytes(pngBytes);
-
-      await Gal.putImage(file.path);
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Saved to gallery'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
-      }
-    } catch (e) {
-      debugPrint('Download error: $e');
+      return byteData!.buffer.asUint8List();
+    } finally {
+      if (mounted) setState(() => _isExporting = false);
     }
   }
 
   Future<void> _sharePolaroid(Moment moment) async {
     try {
-      final boundary = _polaroidKey.currentContext!.findRenderObject() as RenderRepaintBoundary;
-      final image = await boundary.toImage(pixelRatio: 3.0);
-      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
-      final pngBytes = byteData!.buffer.asUint8List();
-      
+      final pngBytes = await _snapshotPolaroid();
       final dir = await getTemporaryDirectory();
-      final file = File('${dir.path}/kanairo_share.png');
-      await file.writeAsBytes(pngBytes);
-      
-      await Share.shareXFiles(
-        [XFile(file.path)],
-        text: 'Shared from KanairoXO',
-        subject: 'KanairoXO Moment');
-        
+      final pngFile = File('${dir.path}/kanairo_share.png');
+      await pngFile.writeAsBytes(pngBytes);
+
+      if (moment.mediaType != 'video') {
+        await Share.shareXFiles([XFile(pngFile.path)],
+          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
+        return;
+      }
+
+      // Video: bake polaroid frame on the server
+      final composedOut = '${dir.path}/kanairo_share.mp4';
+      final composed = await PolaroidVideoComposer.composeForMoment(
+        momentId: moment.id, out: composedOut);
+
+      if (composed) {
+        await Share.shareXFiles([XFile(composedOut)],
+          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
+        return;
+      }
+
+      // Fallback: share polaroid PNG only
+      await Share.shareXFiles([XFile(pngFile.path)],
+        text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
     } catch (e) {
       debugPrint('Share error: $e');
     }
@@ -373,6 +448,7 @@ class _PolaroidCard extends StatelessWidget {
   final bool isLiked;
   final int likeCount;
   final bool isSaved;
+  final bool exportMode; // when true, hide like/comment/save icons for clean snapshot
   final VoidCallback onLike;
   final VoidCallback onSave;
   final VoidCallback onComment;
@@ -388,6 +464,7 @@ class _PolaroidCard extends StatelessWidget {
     required this.onLike,
     required this.onSave,
     required this.onComment,
+    this.exportMode = false,
   });
 
   Color get _paperColor {
@@ -423,14 +500,15 @@ class _PolaroidCard extends StatelessWidget {
               child: Stack(children: [
                 ClipRRect(
                     borderRadius: BorderRadius.circular(2),
-                    child: moment.photoUrl.isNotEmpty &&
-                            moment.photoUrl.startsWith('http')
-                        ? SafeNetworkImage(
+                    child: SizedBox(
+                      width: 190, height: 190,
+                      child: moment.photoUrl.isNotEmpty && moment.photoUrl.startsWith('http')
+                        ? NetworkMediaPreview(
                             url: moment.photoUrl,
-                            width: 190,
-                            height: 190,
-                            fit: BoxFit.cover)
-                        : _buildPhotoPlaceholder()),
+                            mediaType: moment.mediaType,
+                            fit: BoxFit.cover,
+                            autoPlay: true)
+                        : _buildPhotoPlaceholder())),
                 
                 Positioned(
                     top: 8,
@@ -489,30 +567,32 @@ class _PolaroidCard extends StatelessWidget {
                   Text(
                     moment.userName,
                     style: GoogleFonts.caveat(fontSize: 11, color: const Color(0xFF555555))),
-                  const SizedBox(height: 6),
-                  Row(children: [
-                    GestureDetector(
-                      onTap: onLike,
-                      child: Row(children: [
-                        Icon(isLiked ? Icons.favorite : Icons.favorite_border,
-                          size: 14, color: isLiked ? AppColors.primary : AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text('$likeCount', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
-                      ])),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: onComment,
-                      child: Row(children: [
-                        const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.textMuted),
-                        const SizedBox(width: 4),
-                        Text('${moment.commentCount}', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
-                      ])),
-                    const Spacer(),
-                    GestureDetector(
-                      onTap: onSave,
-                      child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border,
-                        size: 14, color: isSaved ? AppColors.primary : AppColors.textMuted)),
-                  ]),
+                  if (!exportMode) ...[
+                    const SizedBox(height: 6),
+                    Row(children: [
+                      GestureDetector(
+                        onTap: onLike,
+                        child: Row(children: [
+                          Icon(isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 14, color: isLiked ? AppColors.primary : AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text('$likeCount', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
+                        ])),
+                      const SizedBox(width: 10),
+                      GestureDetector(
+                        onTap: onComment,
+                        child: Row(children: [
+                          const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.textMuted),
+                          const SizedBox(width: 4),
+                          Text('${moment.commentCount}', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
+                        ])),
+                      const Spacer(),
+                      GestureDetector(
+                        onTap: onSave,
+                        child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border,
+                          size: 14, color: isSaved ? AppColors.primary : AppColors.textMuted)),
+                    ]),
+                  ],
                 ]),
             ])),
         ]));

@@ -52,20 +52,9 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
     // Optimistic update
     setState(() {
       final isLiked = !moment.isLikedByMe;
-      _localMoments[index] = Moment(
-        id: moment.id,
-        userName: moment.userName,
-        userAvatarUrl: moment.userAvatarUrl,
-        eventName: moment.eventName,
-        date: moment.date,
-        type: moment.type,
-        photoUrl: moment.photoUrl,
-        caption: moment.caption,
-        location: moment.location,
+      _localMoments[index] = moment.copyWith(
         likesCount: isLiked ? moment.likesCount + 1 : moment.likesCount - 1,
-        commentsCount: moment.commentsCount,
         isLikedByMe: isLiked,
-        isSavedByMe: moment.isSavedByMe,
       );
     });
 
@@ -307,19 +296,7 @@ class _MomentViewerScreenState extends State<MomentViewerScreen> {
                               onTap: () async {
                                 final moment = _localMoments[_currentIndex];
                                 setState(() {
-                                  _localMoments[_currentIndex] = Moment(
-                                    id: moment.id,
-                                    userName: moment.userName,
-                                    userAvatarUrl: moment.userAvatarUrl,
-                                    eventName: moment.eventName,
-                                    date: moment.date,
-                                    type: moment.type,
-                                    photoUrl: moment.photoUrl,
-                                    caption: moment.caption,
-                                    location: moment.location,
-                                    likesCount: moment.likesCount,
-                                    commentsCount: moment.commentsCount,
-                                    isLikedByMe: moment.isLikedByMe,
+                                  _localMoments[_currentIndex] = moment.copyWith(
                                     isSavedByMe: !moment.isSavedByMe,
                                   );
                                 });

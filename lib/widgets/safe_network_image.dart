@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import '../core/theme/app_colors.dart';
 
@@ -70,7 +71,7 @@ class SafeNetworkImage extends StatelessWidget {
         );
       },
       errorWidget: (context, url, error) => _buildErrorWidget(),
-      placeholder: (context, url) => placeholder ?? buildPulsingGlassPlaceholder(context, width: width, height: height),
+      placeholder: (context, url) => placeholder ?? _buildShimmer(),
     );
     
     if (borderRadius != null) {
@@ -96,6 +97,15 @@ class SafeNetworkImage extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildShimmer() {
+    return Shimmer.fromColors(
+      baseColor: const Color(0xFFE8E2D8),
+      highlightColor: const Color(0xFFF5F0E8),
+      child: Container(
+        width: width, height: height,
+        color: const Color(0xFFE8E2D8)));
   }
   
   static Widget buildPulsingGlassPlaceholder(BuildContext context, {double? width, double? height, double? borderRadius}) {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../models/moment.dart';
 import '../../core/theme/app_colors.dart';
@@ -102,25 +103,9 @@ class _MomentDetailScreenState extends State<MomentDetailScreen> {
     final isLiked = !moment.isLikedByMe;
 
     setState(() {
-      _localMoments[index] = Moment(
-        id: moment.id,
-        userName: moment.userName,
-        userAvatarUrl: moment.userAvatarUrl,
-        eventName: moment.eventName,
-        date: moment.date,
-        type: moment.type,
-        photoUrl: moment.photoUrl,
-        caption: moment.caption,
-        location: moment.location,
+      _localMoments[index] = moment.copyWith(
         likesCount: isLiked ? moment.likesCount + 1 : moment.likesCount - 1,
-        commentsCount: moment.commentsCount,
         isLikedByMe: isLiked,
-        isSavedByMe: moment.isSavedByMe,
-        trackName: moment.trackName,
-        trackArtist: moment.trackArtist,
-        trackImageUrl: moment.trackImageUrl,
-        trackPreviewUrl: moment.trackPreviewUrl,
-        linkedEvent: moment.linkedEvent,
       );
     });
 
@@ -231,12 +216,13 @@ class _MomentPageViewState extends State<_MomentPageView> {
 
     return Stack(
       children: [
-        // Layer 1: Full bleed photo
+        // Layer 1: Full bleed media (image or video)
         Positioned.fill(
           child: Hero(
             tag: 'moment_${widget.moment.id}',
-            child: CachedNetworkImage(
-              imageUrl: widget.moment.photoUrl,
+            child: NetworkMediaPreview(
+              url: widget.moment.photoUrl,
+              mediaType: widget.moment.mediaType,
               fit: BoxFit.cover,
             ),
           ),

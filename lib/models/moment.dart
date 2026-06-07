@@ -57,7 +57,8 @@ class Moment {
   final String? eventName;
   final DateTime date;
   final MomentType type;
-  final String photoUrl; // Legacy/Main photo
+  final String photoUrl; // URL to image or video file
+  final String mediaType; // 'image' | 'video'
   final List<MomentMedia> gallery;
   final String caption;
   final String? location;
@@ -91,6 +92,7 @@ class Moment {
     required this.date,
     required this.type,
     required this.photoUrl,
+    this.mediaType = 'image',
     this.gallery = const [],
     required this.caption,
     this.location,
@@ -104,6 +106,54 @@ class Moment {
     this.trackPreviewUrl,
     this.linkedEvent,
   });
+
+  Moment copyWith({
+    String? id,
+    String? userName,
+    String? userId,
+    String? userAvatarUrl,
+    String? eventName,
+    DateTime? date,
+    MomentType? type,
+    String? photoUrl,
+    String? mediaType,
+    List<MomentMedia>? gallery,
+    String? caption,
+    String? location,
+    int? likesCount,
+    int? commentsCount,
+    bool? isLikedByMe,
+    bool? isSavedByMe,
+    String? trackName,
+    String? trackArtist,
+    String? trackImageUrl,
+    String? trackPreviewUrl,
+    LinkedEvent? linkedEvent,
+  }) {
+    return Moment(
+      id: id ?? this.id,
+      userName: userName ?? this.userName,
+      userId: userId ?? this.userId,
+      userAvatarUrl: userAvatarUrl ?? this.userAvatarUrl,
+      eventName: eventName ?? this.eventName,
+      date: date ?? this.date,
+      type: type ?? this.type,
+      photoUrl: photoUrl ?? this.photoUrl,
+      mediaType: mediaType ?? this.mediaType,
+      gallery: gallery ?? this.gallery,
+      caption: caption ?? this.caption,
+      location: location ?? this.location,
+      likesCount: likesCount ?? this.likesCount,
+      commentsCount: commentsCount ?? this.commentsCount,
+      isLikedByMe: isLikedByMe ?? this.isLikedByMe,
+      isSavedByMe: isSavedByMe ?? this.isSavedByMe,
+      trackName: trackName ?? this.trackName,
+      trackArtist: trackArtist ?? this.trackArtist,
+      trackImageUrl: trackImageUrl ?? this.trackImageUrl,
+      trackPreviewUrl: trackPreviewUrl ?? this.trackPreviewUrl,
+      linkedEvent: linkedEvent ?? this.linkedEvent,
+    );
+  }
 
   String get timeAgo {
     final difference = DateTime.now().difference(date);
@@ -148,6 +198,7 @@ class Moment {
       caption: json['caption'] ?? json['description'] ?? '',
       type: MomentTypeExtension.fromString(json['tag'] ?? json['category'] ?? json['type'] ?? 'vibe'),
       photoUrl: ApiConstants.fixMediaUrl(rawImageUrl?.toString()),
+      mediaType: (json['media_type'] ?? 'image').toString(),
       gallery: gallery,
       date: DateTime.tryParse(json['created_at'] ?? json['timestamp'] ?? '') ?? DateTime.now(),
       userName: userName.toString(),

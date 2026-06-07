@@ -18,6 +18,7 @@ import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/singles/moment_viewer_screen.dart';
 import 'package:kanairoxo/screens/settings/settings_screen.dart';
+import 'package:kanairoxo/screens/moments/my_moments_screen.dart';
 import 'package:kanairoxo/screens/music/spotify_connect_screen.dart';
 import 'package:kanairoxo/utils/auth_storage.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
@@ -260,8 +261,10 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   void _openGalleryViewer(int startIndex, ProfileModel? profile) {
+    final String currentUserId = AuthStorage.getCachedUserId() ?? '';
     final List<Moment> moments = _galleryPhotos.map((p) => Moment(
       id: p.id.toString(),
+      userId: currentUserId,
       userName: profile?.fullName ?? 'User',
       userAvatarUrl: profile?.profilePhotoUrl,
       date: p.uploadedAt,
@@ -362,6 +365,8 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
                   const SizedBox(height: 16),
                   _buildGallery(profile, imgVersion),
                   const SizedBox(height: 24),
+                  if (widget.publicId == null) _buildMyMomentsTile(),
+                  const SizedBox(height: 12),
                   _buildMyTickets(),
                   const SizedBox(height: 80),
                 ],
@@ -411,6 +416,11 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           child: Row(
             children: [
               if (widget.publicId == null) ...[
+                IconButton(
+                  icon: const Icon(Icons.photo_library_outlined, color: Colors.white, size: 20),
+                  tooltip: 'Your moments',
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(
+                    builder: (_) => const MyMomentsScreen()))),
                 IconButton(icon: const Icon(Icons.settings_outlined, color: Colors.white, size: 20), onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()))),
                 IconButton(icon: const Icon(Icons.edit_outlined, color: Colors.white, size: 20), onPressed: _openEditProfile),
                 IconButton(icon: const Icon(Icons.logout_outlined, color: Colors.white, size: 20), onPressed: _confirmLogout),
@@ -534,6 +544,33 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           else
             Wrap(spacing: 8, runSpacing: 8, children: profile.interests.map((interest) => Container(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6), decoration: BoxDecoration(color: AppColors.themePrimaryGlass(context), borderRadius: BorderRadius.circular(999), border: Border.all(color: context.primaryColor.withOpacity(0.2))), child: Text(interest.name, style: AppTypography.labelMedium.copyWith(color: context.primaryColor, fontWeight: FontWeight.w500, fontSize: 12)))).toList()),
         ],
+      ),
+    );
+  }
+
+  Widget _buildMyMomentsTile() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: GestureDetector(
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => const MyMomentsScreen())),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.07),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withOpacity(0.1))),
+          child: Row(children: const [
+            Icon(Icons.photo_library_outlined, color: Color(0xFF9B111E)),
+            SizedBox(width: 12),
+            Expanded(child: Text('Your moments',
+              style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+                fontWeight: FontWeight.w600, fontSize: 14))),
+            Text('Manage',
+              style: TextStyle(fontFamily: 'DMSans', color: Colors.white54, fontSize: 12)),
+            Icon(Icons.chevron_right, color: Colors.white38),
+          ]),
+        ),
       ),
     );
   }

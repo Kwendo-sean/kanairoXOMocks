@@ -13,7 +13,10 @@ class MomentCreationFlow extends StatefulWidget {
 
 class _MomentCreationFlowState extends State<MomentCreationFlow> {
   final PageController _pageController = PageController();
-  List<MediaItem> _capturedMedia = [];
+  List<MediaItem> _captured = [];
+  String _filterId = 'none';
+  double _trimStart = 0;
+  double _trimDuration = 0;
 
   @override
   void dispose() {
@@ -35,19 +38,28 @@ class _MomentCreationFlowState extends State<MomentCreationFlow> {
         children: [
           CaptureScreen(
             onMediaCaptured: (media) {
-              setState(() => _capturedMedia = media);
+              // Force single media — no carousels
+              setState(() => _captured = media.isEmpty ? [] : [media.first]);
               _next();
             },
           ),
           EditScreen(
-            mediaItems: _capturedMedia,
-            onComplete: (media) {
-              setState(() => _capturedMedia = media);
+            mediaItems: _captured,
+            onComplete: (media, filterId, trimStart, trimDuration) {
+              setState(() {
+                _captured = media.isEmpty ? [] : [media.first];
+                _filterId = filterId;
+                _trimStart = trimStart;
+                _trimDuration = trimDuration;
+              });
               _next();
             },
           ),
           PostScreen(
-            mediaItems: _capturedMedia,
+            mediaItems: _captured,
+            filterId: _filterId,
+            trimStart: _trimStart,
+            trimDuration: _trimDuration,
             onComplete: () => Navigator.pop(context, true),
           ),
         ],
