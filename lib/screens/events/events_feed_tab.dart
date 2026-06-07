@@ -106,7 +106,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           colors: [Colors.transparent, Colors.black.withOpacity(0.85)]))),
 
       // Bottom info + CTA
-      Positioned(left: 20, right: 20, bottom: 40, child: Column(
+      Positioned(left: 20, right: 20, bottom: 110, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
@@ -164,7 +164,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
           colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
 
-      Positioned(left: 20, right: 20, bottom: 40, child: Column(
+      Positioned(left: 20, right: 20, bottom: 110, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(

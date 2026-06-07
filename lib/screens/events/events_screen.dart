@@ -32,6 +32,10 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      // Rebuild so the AppBar overlay restyles (white-on-video vs dark-on-bg)
+      if (mounted) setState(() {});
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<EventsProvider>().fetchFeed();
       _loadPast();
@@ -67,42 +71,79 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
     final bgColor = isDark ? const Color(0xFF121212) : const Color(0xFFFAF7F4);
 
+    // For the FEED tab we want full-bleed video like Instagram Reels:
+    // no AppBar, transparent overlaid tab bar on top of the video.
+    final isFeedActive = _tabController.index == 0;
+    final scaffoldBg = isFeedActive ? Colors.black : bgColor;
+
     return Scaffold(
-      backgroundColor: bgColor,
-      appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        centerTitle: true,
-        automaticallyImplyLeading: false,
-        title: Text(
-          'Experiences',
-          style: AppTypography.screenTitle.copyWith(color: textColor),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.search_rounded, color: textColor, size: 22),
-            onPressed: _openSearch,
+      backgroundColor: scaffoldBg,
+      extendBodyBehindAppBar: true,
+      body: Stack(children: [
+        // The actual tabbed content fills the entire screen
+        Positioned.fill(
+          child: TabBarView(
+            controller: _tabController,
+            children: [
+              const EventsFeedTab(),
+              SafeArea(
+                top: true, bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 56),
+                  child: _buildEventsTab(textColor))),
+            ],
           ),
-          const SizedBox(width: 8),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: const Color(0xFF9B111E),
-          unselectedLabelColor: textColor.withOpacity(0.5),
-          indicatorColor: const Color(0xFF9B111E),
-          indicatorWeight: 2,
-          labelStyle: const TextStyle(fontFamily: 'DMSans',
-            fontWeight: FontWeight.w700, fontSize: 12, letterSpacing: 1.0),
-          tabs: const [Tab(text: 'FEED'), Tab(text: 'EVENTS')],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          const EventsFeedTab(),
-          _buildEventsTab(textColor),
-        ],
-      ),
+        // Overlaid tab bar + search at the very top (matches Reels)
+        Positioned(
+          left: 0, right: 0,
+          top: MediaQuery.of(context).padding.top,
+          child: Stack(alignment: Alignment.center, children: [
+            // Subtle dark gradient only when feed is active so text stays legible
+            if (isFeedActive)
+              IgnorePointer(
+                child: Container(
+                  height: 100,
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
+                      colors: [Colors.black54, Colors.transparent])))),
+            Column(children: [
+              SizedBox(height: 4,
+                child: Row(children: [
+                  const SizedBox(width: 8),
+                  if (!isFeedActive)
+                    Expanded(child: Text('Experiences',
+                      textAlign: TextAlign.center,
+                      style: AppTypography.screenTitle.copyWith(color: textColor)))
+                  else
+                    const Spacer(),
+                  IconButton(
+                    icon: Icon(Icons.search_rounded,
+                      color: isFeedActive ? Colors.white : textColor, size: 22),
+                    onPressed: _openSearch),
+                  const SizedBox(width: 8),
+                ])),
+              Theme(
+                data: Theme.of(context).copyWith(
+                  splashColor: Colors.transparent,
+                  highlightColor: Colors.transparent),
+                child: TabBar(
+                  controller: _tabController,
+                  labelColor: isFeedActive ? Colors.white : const Color(0xFF9B111E),
+                  unselectedLabelColor: isFeedActive
+                    ? Colors.white.withOpacity(0.55)
+                    : textColor.withOpacity(0.5),
+                  indicatorColor: isFeedActive ? Colors.white : const Color(0xFF9B111E),
+                  indicatorWeight: 2,
+                  labelStyle: const TextStyle(fontFamily: 'DMSans',
+                    fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.8),
+                  tabs: const [Tab(text: 'FOR YOU'), Tab(text: 'EVENTS')]),
+              ),
+            ]),
+          ]),
+        ),
+      ]),
     );
   }
 
