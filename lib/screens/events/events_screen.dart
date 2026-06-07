@@ -99,15 +99,6 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
           left: 0, right: 0,
           top: MediaQuery.of(context).padding.top,
           child: Stack(alignment: Alignment.topCenter, children: [
-            // Just a very subtle fade behind the tabs so labels stay legible.
-            if (isFeedActive)
-              IgnorePointer(
-                child: Container(
-                  height: 56,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.black.withOpacity(0.35), Colors.transparent])))),
             Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
               const SizedBox(width: 16),
               Expanded(child: Theme(
@@ -127,14 +118,18 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
                   unselectedLabelColor: isFeedActive
                     ? Colors.white.withOpacity(0.55)
                     : textColor.withOpacity(0.5),
-                  labelStyle: const TextStyle(
+                  labelStyle: TextStyle(
                     fontFamily: 'DMSans',
                     fontWeight: FontWeight.w700,
-                    fontSize: 16),
-                  unselectedLabelStyle: const TextStyle(
+                    fontSize: 16,
+                    shadows: isFeedActive ? const [
+                      Shadow(blurRadius: 12, color: Colors.black54)] : null),
+                  unselectedLabelStyle: TextStyle(
                     fontFamily: 'DMSans',
                     fontWeight: FontWeight.w600,
-                    fontSize: 16),
+                    fontSize: 16,
+                    shadows: isFeedActive ? const [
+                      Shadow(blurRadius: 12, color: Colors.black54)] : null),
                   tabs: const [Tab(text: 'For you'), Tab(text: 'Events')]),
               )),
               // Search only makes sense on the Events tab — the For you feed
