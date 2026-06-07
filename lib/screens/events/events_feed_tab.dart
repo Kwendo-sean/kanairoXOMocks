@@ -105,9 +105,10 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           begin: Alignment.topCenter, end: Alignment.bottomCenter,
           colors: [Colors.transparent, Colors.black.withOpacity(0.85)]))),
 
-      // Bottom info + CTA
-      Positioned(left: 20, right: 20, bottom: 110, child: Column(
+      // Title + venue sit above the CTA so the thumb-zone button has space.
+      Positioned(left: 20, right: 20, bottom: 170, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -125,22 +126,36 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
             Text(venue,
               style: const TextStyle(color: Colors.white70, fontFamily: 'DMSans', fontSize: 13)),
           ],
-          const SizedBox(height: 16),
-          GestureDetector(
-            onTap: () {
-              if (eventId != null) {
-                Navigator.push(context, MaterialPageRoute(
-                  builder: (_) => EventDetailScreen(eventId: eventId)));
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-              decoration: BoxDecoration(color: _accent, borderRadius: BorderRadius.circular(999)),
-              child: const Text('Get tickets',
-                style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
-                  fontWeight: FontWeight.w700, fontSize: 14))),
-          ),
         ])),
+
+      // Primary CTA: full-width pill right above the floating nav so it sits
+      // squarely in the thumb-zone, easy to tap one-handed.
+      Positioned(left: 20, right: 20, bottom: 100,
+        child: GestureDetector(
+          onTap: () {
+            if (eventId != null) {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => EventDetailScreen(eventId: eventId)));
+            }
+          },
+          child: Container(
+            height: 54,
+            decoration: BoxDecoration(
+              color: _accent,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [BoxShadow(
+                color: _accent.withOpacity(0.45),
+                blurRadius: 24, offset: const Offset(0, 6))],
+            ),
+            child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.confirmation_number_outlined, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Get tickets',
+                style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+                  fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+          ),
+        )),
     ]);
   }
 

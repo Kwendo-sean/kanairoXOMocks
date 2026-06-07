@@ -429,36 +429,45 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
           ),
         ),
         
+        // Avatar pinned to a FIXED top offset — no matter how tall the name /
+        // location / headline column is, the avatar stays exactly here so the
+        // settings/edit icons in the corner always line up visually with it.
         Positioned(
-          bottom: 0, left: 0, right: 0,
+          top: MediaQuery.of(context).padding.top + 4,
+          left: 0, right: 0,
+          child: Center(child: Stack(
+            children: [
+              Container(
+                decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 16, offset: const Offset(0, 4))]),
+                child: ClipOval(
+                  child: hasPhoto
+                      ? SafeNetworkImage(url: photoUrl, version: imgVersion, width: 88, height: 88, fit: BoxFit.cover)
+                      : Container(width: 88, height: 88, color: context.isDark ? context.surfaceColor : Colors.grey.shade200, child: Icon(Icons.person_outline, size: 40, color: context.mutedColor)),
+                ),
+              ),
+              if (widget.publicId == null && !hasPhoto)
+                Positioned(
+                  bottom: 0, right: 0,
+                  child: GestureDetector(
+                    onTap: _openEditProfile,
+                    child: Container(width: 28, height: 28, decoration: BoxDecoration(color: context.primaryColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)), child: const Icon(Icons.add, color: Colors.white, size: 14)),
+                  ),
+                ),
+            ],
+          )),
+        ),
+
+        // Name + location + headline below the avatar, also positioned by a
+        // fixed top (under the avatar's 88px + safe-area) so nothing shifts.
+        Positioned(
+          top: MediaQuery.of(context).padding.top + 4 + 88 + 10,
+          left: 0, right: 0,
           child: Column(
             children: [
-              Stack(
-                children: [
-                  Container(
-                    decoration: BoxDecoration(shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 3), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 16, offset: const Offset(0, 4))]),
-                    child: ClipOval(
-                      child: hasPhoto
-                          ? SafeNetworkImage(url: photoUrl, version: imgVersion, width: 88, height: 88, fit: BoxFit.cover)
-                          : Container(width: 88, height: 88, color: context.isDark ? context.surfaceColor : Colors.grey.shade200, child: Icon(Icons.person_outline, size: 40, color: context.mutedColor)),
-                    ),
-                  ),
-                  if (widget.publicId == null && !hasPhoto)
-                    Positioned(
-                      bottom: 0, right: 0,
-                      child: GestureDetector(
-                        onTap: _openEditProfile,
-                        child: Container(width: 28, height: 28, decoration: BoxDecoration(color: context.primaryColor, shape: BoxShape.circle, border: Border.all(color: Colors.white, width: 2)), child: const Icon(Icons.add, color: Colors.white, size: 14)),
-                      ),
-                    ),
-                ],
-              ),
-              const SizedBox(height: 10),
               Text(profile.fullName, style: AppTypography.displayMedium.copyWith(color: Colors.white)),
               const SizedBox(height: 4),
               if (profile.location.isNotEmpty) Row(mainAxisAlignment: MainAxisAlignment.center, children: [const Icon(Icons.location_on_outlined, size: 13, color: Colors.white70), const SizedBox(width: 3), Text(profile.location, style: AppTypography.caption.copyWith(color: Colors.white70))]),
               if (profile.headline.isNotEmpty) Padding(padding: const EdgeInsets.only(top: 4, left: 24, right: 24), child: Text(profile.headline, style: AppTypography.bodyMedium.copyWith(color: Colors.white70, fontStyle: FontStyle.italic), textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis)),
-              const SizedBox(height: 16),
             ],
           ),
         ),

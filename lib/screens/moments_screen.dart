@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -162,24 +163,41 @@ class _MomentsScreenState extends State<MomentsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: context.bgColor,
-      appBar: AppBar(
-          backgroundColor: context.bgColor,
-          elevation: 0,
-          automaticallyImplyLeading: false,
-          title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
-          centerTitle: true,
-          actions: [
-            IconButton(
-              icon: Icon(Icons.add_a_photo_outlined, size: 22, color: context.primaryColor),
-              onPressed: openCreateMoment,
+      // Body extends behind the translucent app bar so content is partly
+      // visible THROUGH the glass as the user scrolls — iOS liquid-glass feel.
+      extendBodyBehindAppBar: true,
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: AppBar(
+              backgroundColor: context.bgColor.withOpacity(0.55),
+              elevation: 0,
+              automaticallyImplyLeading: false,
+              title: Text('Moments', style: AppTypography.screenTitle.copyWith(color: context.textColor)),
+              centerTitle: true,
+              actions: [
+                IconButton(
+                  icon: Icon(Icons.add_a_photo_outlined, size: 22, color: context.primaryColor),
+                  onPressed: openCreateMoment,
+                ),
+              ],
             ),
-          ]),
+          ),
+        ),
+      ),
       body: RefreshIndicator(
         onRefresh: _loadMoments,
         color: AppColors.primary,
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
           slivers: [
+            // Push first item down so it starts BELOW the translucent app bar.
+            // (extendBodyBehindAppBar means the body starts at y=0 otherwise.)
+            SliverToBoxAdapter(
+              child: SizedBox(
+                height: MediaQuery.of(context).padding.top + kToolbarHeight)),
             SliverToBoxAdapter(
               child: _safeTopSection()),
 
