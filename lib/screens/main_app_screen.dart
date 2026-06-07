@@ -92,7 +92,7 @@ class _MainAppScreenState extends State<MainAppScreen> {
         backgroundColor: context.bgColor,
         body: PageView.builder(
           controller: _pageController,
-          physics: const NeverScrollableScrollPhysics(),
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
           onPageChanged: (index) => setState(() => _currentIndex = index),
           itemCount: 5,
           itemBuilder: (_, i) => _screenAt(i),
