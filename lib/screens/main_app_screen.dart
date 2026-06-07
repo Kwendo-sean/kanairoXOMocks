@@ -90,6 +90,10 @@ class _MainAppScreenState extends State<MainAppScreen> {
       },
       child: Scaffold(
         backgroundColor: context.bgColor,
+        // Let the body extend BEHIND the floating bottom nav so videos/full-
+        // bleed screens (like the For you feed) reach all the way to the
+        // bottom of the device with no light-mode gap.
+        extendBody: true,
         body: PageView.builder(
           controller: _pageController,
           physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
