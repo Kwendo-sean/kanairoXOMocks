@@ -98,48 +98,54 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
         Positioned(
           left: 0, right: 0,
           top: MediaQuery.of(context).padding.top,
-          child: Stack(alignment: Alignment.center, children: [
-            // Subtle dark gradient only when feed is active so text stays legible
+          child: Stack(alignment: Alignment.topCenter, children: [
+            // Just a very subtle fade behind the tabs so labels stay legible.
             if (isFeedActive)
               IgnorePointer(
                 child: Container(
-                  height: 100,
-                  decoration: const BoxDecoration(
+                  height: 56,
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.black54, Colors.transparent])))),
-            Column(children: [
-              SizedBox(height: 4,
-                child: Row(children: [
-                  const SizedBox(width: 8),
-                  if (!isFeedActive)
-                    Expanded(child: Text('Experiences',
-                      textAlign: TextAlign.center,
-                      style: AppTypography.screenTitle.copyWith(color: textColor)))
-                  else
-                    const Spacer(),
-                  IconButton(
-                    icon: Icon(Icons.search_rounded,
-                      color: isFeedActive ? Colors.white : textColor, size: 22),
-                    onPressed: _openSearch),
-                  const SizedBox(width: 8),
-                ])),
-              Theme(
+                      colors: [Colors.black.withOpacity(0.35), Colors.transparent])))),
+            Row(crossAxisAlignment: CrossAxisAlignment.center, children: [
+              const SizedBox(width: 16),
+              Expanded(child: Theme(
                 data: Theme.of(context).copyWith(
                   splashColor: Colors.transparent,
                   highlightColor: Colors.transparent),
                 child: TabBar(
                   controller: _tabController,
-                  labelColor: isFeedActive ? Colors.white : const Color(0xFF9B111E),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  // Kill the default underline — clean Reels-style labels only
+                  indicator: const BoxDecoration(),
+                  dividerColor: Colors.transparent,
+                  overlayColor: WidgetStateProperty.all(Colors.transparent),
+                  labelPadding: const EdgeInsets.symmetric(horizontal: 12),
+                  labelColor: isFeedActive ? Colors.white : textColor,
                   unselectedLabelColor: isFeedActive
                     ? Colors.white.withOpacity(0.55)
                     : textColor.withOpacity(0.5),
-                  indicatorColor: isFeedActive ? Colors.white : const Color(0xFF9B111E),
-                  indicatorWeight: 2,
-                  labelStyle: const TextStyle(fontFamily: 'DMSans',
-                    fontWeight: FontWeight.w700, fontSize: 13, letterSpacing: 0.8),
-                  tabs: const [Tab(text: 'FOR YOU'), Tab(text: 'EVENTS')]),
-              ),
+                  labelStyle: const TextStyle(
+                    fontFamily: 'DMSans',
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16),
+                  unselectedLabelStyle: const TextStyle(
+                    fontFamily: 'DMSans',
+                    fontWeight: FontWeight.w600,
+                    fontSize: 16),
+                  tabs: const [Tab(text: 'For you'), Tab(text: 'Events')]),
+              )),
+              // Search only makes sense on the Events tab — the For you feed
+              // is Reels-style and doesn't take a query.
+              if (!isFeedActive)
+                IconButton(
+                  icon: Icon(Icons.search_rounded, color: textColor, size: 22),
+                  onPressed: _openSearch)
+              else
+                const SizedBox(width: 12),
+              const SizedBox(width: 8),
             ]),
           ]),
         ),
