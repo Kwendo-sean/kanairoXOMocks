@@ -16,6 +16,7 @@ import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/widgets/moments/comments_bottom_sheet.dart';
 import 'package:kanairoxo/widgets/moments/the_drop_widget.dart';
 import 'package:kanairoxo/widgets/moments/polaroid_stack.dart';
+import 'package:kanairoxo/services/home_widget_service.dart';
 import 'package:kanairoxo/widgets/moments/constellation_view.dart';
 import 'package:kanairoxo/widgets/moments/kxo_stamp.dart';
 import 'package:kanairoxo/services/widget_service.dart';
@@ -107,7 +108,11 @@ class _MomentsScreenState extends State<MomentsScreen> {
         _allMoments = moments;
         _isLoading = false;
       });
-      WidgetService.refreshAllWidgets(_allMoments, 0, 0); 
+      WidgetService.refreshAllWidgets(_allMoments, 0, 0);
+      // Push the most recent moment to the iOS home-screen widget.
+      if (_allMoments.isNotEmpty) {
+        unawaited(HomeWidgetService.instance.updateFromMoment(_allMoments.first.toJson()));
+      }
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
