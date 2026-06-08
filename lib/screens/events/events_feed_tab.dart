@@ -92,7 +92,8 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       if (trailer.isNotEmpty)
         NetworkMediaPreview(
           url: trailer, mediaType: 'video',
-          fit: BoxFit.cover, autoPlay: index < 2)
+          fit: BoxFit.cover, autoPlay: index < 2,
+          muted: false)
       else if ((c['cover_url'] ?? '').toString().isNotEmpty)
         NetworkMediaPreview(
           url: c['cover_url'], mediaType: 'image', fit: BoxFit.cover)

@@ -1,3 +1,4 @@
+import 'package:audio_session/audio_session.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -33,7 +34,21 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Configure the iOS AVAudioSession to "playback" so trailers + moment videos
+  // play sound even when the user has their phone on silent — same behaviour
+  // as Reels / TikTok. No-op on Android.
+  try {
+    final session = await AudioSession.instance;
+    await session.configure(const AudioSessionConfiguration(
+      avAudioSessionCategory: AVAudioSessionCategory.playback,
+      avAudioSessionCategoryOptions: AVAudioSessionCategoryOptions.mixWithOthers,
+      avAudioSessionMode: AVAudioSessionMode.moviePlayback,
+    ));
+  } catch (e) {
+    debugPrint('Audio session config failed (non-fatal): $e');
+  }
+
   try {
     debugPrint('Initializing Firebase...');
     await Firebase.initializeApp();
@@ -47,7 +62,7 @@ Future<void> main() async {
 
   WidgetsBinding.instance.addObserver(_AppLifecycleObserver());
   GoogleFonts.config.allowRuntimeFetching = true;
-  
+
   runApp(const MyApp());
 }
 
