@@ -1,7 +1,9 @@
 import 'package:intl/intl.dart';
 
 class TicketModel {
-  final int id;
+  // UUID string from the backend — must be String, not int. The previous
+  // int.parse() of a UUID was silently failing.
+  final String id;
   final TicketEvent event;
   final String ticketType; // 'qr' | 'invitation' | 'polaroid'
   final String status;
@@ -24,24 +26,35 @@ class TicketModel {
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
+    // The backend doesn't serialise qr_hash; the on-screen QR is rendered
+    // from the qr_code_url. Keep qrHash for legacy callers, but it will
+    // typically be empty.
     return TicketModel(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
-      event: TicketEvent.fromJson(json['event']),
-      ticketType: json['ticket_type'] ?? 'qr',
+      id: json['id']?.toString() ?? '',
+      event: TicketEvent.fromJson(json['event'] is Map ? json['event'] : {
+        'id': json['event'],
+        'title': json['event_title'],
+        'date': json['event_date'],
+        'venue': json['event_venue'],
+      }),
+      ticketType: json['ticket_type_name'] ?? json['ticket_type'] ?? 'qr',
       status: json['status'] ?? 'confirmed',
       quantity: json['quantity'] ?? 1,
-      totalAmount: json['total_amount']?.toString() ?? '0',
+      totalAmount: json['price_paid']?.toString() ?? json['total_amount']?.toString() ?? '0',
       qrHash: json['qr_hash'] ?? '',
-      pdfUrl: json['pdf_url'],
-      createdAt: json['created_at'] != null 
-          ? DateTime.parse(json['created_at']) 
-          : DateTime.now(),
+      pdfUrl: json['pdf_url'] ?? json['qr_code_url'],
+      createdAt: json['issued_at'] != null
+          ? DateTime.parse(json['issued_at'])
+          : (json['created_at'] != null
+              ? DateTime.parse(json['created_at'])
+              : DateTime.now()),
     );
   }
 }
 
 class TicketEvent {
-  final int id;
+  // UUID string from the backend.
+  final String id;
   final String title;
   final String? coverImage;
   final String date;
@@ -59,12 +72,12 @@ class TicketEvent {
 
   factory TicketEvent.fromJson(Map<String, dynamic> json) {
     return TicketEvent(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      id: json['id']?.toString() ?? '',
       title: json['title'] ?? '',
       coverImage: json['cover_image'] ?? json['image_url'],
-      date: json['date'] ?? '',
-      venue: json['venue'] ?? '',
-      neighborhood: json['neighborhood'] ?? '',
+      date: (json['date'] ?? json['start_datetime'] ?? '').toString(),
+      venue: (json['venue'] ?? json['venue_name'] ?? '').toString(),
+      neighborhood: (json['neighborhood'] ?? '').toString(),
     );
   }
 

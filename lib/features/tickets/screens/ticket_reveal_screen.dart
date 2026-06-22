@@ -432,7 +432,7 @@ class TicketRevealScreen extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: ElevatedButton(
-              onPressed: () => _launchUrl("${ApiConstants.baseUrl}/tickets/${ticket.qrHash}/"),
+              onPressed: () => _launchUrl("${ApiConstants.baseUrl}/tickets/${ticket.id}/"),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF9B111E),
                 padding: const EdgeInsets.symmetric(vertical: 16),
