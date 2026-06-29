@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../providers/profile_provider.dart';
 import '../../../utils/constants.dart';
+import '../widgets/ticket_time_state_card.dart';
 
 class TicketRevealScreen extends StatelessWidget {
   final TicketModel ticket;
@@ -54,6 +55,11 @@ class TicketRevealScreen extends StatelessWidget {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Time-aware state card — countdown / live / past
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: TicketTimeStateCard(event: ticket.event),
+                    ),
                     if (ticket.ticketType == 'qr') _buildQrTicket(userName, isDark),
                     if (ticket.ticketType == 'invitation') _buildInvitationTicket(userName, isDark),
                     if (ticket.ticketType == 'polaroid') _buildPolaroidTicket(isDark),

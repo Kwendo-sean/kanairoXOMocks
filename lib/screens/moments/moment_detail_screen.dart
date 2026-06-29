@@ -8,6 +8,7 @@ import '../../core/theme/app_typography.dart';
 import '../../services/moment_service.dart';
 import '../../widgets/moments/comments_bottom_sheet.dart';
 import '../../widgets/moments/kxo_stamp.dart';
+import '../../widgets/moments/moment_export_sheet.dart';
 import '../../utils/constants.dart';
 
 class MomentDetailScreen extends StatefulWidget {
@@ -412,8 +413,15 @@ class _MomentPageViewState extends State<_MomentPageView> {
                       ),
                     ),
                     const SizedBox(width: 24),
-                    // Share
-                    const Icon(Icons.ios_share, color: Colors.white, size: 22),
+                    // Share — opens the multi-format export bottom sheet
+                    Builder(builder: (ctx) => GestureDetector(
+                      onTap: () => MomentExportSheet.show(
+                        ctx,
+                        momentId: widget.moment.id,
+                        captionForShare: widget.moment.caption,
+                      ),
+                      child: const Icon(Icons.ios_share, color: Colors.white, size: 22),
+                    )),
                   ],
                 ),
               ],

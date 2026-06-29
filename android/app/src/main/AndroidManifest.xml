@@ -35,6 +35,22 @@
                     android:scheme="kanairoxo"
                     android:host="spotify"/>
             </intent-filter>
+
+            <!-- Universal links for kanairoxo.online — verified against
+                 https://kanairoxo.online/.well-known/assetlinks.json
+                 (served by backend, apps/events/well_known.py).
+                 Handles: /e/<short>, /event/<uuid>(/moments)?,
+                          /tickets/<uuid>, /c/<community-code> -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+                <category android:name="android.intent.category.BROWSABLE"/>
+                <data android:scheme="https" android:host="kanairoxo.online"/>
+                <data android:pathPrefix="/event/"/>
+                <data android:pathPrefix="/e/"/>
+                <data android:pathPrefix="/tickets/"/>
+                <data android:pathPrefix="/c/"/>
+            </intent-filter>
         </activity>
         
         <!-- Moments Widget -->

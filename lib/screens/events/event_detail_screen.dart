@@ -10,6 +10,8 @@ import '../../providers/events_provider.dart';
 import '../../services/api_client.dart';
 import 'ticket_purchase_screen.dart';
 import 'event_memories_screen.dart';
+import 'invite_friends_screen.dart';
+import 'package:kanairoxo/widgets/events/event_share_sheet.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:kanairoxo/utils/constants.dart';
 
@@ -164,6 +166,28 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               ),
             ),
             leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.ios_share, color: Colors.white),
+                tooltip: 'Share event',
+                onPressed: () => EventShareSheet.show(
+                  context,
+                  eventId: _experience!.id,
+                  eventTitle: _experience!.title,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.group_add_outlined, color: Colors.white),
+                tooltip: 'Invite friends',
+                onPressed: () => Navigator.of(context).push(MaterialPageRoute(
+                  builder: (_) => InviteFriendsScreen(
+                    eventId: _experience!.id,
+                    eventTitle: _experience!.title,
+                    initialMode: InviteMode.invite,
+                  ),
+                )),
+              ),
+            ],
           ),
           SliverToBoxAdapter(
             child: Padding(

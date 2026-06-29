@@ -6,6 +6,7 @@ import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
+import 'package:kanairoxo/services/deep_links.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +43,16 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<AuthProvider>();
+
+    // Keep the deep-link handler in sync with auth state so pending
+    // universal links get flushed once the user signs in.
+    final wasAuth = DeepLinks.instance.isAuthenticated;
+    DeepLinks.instance.isAuthenticated = authProvider.isAuthenticated;
+    if (!wasAuth && authProvider.isAuthenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        DeepLinks.instance.flushPending();
+      });
+    }
 
     if (!_splashFinished && !authProvider.isAuthenticated) {
       return SplashScreen(onComplete: _onSplashComplete);

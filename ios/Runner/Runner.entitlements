@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  iOS Associated Domains entitlement for kanairoxo.online universal links.
+
+  IMPORTANT: this file is not auto-attached to the Xcode project. After
+  cloning, open ios/Runner.xcworkspace, select the Runner target →
+  Signing & Capabilities → "+ Capability" → Associated Domains, then
+  add the entry:
+        applinks:kanairoxo.online
+
+  Xcode will also auto-add this file (Runner.entitlements) to the
+  Code Signing Entitlements build setting. After the first add, the
+  capability persists across builds.
+
+  Apple verifies the entitlement against
+    https://kanairoxo.online/.well-known/apple-app-site-association
+  which the backend serves once APP_APPLE_TEAM_ID + APP_APPLE_BUNDLE_ID
+  are set in /opt/kanairoxo/.env on the production server.
+-->
+<plist version="1.0">
+<dict>
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+        <string>applinks:kanairoxo.online</string>
+    </array>
+</dict>
+</plist>

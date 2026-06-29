@@ -7,7 +7,7 @@ class EventMemoriesScreen extends StatefulWidget {
   final String eventId;
   final String eventTitle;
   const EventMemoriesScreen({
-    super.key, required this.eventId, required this.eventTitle});
+    super.key, required this.eventId, this.eventTitle = 'Moments'});
 
   @override
   State<EventMemoriesScreen> createState() => _EventMemoriesScreenState();
