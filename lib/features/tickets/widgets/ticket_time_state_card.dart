@@ -115,7 +115,7 @@ class _TicketTimeStateCardState extends State<TicketTimeStateCard> {
       child: Padding(
         padding: const EdgeInsets.only(top: 8),
         child: ElevatedButton.icon(
-          icon: const Text('📸', style: TextStyle(fontSize: 16)),
+          icon: const Icon(Icons.photo_library_outlined, size: 18),
           label: const Text('View moments from this event'),
           onPressed: () {
             Navigator.of(context).push(MaterialPageRoute(
