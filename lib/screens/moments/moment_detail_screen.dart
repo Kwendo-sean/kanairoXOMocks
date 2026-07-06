@@ -10,6 +10,7 @@ import '../../widgets/moments/comments_bottom_sheet.dart';
 import '../../widgets/moments/kxo_stamp.dart';
 import '../../widgets/moments/moment_export_sheet.dart';
 import '../../utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 class MomentDetailScreen extends StatefulWidget {
   final List<Moment> moments;
@@ -244,7 +245,7 @@ class _MomentPageViewState extends State<_MomentPageView> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.location_on_outlined, color: Colors.white, size: 13),
+                  Icon(AppIcons.location, color: Colors.white, size: 13),
                   const SizedBox(width: 4),
                   Text(
                     widget.moment.linkedEvent!.title,
@@ -385,7 +386,7 @@ class _MomentPageViewState extends State<_MomentPageView> {
                       child: Row(
                         children: [
                           Icon(
-                            widget.moment.isLikedByMe ? Icons.favorite : Icons.favorite_border,
+                            widget.moment.isLikedByMe ? AppIcons.likeFill : AppIcons.like,
                             color: widget.moment.isLikedByMe ? primaryRed : Colors.white,
                             size: 22,
                           ),
@@ -403,7 +404,7 @@ class _MomentPageViewState extends State<_MomentPageView> {
                       onTap: widget.onComment,
                       child: Row(
                         children: [
-                          const Icon(Icons.chat_bubble_outline, color: Colors.white, size: 22),
+                          Icon(AppIcons.comment, color: Colors.white, size: 22),
                           const SizedBox(width: 6),
                           Text(
                             '${widget.moment.commentsCount}',
@@ -420,7 +421,7 @@ class _MomentPageViewState extends State<_MomentPageView> {
                         momentId: widget.moment.id,
                         captionForShare: widget.moment.caption,
                       ),
-                      child: const Icon(Icons.ios_share, color: Colors.white, size: 22),
+                      child: Icon(AppIcons.share, color: Colors.white, size: 22),
                     )),
                   ],
                 ),

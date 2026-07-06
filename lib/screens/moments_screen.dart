@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/services/moment_service.dart';
@@ -111,7 +112,13 @@ class _MomentsScreenState extends State<MomentsScreen> {
       WidgetService.refreshAllWidgets(_allMoments, 0, 0);
       // Push the most recent moment to the iOS home-screen widget.
       if (_allMoments.isNotEmpty) {
-        unawaited(HomeWidgetService.instance.updateFromMoment(_allMoments.first.toJson()));
+        final m = _allMoments.first;
+        unawaited(HomeWidgetService.instance.updateFromMoment({
+          'media_url': m.photoUrl,
+          'media_type': m.mediaType,
+          'thumbnail_url': m.thumbnailUrl ?? '',
+          'caption': m.caption,
+        }));
       }
     } catch (e) {
       if (mounted) {
@@ -598,7 +605,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                                     ),
                                     if (widget.moment.location != null) ...[
                                       const SizedBox(width: 8),
-                                      const Icon(Icons.location_on_outlined, size: 10, color: Colors.black45),
+                                      Icon(AppIcons.location, size: 10, color: Colors.black45),
                                       Text(widget.moment.location!, style: GoogleFonts.caveat(fontSize: 12, color: Colors.black45)),
                                     ],
                                   ],
@@ -616,7 +623,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                             onTap: _toggleLike,
                             child: Row(
                               children: [
-                                Icon(_isLiked ? Icons.favorite : Icons.favorite_border,
+                                Icon(_isLiked ? AppIcons.likeFill : AppIcons.like,
                                   size: 22, color: _isLiked ? AppColors.primary : Colors.black45),
                                 const SizedBox(width: 6),
                                 Text('$_likeCount', style: const TextStyle(fontSize: 12, color: Colors.black54)),
@@ -633,7 +640,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                             ),
                             child: Row(
                               children: [
-                                const Icon(Icons.chat_bubble_outline, size: 22, color: Colors.black45),
+                                Icon(AppIcons.comment, size: 22, color: Colors.black45),
                                 const SizedBox(width: 6),
                                 Text('${widget.moment.commentCount}', style: const TextStyle(fontSize: 12, color: Colors.black54)),
                               ],
@@ -668,7 +675,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                           const SizedBox(width: 16),
                           GestureDetector(
                             onTap: _toggleSave,
-                            child: Icon(_isSaved ? Icons.bookmark : Icons.bookmark_border,
+                            child: Icon(_isSaved ? AppIcons.bookmarkFill : AppIcons.bookmark,
                               size: 22, color: _isSaved ? AppColors.primary : Colors.black45),
                           ),
                         ],

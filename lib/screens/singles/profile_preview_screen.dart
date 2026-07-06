@@ -8,12 +8,16 @@ import 'package:kanairoxo/core/theme/app_radius.dart';
 import 'package:kanairoxo/models/connection_models.dart';
 import 'package:kanairoxo/models/messaging/conversation_model.dart';
 import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/services/profile_api_service.dart';
+import 'package:kanairoxo/models/profile_model.dart';
 import 'package:kanairoxo/screens/messaging/chat_screen.dart';
+import 'package:kanairoxo/screens/profile/gallery_viewer_screen.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/widgets/modals/report_modal.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 class ProfilePreviewScreen extends StatefulWidget {
   final String userId;
@@ -34,6 +38,7 @@ class ProfilePreviewScreen extends StatefulWidget {
 class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   final ApiClient apiClient = ApiClient();
   ProfilePreviewModel? _profile;
+  List<GalleryPhotoModel> _gallery = [];
   bool _loading = true;
   bool _responding = false;
 
@@ -41,6 +46,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+    _loadGallery();
   }
 
   Future<void> _loadProfile() async {
@@ -56,6 +62,30 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _loadGallery() async {
+    // The /full/ payload doesn't carry gallery photos — fetch them
+    // from the dedicated endpoint so the preview shows the person's
+    // gallery like their own profile does.
+    try {
+      final photos = await ProfileApiService().getGallery(userId: widget.userId);
+      if (mounted) setState(() => _gallery = photos);
+    } catch (_) {}
+  }
+
+  void _openGalleryViewer(int index) {
+    Navigator.push(context, PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black,
+      pageBuilder: (_, __, ___) => GalleryViewerScreen(
+        photos: _gallery,
+        initialIndex: index,
+        // Someone else's gallery — view only, no delete.
+      ),
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+    ));
   }
 
   Future<void> _handleAccept() async {
@@ -298,11 +328,11 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                     const SizedBox(height: 12),
                     Row(
                       children: [
-                        const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                        Icon(AppIcons.location, size: 16, color: Colors.redAccent),
                         const SizedBox(width: 4),
                         Text(p.neighborhood, style: AppTypography.caption.copyWith(color: Colors.white)),
                         const SizedBox(width: 16),
-                        const Icon(Icons.group, size: 16, color: Colors.blueAccent),
+                        Icon(AppIcons.community, size: 16, color: Colors.blueAccent),
                         const SizedBox(width: 4),
                         Text(p.socialCircle, style: AppTypography.caption.copyWith(color: Colors.white)),
                       ],
@@ -312,7 +342,10 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
                     if (p.interests.isNotEmpty) _buildChips('Interests', p.interests),
                     if (p.intents.isNotEmpty) _buildChips('Looking for', p.intents),
                     if (p.compatibility != null) _buildCompatibility(p.compatibility!),
-                    if (p.gallery.isNotEmpty) _buildGallery(p.gallery),
+                    if (_gallery.isNotEmpty)
+                      _buildPhotoGallery()
+                    else if (p.gallery.isNotEmpty)
+                      _buildGallery(p.gallery),
                     const SizedBox(height: 120),
                   ],
                 ),
@@ -416,6 +449,37 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  /// Gallery fetched from /profiles/<id>/gallery/ — items open the
+  /// clean full-screen viewer (no social chrome, view-only).
+  Widget _buildPhotoGallery() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Gallery', style: AppTypography.labelLarge.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        SizedBox(
+          height: 250,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: _gallery.length,
+            itemBuilder: (context, index) => GestureDetector(
+              onTap: () => _openGalleryViewer(index),
+              child: Container(
+                width: 200,
+                margin: const EdgeInsets.only(right: 12),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(16),
+                  child: SafeNetworkImage(url: _gallery[index].imageUrl, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 24),
+      ],
     );
   }
 

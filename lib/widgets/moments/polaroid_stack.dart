@@ -19,6 +19,7 @@ import '../../services/api_client.dart';
 import '../safe_network_image.dart';
 import 'comments_bottom_sheet.dart';
 import 'kxo_stamp.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 class PolaroidStack extends StatefulWidget {
   final List<Moment> moments;
@@ -266,7 +267,7 @@ class _PolaroidStackState extends State<PolaroidStack>
           // renderers. The old direct _downloadPolaroid/_sharePolaroid
           // paths are kept below as fallbacks but no longer wired here.
           _ActionButton(
-            icon: Icons.download_outlined,
+            icon: AppIcons.download,
             label: 'Save',
             onTap: visible.isNotEmpty
                 ? () => MomentExportSheet.show(
@@ -278,7 +279,7 @@ class _PolaroidStackState extends State<PolaroidStack>
             isDark: isDark),
           const SizedBox(width: 10),
           _ActionButton(
-            icon: Icons.ios_share_outlined,
+            icon: AppIcons.share,
             label: 'Share',
             onTap: visible.isNotEmpty
                 ? () => MomentExportSheet.show(
@@ -590,7 +591,7 @@ class _PolaroidCard extends StatelessWidget {
                       GestureDetector(
                         onTap: onLike,
                         child: Row(children: [
-                          Icon(isLiked ? Icons.favorite : Icons.favorite_border,
+                          Icon(isLiked ? AppIcons.likeFill : AppIcons.like,
                             size: 14, color: isLiked ? AppColors.primary : AppColors.textMuted),
                           const SizedBox(width: 4),
                           Text('$likeCount', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
@@ -599,14 +600,14 @@ class _PolaroidCard extends StatelessWidget {
                       GestureDetector(
                         onTap: onComment,
                         child: Row(children: [
-                          const Icon(Icons.chat_bubble_outline, size: 14, color: AppColors.textMuted),
+                          Icon(AppIcons.comment, size: 14, color: AppColors.textMuted),
                           const SizedBox(width: 4),
                           Text('${moment.commentCount}', style: AppTypography.caption.copyWith(fontSize: 10, color: AppColors.textMuted)),
                         ])),
                       const Spacer(),
                       GestureDetector(
                         onTap: onSave,
-                        child: Icon(isSaved ? Icons.bookmark : Icons.bookmark_border,
+                        child: Icon(isSaved ? AppIcons.bookmarkFill : AppIcons.bookmark,
                           size: 14, color: isSaved ? AppColors.primary : AppColors.textMuted)),
                     ]),
                   ],

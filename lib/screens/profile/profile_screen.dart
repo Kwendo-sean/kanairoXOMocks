@@ -7,7 +7,6 @@ import 'package:kanairoxo/core/theme/app_colors.dart';
 import 'package:kanairoxo/core/theme/app_typography.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/models/profile_model.dart';
-import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/models/music/spotify_models.dart';
 import 'package:kanairoxo/models/ticket_model.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
@@ -16,7 +15,7 @@ import 'package:kanairoxo/services/spotify_service.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
-import 'package:kanairoxo/screens/singles/moment_viewer_screen.dart';
+import 'package:kanairoxo/screens/profile/gallery_viewer_screen.dart';
 import 'package:kanairoxo/screens/settings/settings_screen.dart';
 import 'package:kanairoxo/screens/moments/my_moments_screen.dart';
 import 'package:kanairoxo/screens/music/spotify_connect_screen.dart';
@@ -261,27 +260,23 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
   }
 
   void _openGalleryViewer(int startIndex, ProfileModel? profile) {
-    final String currentUserId = AuthStorage.getCachedUserId() ?? '';
-    final List<Moment> moments = _galleryPhotos.map((p) => Moment(
-      id: p.id.toString(),
-      userId: currentUserId,
-      userName: profile?.fullName ?? 'User',
-      userAvatarUrl: profile?.profilePhotoUrl,
-      date: p.uploadedAt,
-      type: MomentType.vibe,
-      photoUrl: p.imageUrl,
-      caption: p.caption,
-      likesCount: 0,
-      commentsCount: 0,
-      isLikedByMe: false,
-      isSavedByMe: false,
-    )).toList();
-
+    // Personal gallery — clean viewer, no social chrome. Delete is
+    // only offered on your own profile (publicId == null).
     Navigator.push(context, PageRouteBuilder(
       opaque: false,
-      barrierColor: Colors.black87,
-      pageBuilder: (_, __, ___) => MomentViewerScreen(moments: moments, initialIndex: startIndex),
-      transitionsBuilder: (_, anim, __, child) => FadeTransition(opacity: anim, child: child),
+      barrierColor: Colors.black,
+      pageBuilder: (_, __, ___) => GalleryViewerScreen(
+        photos: _galleryPhotos,
+        initialIndex: startIndex,
+        onDelete: widget.publicId == null
+            ? (photo) async {
+                await profileApiService.deleteGalleryPhoto(photo.id);
+                await _loadGallery();
+              }
+            : null,
+      ),
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
     ));
   }
 

@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import '../models/data_models.dart';
 import '../models/ticket_model.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 /// Small circular partner logo. Monogram fallback when no logo URL.
 class _PartnerAvatar extends StatelessWidget {
@@ -174,8 +175,8 @@ class EventCard extends StatelessWidget {
               child: IconButton(
                 icon: Icon(
                   isBookmarked
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
+                      ? AppIcons.bookmarkFill
+                      : AppIcons.bookmark,
                 ),
                 color: Colors.white,
                 iconSize: 22,
@@ -218,7 +219,7 @@ class EventCard extends StatelessWidget {
                           ),
                           if (event.partner!.isVerified) ...[
                             const SizedBox(width: 4),
-                            const Icon(Icons.verified_rounded,
+                            Icon(AppIcons.verified,
                                 color: Color(0xFFE0708C), size: 13),
                           ],
                         ],
@@ -240,7 +241,7 @@ class EventCard extends StatelessWidget {
                     Row(
                       children: [
                         Icon(
-                          Icons.calendar_today_outlined,
+                          AppIcons.calendar,
                           color: Colors.white.withOpacity(0.8),
                           size: 13,
                         ),
@@ -255,7 +256,7 @@ class EventCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 12),
                         Icon(
-                          Icons.location_on_outlined,
+                          AppIcons.location,
                           color: Colors.white.withOpacity(0.8),
                           size: 13,
                         ),

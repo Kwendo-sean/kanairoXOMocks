@@ -14,6 +14,7 @@ import 'invite_friends_screen.dart';
 import 'package:kanairoxo/widgets/events/event_share_sheet.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/core/theme/app_icons.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final String eventId;
@@ -187,7 +188,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
             actions: [
               IconButton(
-                icon: const Icon(Icons.ios_share, color: Colors.white),
+                icon: Icon(AppIcons.share, color: Colors.white),
                 tooltip: 'Share event',
                 onPressed: () => EventShareSheet.show(
                   context,
@@ -196,7 +197,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.group_add_outlined, color: Colors.white),
+                icon: Icon(AppIcons.groupAdd, color: Colors.white),
                 tooltip: 'Invite friends',
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => InviteFriendsScreen(
@@ -243,7 +244,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                         if (_experience!.partner!.isVerified) ...[
                           const SizedBox(width: 6),
-                          const Icon(Icons.verified_rounded,
+                          Icon(AppIcons.verified,
                               color: Color(0xFFE0708C), size: 15),
                         ],
                       ],
@@ -254,7 +255,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   const SizedBox(height: 12),
                   Row(
                     children: [
-                      const Icon(Icons.calendar_today, size: 16, color: Colors.redAccent),
+                      Icon(AppIcons.calendar, size: 16, color: Colors.redAccent),
                       const SizedBox(width: 8),
                       Text('$formattedDate · ${_experience!.formattedTime}', style: const TextStyle(color: Colors.white70)),
                     ],
@@ -262,7 +263,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   const SizedBox(height: 8),
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 16, color: Colors.redAccent),
+                      Icon(AppIcons.location, size: 16, color: Colors.redAccent),
                       const SizedBox(width: 8),
                       Text('${_experience!.venueName}, ${_experience!.neighborhood}', style: const TextStyle(color: Colors.white70)),
                     ],
