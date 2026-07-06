@@ -4,6 +4,51 @@ import 'package:intl/intl.dart';
 import '../models/data_models.dart';
 import '../models/ticket_model.dart';
 
+/// Small circular partner logo. Monogram fallback when no logo URL.
+class _PartnerAvatar extends StatelessWidget {
+  final Partner partner;
+  const _PartnerAvatar({required this.partner});
+
+  @override
+  Widget build(BuildContext context) {
+    const double size = 18;
+    if (partner.logoUrl != null && partner.logoUrl!.isNotEmpty) {
+      return ClipOval(
+        child: CachedNetworkImage(
+          imageUrl: partner.logoUrl!,
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorWidget: (_, __, ___) => _monogram(size),
+        ),
+      );
+    }
+    return _monogram(size);
+  }
+
+  Widget _monogram(double size) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF8B1E3F),
+        border: Border.all(color: Colors.white.withOpacity(0.4), width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        partner.name.isNotEmpty ? partner.name[0].toUpperCase() : '?',
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          fontFamily: 'DMSans',
+        ),
+      ),
+    );
+  }
+}
+
 class EventCard extends StatelessWidget {
   final Experience event;
   final VoidCallback? onTap;
@@ -149,6 +194,37 @@ class EventCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
+                    // Partner row — logo avatar + name + verified tick.
+                    // Falls back to a monogram circle when no logo is set.
+                    if (event.partner != null) ...[
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          _PartnerAvatar(partner: event.partner!),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: Text(
+                              event.partner!.name,
+                              style: TextStyle(
+                                color: Colors.white.withOpacity(0.85),
+                                fontFamily: 'DMSans',
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                letterSpacing: 0.6,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (event.partner!.isVerified) ...[
+                            const SizedBox(width: 4),
+                            const Icon(Icons.verified_rounded,
+                                color: Color(0xFFE0708C), size: 13),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                    ],
                     Text(
                       event.title,
                       style: const TextStyle(

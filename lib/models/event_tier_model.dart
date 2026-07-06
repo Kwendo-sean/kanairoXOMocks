@@ -24,13 +24,27 @@ class EventTier {
   });
 
   factory EventTier.fromJson(Map<String, dynamic> json) {
+    // Backend serializes price as a STRING ("2500.00") — parse both
+    // string and numeric forms so tier prices don't collapse to 0.
+    double parsePrice(dynamic v) {
+      if (v == null) return 0.0;
+      if (v is num) return v.toDouble();
+      return double.tryParse(v.toString()) ?? 0.0;
+    }
+
+    int parseInt(dynamic v) {
+      if (v == null) return 0;
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString()) ?? 0;
+    }
+
     return EventTier(
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       description: json['description'] ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      maxQuantity: json['max_quantity'] ?? 0,
-      remaining: json['remaining'] ?? 0,
+      price: parsePrice(json['price']),
+      maxQuantity: parseInt(json['max_quantity']),
+      remaining: parseInt(json['remaining']),
       benefits: List<String>.from(json['benefits'] ?? []),
       availableFrom: json['available_from'] != null ? DateTime.tryParse(json['available_from']) : null,
       availableUntil: json['available_until'] != null ? DateTime.tryParse(json['available_until']) : null,

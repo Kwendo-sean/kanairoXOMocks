@@ -92,6 +92,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
+  Widget _partnerMonogram() {
+    final name = _experience?.partner?.name ?? '?';
+    return Container(
+      width: 28, height: 28,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: const Color(0xFF8B1E3F),
+        border: Border.all(color: Colors.white24, width: 1),
+      ),
+      alignment: Alignment.center,
+      child: Text(
+        name.isNotEmpty ? name[0].toUpperCase() : '?',
+        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700),
+      ),
+    );
+  }
+
   void _navigateToPurchase() {
     if (_experience == null) return;
     Navigator.push(
@@ -100,6 +117,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         builder: (context) => TicketPurchaseScreen(
           event: _experience!,
           selectedTierId: _selectedTier?.id,
+          selectedTierPrice: _selectedTier?.price,
+          selectedTierName: _selectedTier?.name,
         ),
       ),
     ).then((_) => _checkTicketStatus());
@@ -195,6 +214,42 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // Hosted-by row — partner logo + name + verified badge
+                  if (_experience!.partner != null) ...[
+                    Row(
+                      children: [
+                        ClipOval(
+                          child: (_experience!.partner!.logoUrl?.isNotEmpty ?? false)
+                              ? CachedNetworkImage(
+                                  imageUrl: _experience!.partner!.logoUrl!,
+                                  width: 28, height: 28, fit: BoxFit.cover,
+                                  errorWidget: (_, __, ___) => _partnerMonogram(),
+                                )
+                              : _partnerMonogram(),
+                        ),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            _experience!.partner!.name.toUpperCase(),
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 1.6,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        if (_experience!.partner!.isVerified) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.verified_rounded,
+                              color: Color(0xFFE0708C), size: 15),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                  ],
                   Text(_experience!.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 12),
                   Row(

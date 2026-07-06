@@ -11,8 +11,18 @@ import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 class TicketPurchaseScreen extends StatefulWidget {
   final Experience event;
   final String? selectedTierId;
+  // Tier pricing carried from the detail screen's tier picker so the
+  // pay screen charges + displays the tier price, not base price.
+  final double? selectedTierPrice;
+  final String? selectedTierName;
 
-  const TicketPurchaseScreen({super.key, required this.event, this.selectedTierId});
+  const TicketPurchaseScreen({
+    super.key,
+    required this.event,
+    this.selectedTierId,
+    this.selectedTierPrice,
+    this.selectedTierName,
+  });
 
   @override
   State<TicketPurchaseScreen> createState() => _TicketPurchaseScreenState();
@@ -24,11 +34,12 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
   bool _isLoading = false;
   String? _ticketId;
   String _paymentStatus = 'idle'; // idle, processing, polling, success, failed
-  
+
   Timer? _pollTimer;
   final _phoneController = TextEditingController();
-  
-  double get totalAmount => (widget.event.basePrice) * _quantity;
+
+  double get unitPrice => widget.selectedTierPrice ?? widget.event.basePrice;
+  double get totalAmount => unitPrice * _quantity;
   
   @override
   void dispose() {
@@ -174,12 +185,52 @@ class _TicketPurchaseScreenState extends State<TicketPurchaseScreen> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
             ),
           ),
-          const SizedBox(height: 48),
-          
+          const SizedBox(height: 24),
+
+          _SectionHeader(title: 'Order summary', textColor: textColor),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.05),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Column(children: [
+              Row(children: [
+                Expanded(child: Text(
+                  widget.selectedTierName ?? 'General Admission',
+                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+                )),
+                Text('KES ${unitPrice.toStringAsFixed(0)}',
+                    style: const TextStyle(color: Colors.white70)),
+              ]),
+              const SizedBox(height: 8),
+              Row(children: [
+                Text('× $_quantity', style: const TextStyle(color: Colors.white38, fontSize: 13)),
+                const Spacer(),
+              ]),
+              const Divider(color: Colors.white12, height: 20),
+              Row(children: [
+                const Text('Total', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text('KES ${totalAmount.toStringAsFixed(0)}',
+                    style: const TextStyle(
+                      color: AppConstants.primaryRed,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 18,
+                    )),
+              ]),
+            ]),
+          ),
+          const SizedBox(height: 32),
+
           LiquidGlassButton(
             width: double.infinity,
             onPressed: _isLoading ? null : _purchaseTicket,
-            child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('Pay with M-Pesa'),
+            child: _isLoading
+                ? const CircularProgressIndicator(color: Colors.white)
+                : Text(totalAmount > 0
+                    ? 'Pay KES ${totalAmount.toStringAsFixed(0)} with M-Pesa'
+                    : 'Get free ticket'),
           ),
         ],
       ),

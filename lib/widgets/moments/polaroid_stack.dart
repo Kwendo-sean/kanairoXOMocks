@@ -11,6 +11,7 @@ import 'package:dio/dio.dart';
 import 'package:kanairoxo/utils/constants.dart';
 import 'package:kanairoxo/services/polaroid_video_composer.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
+import 'package:kanairoxo/widgets/moments/moment_export_sheet.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/moment.dart';
@@ -260,16 +261,32 @@ class _PolaroidStackState extends State<PolaroidStack>
       Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          // Save + Share both open the multi-format export sheet
+          // (Polaroid / Photo / Story / Grid) backed by the server-side
+          // renderers. The old direct _downloadPolaroid/_sharePolaroid
+          // paths are kept below as fallbacks but no longer wired here.
           _ActionButton(
             icon: Icons.download_outlined,
             label: 'Save',
-            onTap: visible.isNotEmpty ? () => _downloadPolaroid(visible.last) : null,
+            onTap: visible.isNotEmpty
+                ? () => MomentExportSheet.show(
+                      context,
+                      momentId: visible.last.id,
+                      captionForShare: visible.last.caption,
+                    )
+                : null,
             isDark: isDark),
           const SizedBox(width: 10),
           _ActionButton(
             icon: Icons.ios_share_outlined,
             label: 'Share',
-            onTap: visible.isNotEmpty ? () => _sharePolaroid(visible.last) : null,
+            onTap: visible.isNotEmpty
+                ? () => MomentExportSheet.show(
+                      context,
+                      momentId: visible.last.id,
+                      captionForShare: visible.last.caption,
+                    )
+                : null,
             isDark: isDark),
         ]),
 
