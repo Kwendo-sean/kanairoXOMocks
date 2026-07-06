@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -30,7 +31,7 @@ class DiscoveryScreen extends StatefulWidget {
 }
 
 class _DiscoveryScreenState extends State<DiscoveryScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final DiscoveryService _discoveryService = DiscoveryService();
   final ApiClient _apiClient = ApiClient();
   final PageController _pageController = PageController();
@@ -41,12 +42,17 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   String? _error;
   bool _isProcessingAction = false;
 
+  // Re-checks for new profiles while the "all caught up" state is showing,
+  // so the deck comes back on its own instead of needing an app restart.
+  Timer? _emptyRetryTimer;
+
   ConnectionContextModel? _contextCard;
   bool _contextLoading = false;
-  
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     // Defer to after the first frame so we don't fire notifyListeners()
     // while another widget is mid-build (PageView builds these tabs lazily).
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -57,8 +63,15 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _emptyRetryTimer?.cancel();
     _pageController.dispose();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _quietRefetch();
   }
 
   Future<void> _initializeDiscovery() async {
@@ -87,14 +100,16 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     try {
       final response = await _apiClient.get('api/v1/discovery/recommendations/');
       final batch = DiscoveryBatch.fromJson(response);
-      
+
       if (!mounted) return;
       setState(() {
         _discoveries = batch.discoveries;
         _currentIndex = 0;
         _isLoading = false;
       });
-      
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+      _manageEmptyRetryTimer();
+
       if (_discoveries.isNotEmpty && !_discoveries[0].isAd) {
         _loadContextCard(_discoveries[0].id!);
       }
@@ -105,6 +120,52 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
         _isLoading = false;
       });
     }
+  }
+
+  /// While the deck is empty, poll for new profiles every couple of minutes
+  /// so the screen recovers by itself (new members, or the 24h pass
+  /// cooldown expiring server-side).
+  void _manageEmptyRetryTimer() {
+    if (_discoveries.isEmpty) {
+      _emptyRetryTimer ??= Timer.periodic(
+        const Duration(minutes: 2),
+        (_) => _quietRefetch(),
+      );
+    } else {
+      _emptyRetryTimer?.cancel();
+      _emptyRetryTimer = null;
+    }
+  }
+
+  /// Refetch without flipping [_isLoading], so the empty state doesn't
+  /// flash a skeleton. Swaps back to the deck only when profiles arrive.
+  Future<void> _quietRefetch() async {
+    if (!mounted || _isLoading || _discoveries.isNotEmpty) return;
+    try {
+      final response = await _apiClient.get('api/v1/discovery/recommendations/');
+      final batch = DiscoveryBatch.fromJson(response);
+      if (!mounted || batch.discoveries.isEmpty) return;
+      setState(() {
+        _discoveries = batch.discoveries;
+        _currentIndex = 0;
+        _error = null;
+      });
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+      _manageEmptyRetryTimer();
+      if (!_discoveries[0].isAd) _loadContextCard(_discoveries[0].id!);
+    } catch (_) {
+      // Stay on the empty state; the timer retries.
+    }
+  }
+
+  /// Fire-and-forget: tells the backend this profile was skipped so it
+  /// sits out of the deck for 24 hours.
+  void _recordPass(DiscoveryItem item) {
+    final id = item.id;
+    if (id == null || item.isAd) return;
+    _apiClient
+        .post('api/v1/discovery/action/', {'target_id': id, 'action': 'pass'})
+        .catchError((_) => null);
   }
 
   Future<void> _loadContextCard(String targetUserId) async {
@@ -290,7 +351,10 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
                     compatibilityScore: item.overallScore,
                     compatibilityText: item.compatibilityText,
                     explanation: item.explanation ?? '',
-                    onNotNow: _moveToNextProfile,
+                    onNotNow: () {
+                      _recordPass(item);
+                      _moveToNextProfile();
+                    },
                     onMessage: _openChat,
                     onTap: () {
                       final pid = item.id;
@@ -493,11 +557,14 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   }
 
   Widget _buildEmpty() {
-    return _ConnectionsFallbackList();
+    return _ConnectionsFallbackList(onCheckAgain: _initializeDiscovery);
   }
 }
 
 class _ConnectionsFallbackList extends StatefulWidget {
+  final Future<void> Function()? onCheckAgain;
+  const _ConnectionsFallbackList({this.onCheckAgain});
+
   @override
   State<_ConnectionsFallbackList> createState() => _ConnectionsFallbackListState();
 }
@@ -570,10 +637,24 @@ class _ConnectionsFallbackListState extends State<_ConnectionsFallbackList> {
             style: TextStyle(
               fontFamily: 'DMSans', color: textColor, fontSize: 20, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Text("New people drop in tomorrow. In the meantime — your connections:",
+          Text("People you skipped come back tomorrow, and new members show up as they join. In the meantime — your connections:",
             style: TextStyle(
               fontFamily: 'DMSans', color: textColor.withOpacity(0.55), fontSize: 13, height: 1.4)),
-          const SizedBox(height: 20),
+          const SizedBox(height: 14),
+          if (widget.onCheckAgain != null)
+            OutlinedButton.icon(
+              onPressed: () => widget.onCheckAgain!(),
+              icon: const Icon(Icons.refresh_rounded, size: 16, color: accent),
+              label: const Text('Check for new people',
+                style: TextStyle(
+                  fontFamily: 'DMSans', color: accent, fontSize: 13, fontWeight: FontWeight.w600)),
+              style: OutlinedButton.styleFrom(
+                side: BorderSide(color: accent.withOpacity(0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+              ),
+            ),
+          const SizedBox(height: 14),
           Expanded(
             child: _connections.isEmpty
               ? Center(child: Text("You haven't connected with anyone yet.",

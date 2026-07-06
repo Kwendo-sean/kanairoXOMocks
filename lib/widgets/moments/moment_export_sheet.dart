@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/tickets_service.dart';
 
 /// Bottom sheet that lets the user pick a format (Polaroid / Photo /
@@ -40,16 +42,64 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
   int _gridCount = 4;
   bool _busy = false;
   final _svc = TicketsService();
-  final _dio = Dio();
+  // The export endpoints require auth — use the shared ApiClient Dio so the
+  // Bearer token goes out with every request (a bare Dio/Image.network 401s).
+  final Dio _dio = ApiClient().dio;
+
+  Uint8List? _previewBytes;
+  bool _previewLoading = true;
+  bool _previewFailed = false;
+  int _previewReq = 0;
 
   String get _previewUrl => _format == 'grid'
       ? _svc.momentsGridUrl(count: _gridCount)
       : _svc.momentExportUrl(widget.momentId, format: _format);
 
+  @override
+  void initState() {
+    super.initState();
+    _loadPreview();
+  }
+
+  Future<void> _loadPreview() async {
+    final req = ++_previewReq;
+    setState(() {
+      _previewLoading = true;
+      _previewFailed = false;
+      _previewBytes = null;
+    });
+    try {
+      final resp = await _dio.get<List<int>>(
+        _previewUrl,
+        options: Options(
+          responseType: ResponseType.bytes,
+          headers: {'Accept': 'image/*'},
+        ),
+      );
+      if (!mounted || req != _previewReq) return;
+      setState(() {
+        _previewBytes = Uint8List.fromList(resp.data ?? const []);
+        _previewLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || req != _previewReq) return;
+      setState(() {
+        _previewFailed = true;
+        _previewLoading = false;
+      });
+    }
+  }
+
   Future<File> _downloadToTemp() async {
     final dir = await getTemporaryDirectory();
     final file = File('${dir.path}/kxo-${widget.momentId}-$_format.jpg');
-    await _dio.download(_previewUrl, file.path);
+    // Reuse the preview bytes when they're already in hand.
+    final bytes = _previewBytes;
+    if (bytes != null && bytes.isNotEmpty) {
+      await file.writeAsBytes(bytes, flush: true);
+    } else {
+      await _dio.download(_previewUrl, file.path);
+    }
     return file;
   }
 
@@ -93,10 +143,53 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
     }
   }
 
+  Widget _buildPreview() {
+    if (_previewLoading) {
+      return const Padding(
+        padding: EdgeInsets.all(40),
+        child: CircularProgressIndicator(
+          color: Color(0xFFC0394B),
+          strokeWidth: 2,
+        ),
+      );
+    }
+    if (_previewFailed || _previewBytes == null || _previewBytes!.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Preview unavailable',
+              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+            ),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _loadPreview,
+              child: const Text(
+                'Retry',
+                style: TextStyle(color: Color(0xFFC0394B)),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return Image.memory(
+      _previewBytes!,
+      fit: BoxFit.contain,
+      gaplessPlayback: true,
+    );
+  }
+
   Widget _pill(String label, String value) {
     final selected = _format == value;
     return GestureDetector(
-      onTap: () => setState(() => _format = value),
+      onTap: () {
+        if (_format == value) return;
+        setState(() => _format = value);
+        _loadPreview();
+      },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -182,7 +275,11 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
                   ChoiceChip(
                     label: const Text('2×2'),
                     selected: _gridCount == 4,
-                    onSelected: (_) => setState(() => _gridCount = 4),
+                    onSelected: (_) {
+                      if (_gridCount == 4) return;
+                      setState(() => _gridCount = 4);
+                      _loadPreview();
+                    },
                     backgroundColor: Colors.white.withOpacity(0.05),
                     selectedColor: const Color(0xFFC0394B),
                   ),
@@ -190,7 +287,11 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
                   ChoiceChip(
                     label: const Text('3×3'),
                     selected: _gridCount == 9,
-                    onSelected: (_) => setState(() => _gridCount = 9),
+                    onSelected: (_) {
+                      if (_gridCount == 9) return;
+                      setState(() => _gridCount = 9);
+                      _loadPreview();
+                    },
                     backgroundColor: Colors.white.withOpacity(0.05),
                     selectedColor: const Color(0xFFC0394B),
                   ),
@@ -207,28 +308,7 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white.withOpacity(0.08)),
                 ),
-                child: Center(
-                  child: Image.network(
-                    _previewUrl,
-                    fit: BoxFit.contain,
-                    headers: const {'Accept': 'image/*'},
-                    loadingBuilder: (context, child, progress) =>
-                        progress == null ? child : const Padding(
-                          padding: EdgeInsets.all(40),
-                          child: CircularProgressIndicator(
-                            color: Color(0xFFC0394B),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                    errorBuilder: (_, __, ___) => Padding(
-                      padding: const EdgeInsets.all(28),
-                      child: Text(
-                        'Preview unavailable',
-                        style: TextStyle(color: Colors.white.withOpacity(0.5)),
-                      ),
-                    ),
-                  ),
-                ),
+                child: Center(child: _buildPreview()),
               ),
 
               const SizedBox(height: 22),
