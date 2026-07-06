@@ -83,7 +83,7 @@ class MomentService {
     required File photo, // First/main media (image or video file)
     String mediaType = 'image', // 'image' | 'video'
     String? location,
-    int? linkedEventId,
+    String? linkedEventId,
     Map<String, String>? trackData,
     String? visibility,
     String filterId = 'none',

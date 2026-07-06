@@ -194,6 +194,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   context,
                   eventId: _experience!.id,
                   eventTitle: _experience!.title,
+                  trailerUrl: _experience!.trailerUrl,
                 ),
               ),
               IconButton(

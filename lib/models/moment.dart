@@ -14,7 +14,9 @@ extension MomentTypeExtension on MomentType {
 }
 
 class LinkedEvent {
-  final int id;
+  // Backend event ids are UUID strings — parsing them as int always threw
+  // and left the "link to event" picker empty.
+  final String id;
   final String title;
   final String? coverImageUrl;
 
@@ -26,7 +28,7 @@ class LinkedEvent {
 
   factory LinkedEvent.fromJson(Map<String, dynamic> json) {
     return LinkedEvent(
-      id: json['id'] is int ? json['id'] : int.parse(json['id'].toString()),
+      id: json['id'].toString(),
       title: json['title'] ?? json['name'] ?? '',
       coverImageUrl: json['cover_image'] ?? json['image_url'],
     );
@@ -59,6 +61,7 @@ class Moment {
   final MomentType type;
   final String photoUrl; // URL to image or video file
   final String mediaType; // 'image' | 'video'
+  final String? thumbnailUrl; // server-extracted first frame for video moments
   final List<MomentMedia> gallery;
   final String caption;
   final String? location;
@@ -93,6 +96,7 @@ class Moment {
     required this.type,
     required this.photoUrl,
     this.mediaType = 'image',
+    this.thumbnailUrl,
     this.gallery = const [],
     required this.caption,
     this.location,
@@ -199,6 +203,9 @@ class Moment {
       type: MomentTypeExtension.fromString(json['tag'] ?? json['category'] ?? json['type'] ?? 'vibe'),
       photoUrl: ApiConstants.fixMediaUrl(rawImageUrl?.toString()),
       mediaType: (json['media_type'] ?? 'image').toString(),
+      thumbnailUrl: json['thumbnail_url'] != null && json['thumbnail_url'].toString().isNotEmpty
+          ? ApiConstants.fixMediaUrl(json['thumbnail_url'].toString())
+          : null,
       gallery: gallery,
       date: DateTime.tryParse(json['created_at'] ?? json['timestamp'] ?? '') ?? DateTime.now(),
       userName: userName.toString(),

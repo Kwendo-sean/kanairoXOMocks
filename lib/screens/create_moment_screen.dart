@@ -30,7 +30,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
   
   List<LinkedEvent> _linkableEvents = [];
   bool _loadingEvents = true;
-  int? _selectedEventId;
+  String? _selectedEventId;
 
   @override
   void initState() {

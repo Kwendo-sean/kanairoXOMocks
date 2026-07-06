@@ -22,7 +22,7 @@ class MomentDraft {
   final String? location;
   final List<String> taggedUserIds;
   final String visibility; // Public, Connections, Close Friends
-  final int? linkedEventId;
+  final String? linkedEventId;
   final DateTime? scheduledAt;
   final List<MediaItem> media;
 
@@ -43,7 +43,7 @@ class MomentDraft {
     String? location,
     List<String>? taggedUserIds,
     String? visibility,
-    int? linkedEventId,
+    String? linkedEventId,
     DateTime? scheduledAt,
     List<MediaItem>? media,
   }) {

@@ -6,31 +6,44 @@ import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
 
 /// Spotify-style "share to social" sheet for an event.
 ///
-/// Three tabs (Story / Square / Post) pull a backend-rendered branded
-/// PNG from /api/v1/events/<id>/share-card.png?format=...  and let the
-/// user save, share, or hand off to Instagram Stories.
+/// When the event has a trailer, that's the first tab and the default
+/// share — the video is what sells the event. The Story / Square / Post
+/// tabs pull a backend-rendered branded PNG from
+/// /api/v1/events/<id>/share-card.png?format=... as the fallback.
 ///
 /// Designed to mirror the public event page's social-card output —
-/// every share carries a short URL so the image is actionable even
-/// after a screenshot.
+/// every share carries a short URL so it's actionable even after a
+/// screenshot.
 class EventShareSheet extends StatefulWidget {
   final String eventId;
   final String eventTitle;
-  const EventShareSheet({super.key, required this.eventId, required this.eventTitle});
+  final String? trailerUrl;
+  const EventShareSheet({
+    super.key,
+    required this.eventId,
+    required this.eventTitle,
+    this.trailerUrl,
+  });
 
   static Future<void> show(BuildContext context, {
     required String eventId,
     required String eventTitle,
+    String? trailerUrl,
   }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => EventShareSheet(eventId: eventId, eventTitle: eventTitle),
+      builder: (_) => EventShareSheet(
+        eventId: eventId,
+        eventTitle: eventTitle,
+        trailerUrl: trailerUrl,
+      ),
     );
   }
 
@@ -45,16 +58,22 @@ class _EventShareSheetState extends State<EventShareSheet>
   final _dio = Dio();
   final _svc = EventsApiService();
 
-  static const _formats = ['story', 'square', 'post'];
-  static const _labels  = ['Story',  'Square',  'Post'];
+  bool get _hasTrailer =>
+      widget.trailerUrl != null && widget.trailerUrl!.isNotEmpty;
+
+  List<String> get _formats =>
+      _hasTrailer ? const ['trailer', 'story', 'square', 'post']
+                  : const ['story', 'square', 'post'];
 
   String get _currentFormat => _formats[_tabs.index];
+  bool get _isTrailerTab => _currentFormat == 'trailer';
   String get _currentUrl => _svc.shareCardUrl(widget.eventId, format: _currentFormat);
   String get _shortShareUrl => 'https://kanairoxo.online/e/${widget.eventId.substring(0, 8).toUpperCase()}';
 
   @override
   void initState() {
     super.initState();
+    // Trailer tab (index 0 when present) is the default.
     _tabs = TabController(length: _formats.length, vsync: this)
       ..addListener(() { if (mounted) setState(() {}); });
   }
@@ -64,6 +83,11 @@ class _EventShareSheetState extends State<EventShareSheet>
 
   Future<File> _downloadCard() async {
     final dir = await getTemporaryDirectory();
+    if (_isTrailerTab) {
+      final f = File('${dir.path}/kxo-event-${widget.eventId}-trailer.mp4');
+      await _dio.download(widget.trailerUrl!, f.path);
+      return f;
+    }
     final f = File('${dir.path}/kxo-event-${widget.eventId}-$_currentFormat.png');
     await _dio.download(_currentUrl, f.path);
     return f;
@@ -73,7 +97,11 @@ class _EventShareSheetState extends State<EventShareSheet>
     setState(() => _busy = true);
     try {
       final f = await _downloadCard();
-      await Gal.putImage(f.path, album: 'KanairoXO');
+      if (_isTrailerTab) {
+        await Gal.putVideo(f.path, album: 'KanairoXO');
+      } else {
+        await Gal.putImage(f.path, album: 'KanairoXO');
+      }
       _toast('Saved to gallery');
     } catch (e) {
       _toast('Save failed: $e');
@@ -114,7 +142,7 @@ class _EventShareSheetState extends State<EventShareSheet>
         const channel = MethodChannel('plugins.flutter.io/share');
         await channel.invokeMethod('shareFiles', {
           'paths': [f.path],
-          'mimeTypes': ['image/png'],
+          'mimeTypes': [_isTrailerTab ? 'video/mp4' : 'image/png'],
         }).catchError((_) async {
           await Share.shareXFiles([XFile(f.path)], text: _shortShareUrl);
         });
@@ -218,37 +246,41 @@ class _EventShareSheetState extends State<EventShareSheet>
               labelColor: Colors.white,
               unselectedLabelColor: Colors.white54,
               labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1),
-              tabs: const [Tab(text: 'STORY'), Tab(text: 'SQUARE'), Tab(text: 'POST')],
+              tabs: [for (final f in _formats) Tab(text: f.toUpperCase())],
             ),
             Expanded(child: SingleChildScrollView(
               controller: scrollController,
               padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
               child: Column(children: [
-                // Card preview — aspect ratio per format
+                // Preview — trailer video plays inline; cards keep their
+                // format aspect ratios.
                 AspectRatio(
-                  aspectRatio: _currentFormat == 'story' ? 9 / 16
+                  aspectRatio: _isTrailerTab ? 9 / 16
+                    : _currentFormat == 'story' ? 9 / 16
                     : _currentFormat == 'square' ? 1
                     : 4 / 5,
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(14),
-                    child: Image.network(
-                      _currentUrl,
-                      fit: BoxFit.cover,
-                      headers: const {'Accept': 'image/*'},
-                      loadingBuilder: (c, child, p) => p == null
-                          ? child
-                          : Container(color: Colors.white.withOpacity(0.04),
-                              child: const Center(child: CircularProgressIndicator(
-                                color: Color(0xFFC0394B), strokeWidth: 2,
-                              ))),
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.white.withOpacity(0.04),
-                        child: const Center(child: Text(
-                          'Card not ready yet',
-                          style: TextStyle(color: Colors.white54),
-                        )),
-                      ),
-                    ),
+                    child: _isTrailerTab
+                      ? _TrailerPreview(url: widget.trailerUrl!)
+                      : Image.network(
+                          _currentUrl,
+                          fit: BoxFit.cover,
+                          headers: const {'Accept': 'image/*'},
+                          loadingBuilder: (c, child, p) => p == null
+                              ? child
+                              : Container(color: Colors.white.withOpacity(0.04),
+                                  child: const Center(child: CircularProgressIndicator(
+                                    color: Color(0xFFC0394B), strokeWidth: 2,
+                                  ))),
+                          errorBuilder: (_, __, ___) => Container(
+                            color: Colors.white.withOpacity(0.04),
+                            child: const Center(child: Text(
+                              'Card not ready yet',
+                              style: TextStyle(color: Colors.white54),
+                            )),
+                          ),
+                        ),
                   ),
                 ),
                 const SizedBox(height: 18),
@@ -300,6 +332,74 @@ class _EventShareSheetState extends State<EventShareSheet>
           ]),
         );
       },
+    );
+  }
+}
+
+/// Muted, looping inline preview of the event trailer.
+class _TrailerPreview extends StatefulWidget {
+  final String url;
+  const _TrailerPreview({required this.url});
+
+  @override
+  State<_TrailerPreview> createState() => _TrailerPreviewState();
+}
+
+class _TrailerPreviewState extends State<_TrailerPreview> {
+  VideoPlayerController? _controller;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    _controller = controller;
+    controller.initialize().then((_) {
+      if (!mounted) return;
+      controller
+        ..setLooping(true)
+        ..setVolume(0)
+        ..play();
+      setState(() {});
+    }).catchError((_) {
+      if (mounted) setState(() => _failed = true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    if (_failed) {
+      return Container(
+        color: Colors.white.withOpacity(0.04),
+        child: const Center(child: Text(
+          'Trailer preview unavailable',
+          style: TextStyle(color: Colors.white54),
+        )),
+      );
+    }
+    if (controller == null || !controller.value.isInitialized) {
+      return Container(
+        color: Colors.white.withOpacity(0.04),
+        child: const Center(child: CircularProgressIndicator(
+          color: Color(0xFFC0394B), strokeWidth: 2,
+        )),
+      );
+    }
+    return FittedBox(
+      fit: BoxFit.cover,
+      clipBehavior: Clip.hardEdge,
+      child: SizedBox(
+        width: controller.value.size.width,
+        height: controller.value.size.height,
+        child: VideoPlayer(controller),
+      ),
     );
   }
 }

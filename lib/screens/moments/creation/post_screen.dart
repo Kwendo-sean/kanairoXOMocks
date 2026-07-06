@@ -29,7 +29,7 @@ class _PostScreenState extends State<PostScreen> {
   final _captionController = TextEditingController();
   final _locationController = TextEditingController();
   String _visibility = 'Public';
-  int? _selectedEventId;
+  String? _selectedEventId;
   List<LinkedEvent> _linkableEvents = [];
   bool _isLoadingEvents = true;
   bool _isPosting = false;
