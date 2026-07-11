@@ -274,6 +274,8 @@ class _PolaroidStackState extends State<PolaroidStack>
                       context,
                       momentId: visible.last.id,
                       captionForShare: visible.last.caption,
+                      mediaType: visible.last.mediaType,
+                      mediaUrl: visible.last.photoUrl,
                     )
                 : null,
             isDark: isDark),
@@ -286,6 +288,8 @@ class _PolaroidStackState extends State<PolaroidStack>
                       context,
                       momentId: visible.last.id,
                       captionForShare: visible.last.caption,
+                      mediaType: visible.last.mediaType,
+                      mediaUrl: visible.last.photoUrl,
                     )
                 : null,
             isDark: isDark),

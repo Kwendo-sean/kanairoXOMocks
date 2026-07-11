@@ -420,6 +420,8 @@ class _MomentPageViewState extends State<_MomentPageView> {
                         ctx,
                         momentId: widget.moment.id,
                         captionForShare: widget.moment.caption,
+                        mediaType: widget.moment.mediaType,
+                        mediaUrl: widget.moment.photoUrl,
                       ),
                       child: Icon(AppIcons.share, color: Colors.white, size: 22),
                     )),

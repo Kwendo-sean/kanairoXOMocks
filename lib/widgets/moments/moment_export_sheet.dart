@@ -7,20 +7,34 @@ import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/tickets_service.dart';
+import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 
 /// Bottom sheet that lets the user pick a format (Polaroid / Photo /
 /// Story / Grid), preview it, then save to gallery or share via the
 /// system share sheet.
 ///
-/// Backed by the server-side renderers in apps/moments/exports.py.
+/// Image moments: all formats are stills from apps/moments/exports.py.
+/// Video moments: Polaroid is the ffmpeg-baked polaroid VIDEO
+/// (/polaroid-video/) and the Photo pill becomes the raw Video — both
+/// save and share as mp4. Story/Grid stay stills.
 class MomentExportSheet extends StatefulWidget {
   final String momentId;
   final String? captionForShare;
-  const MomentExportSheet({super.key, required this.momentId, this.captionForShare});
+  final String mediaType; // 'image' | 'video'
+  final String? mediaUrl; // raw media URL (the mp4 for video moments)
+  const MomentExportSheet({
+    super.key,
+    required this.momentId,
+    this.captionForShare,
+    this.mediaType = 'image',
+    this.mediaUrl,
+  });
 
   static Future<void> show(BuildContext context, {
     required String momentId,
     String? captionForShare,
+    String mediaType = 'image',
+    String? mediaUrl,
   }) {
     return showModalBottomSheet(
       context: context,
@@ -29,6 +43,8 @@ class MomentExportSheet extends StatefulWidget {
       builder: (_) => MomentExportSheet(
         momentId: momentId,
         captionForShare: captionForShare,
+        mediaType: mediaType,
+        mediaUrl: mediaUrl,
       ),
     );
   }
@@ -51,6 +67,17 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
   bool _previewFailed = false;
   int _previewReq = 0;
 
+  // Video-moment state: polaroid resolves to the server-baked polaroid
+  // video, 'video' is the raw clip.
+  String? _bakedPolaroidUrl;
+  String? _videoPreviewUrl;
+  bool _videoResolving = false;
+  bool _videoFailed = false;
+
+  bool get _isVideoMoment => widget.mediaType == 'video';
+  bool get _isVideoFormat =>
+      _isVideoMoment && (_format == 'polaroid' || _format == 'video');
+
   String get _previewUrl => _format == 'grid'
       ? _svc.momentsGridUrl(count: _gridCount)
       : _svc.momentExportUrl(widget.momentId, format: _format);
@@ -58,7 +85,49 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
   @override
   void initState() {
     super.initState();
-    _loadPreview();
+    _refreshPreview();
+  }
+
+  void _refreshPreview() {
+    if (_isVideoFormat) {
+      _resolveVideo();
+    } else {
+      _loadPreview();
+    }
+  }
+
+  /// Resolve the video URL for the current format. The polaroid bake can
+  /// take a while on first request (ffmpeg composites server-side); the
+  /// result is cached, so a retry after a timeout usually lands instantly.
+  Future<void> _resolveVideo() async {
+    final req = ++_previewReq;
+    setState(() {
+      _videoResolving = true;
+      _videoFailed = false;
+      _videoPreviewUrl = null;
+    });
+    try {
+      String url;
+      if (_format == 'video') {
+        url = widget.mediaUrl!;
+      } else {
+        _bakedPolaroidUrl ??= (await ApiClient()
+            .get('api/v1/moments/${widget.momentId}/polaroid-video/'))['url']
+            ?.toString();
+        url = _bakedPolaroidUrl!;
+      }
+      if (!mounted || req != _previewReq) return;
+      setState(() {
+        _videoPreviewUrl = url;
+        _videoResolving = false;
+      });
+    } catch (_) {
+      if (!mounted || req != _previewReq) return;
+      setState(() {
+        _videoFailed = true;
+        _videoResolving = false;
+      });
+    }
   }
 
   Future<void> _loadPreview() async {
@@ -92,6 +161,15 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
 
   Future<File> _downloadToTemp() async {
     final dir = await getTemporaryDirectory();
+    if (_isVideoFormat) {
+      if (_videoPreviewUrl == null) {
+        await _resolveVideo();
+        if (_videoPreviewUrl == null) throw Exception('video not ready');
+      }
+      final file = File('${dir.path}/kxo-${widget.momentId}-$_format.mp4');
+      await _dio.download(_videoPreviewUrl!, file.path);
+      return file;
+    }
     final file = File('${dir.path}/kxo-${widget.momentId}-$_format.jpg');
     // Reuse the preview bytes when they're already in hand.
     final bytes = _previewBytes;
@@ -107,7 +185,11 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
     setState(() => _busy = true);
     try {
       final f = await _downloadToTemp();
-      await Gal.putImage(f.path, album: 'KanairoXO');
+      if (_isVideoFormat) {
+        await Gal.putVideo(f.path, album: 'KanairoXO');
+      } else {
+        await Gal.putImage(f.path, album: 'KanairoXO');
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Saved to gallery')),
@@ -144,6 +226,51 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
   }
 
   Widget _buildPreview() {
+    if (_isVideoFormat) {
+      if (_videoResolving) {
+        return Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            const CircularProgressIndicator(
+              color: Color(0xFFC0394B), strokeWidth: 2),
+            const SizedBox(height: 14),
+            Text(
+              _format == 'polaroid'
+                  ? 'Preparing polaroid video…'
+                  : 'Loading video…',
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+            ),
+          ]),
+        );
+      }
+      if (_videoFailed || _videoPreviewUrl == null) {
+        return Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Text('Preview unavailable',
+                style: TextStyle(color: Colors.white.withOpacity(0.5))),
+            const SizedBox(height: 10),
+            TextButton(
+              onPressed: _resolveVideo,
+              child: const Text('Retry',
+                  style: TextStyle(color: Color(0xFFC0394B))),
+            ),
+          ]),
+        );
+      }
+      return SizedBox(
+        height: 440,
+        width: double.infinity,
+        child: NetworkMediaPreview(
+          key: ValueKey(_videoPreviewUrl),
+          url: _videoPreviewUrl!,
+          mediaType: 'video',
+          fit: BoxFit.contain,
+          autoPlay: true,
+          loop: true,
+        ),
+      );
+    }
     if (_previewLoading) {
       return const Padding(
         padding: EdgeInsets.all(40),
@@ -188,7 +315,7 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
       onTap: () {
         if (_format == value) return;
         setState(() => _format = value);
-        _loadPreview();
+        _refreshPreview();
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -259,10 +386,13 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
               ),
               const SizedBox(height: 18),
 
-              // Format pills
+              // Format pills — video moments swap Photo for the raw Video
               Wrap(spacing: 8, runSpacing: 8, children: [
                 _pill('Polaroid', 'polaroid'),
-                _pill('Photo', 'photo'),
+                if (_isVideoMoment && (widget.mediaUrl ?? '').isNotEmpty)
+                  _pill('Video', 'video')
+                else if (!_isVideoMoment)
+                  _pill('Photo', 'photo'),
                 _pill('Story', 'story'),
                 _pill('Grid (my week)', 'grid'),
               ]),
