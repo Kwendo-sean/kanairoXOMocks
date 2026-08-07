@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../providers/moment_provider.dart';
+import '../../widgets/skeletons.dart';
 
 class SavedMomentsScreen extends StatefulWidget {
   const SavedMomentsScreen({super.key});
@@ -41,7 +42,7 @@ class _SavedMomentsScreenState extends State<SavedMomentsScreen> {
       body: Consumer<MomentProvider>(
         builder: (context, provider, child) {
           if (provider.isSavedLoading && provider.savedMoments.isEmpty) {
-            return const Center(child: CircularProgressIndicator(color: AppColors.primary, strokeWidth: 2));
+            return Skeleton.grid(context, count: 6);
           }
 
           if (provider.savedMoments.isEmpty) {

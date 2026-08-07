@@ -11,8 +11,8 @@ dependencies:
     sdk: flutter
   
   # Firebase
-  firebase_core: ^2.24.2
-  firebase_messaging: ^14.7.10
+  firebase_core: ^3.6.0
+  firebase_messaging: ^15.1.3
   
   # For location
   location: ^5.0.0
@@ -51,6 +51,7 @@ dependencies:
   home_widget: ^0.6.0
   shared_preferences: ^2.2.2
   path_provider: ^2.1.2
+  path_provider_foundation: ^2.5.1
   path: ^1.9.0
   image: ^4.1.3
 
@@ -76,6 +77,16 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^3.0.0
   flutter_launcher_icons: ^0.13.1
+
+# phosphor_flutter 2.1.0 (latest on pub.dev) extends IconData, which is now a
+# final class in newer Flutter/Dart and fails to compile. This pulls in an
+# unmerged upstream fix (https://github.com/phosphor-icons/flutter/pull/63)
+# that switches PhosphorIconData to a typedef of IconData.
+dependency_overrides:
+  phosphor_flutter:
+    git:
+      url: https://github.com/MahMoos/flutter.git
+      ref: agent/icondata-final-compat
 
 flutter_launcher_icons:
   android: true

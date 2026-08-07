@@ -16,6 +16,7 @@ import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/widgets/modals/report_modal.dart';
 import 'package:kanairoxo/core/theme/app_icons.dart';
 
@@ -264,7 +265,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _loading ? const Center(child: CircularProgressIndicator()) : _profile == null ? _buildError() : _buildContent(),
+      body: _loading ? Skeleton.profileCard(context) : _profile == null ? _buildError() : _buildContent(),
     );
   }
 

@@ -45,6 +45,8 @@ class _MomentCreationFlowState extends State<MomentCreationFlow> {
           ),
           EditScreen(
             mediaItems: _captured,
+            onBack: () => _pageController.previousPage(
+              duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
             onComplete: (media, filterId, trimStart, trimDuration) {
               setState(() {
                 _captured = media.isEmpty ? [] : [media.first];

@@ -252,6 +252,27 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ),
                     const SizedBox(height: 10),
                   ],
+                  // display_status badge (P0-1)
+                  if (_experience!.statusBadgeLabel != null) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _experience!.statusBadgeColor ?? Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _experience!.statusBadgeLabel!.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'DMSans',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
                   Text(_experience!.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 12),
                   Row(
@@ -348,8 +369,30 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildPurchaseAction(Color primaryColor, Color surfaceColor, Color borderColor) {
-    final bool isPast = _experience != null
+    // Use backend display_status first (P0-1), fall back to clock check.
+    final String ds = _experience?.displayStatus ?? '';
+    final bool backendIsPast = _experience?.isPast ?? false;
+    final bool clockIsPast = _experience != null
       && _experience!.endDateTime.isBefore(DateTime.now());
+    // Cancelled/draft events are never purchasable.
+    final bool isCancelled = ds == 'cancelled';
+    final bool isDraft = ds == 'draft' || ds == 'pending_approval';
+    final bool isPast = ds == 'completed' || backendIsPast || clockIsPast;
+
+    if (isCancelled || isDraft) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(children: [
+          Text(isCancelled ? 'This event has been cancelled.' : 'This event is not yet public.',
+            style: const TextStyle(color: Colors.white70, fontSize: 13)),
+        ]),
+      );
+    }
 
     // For past events: show "View memories" instead of "Get tickets".
     if (isPast) {

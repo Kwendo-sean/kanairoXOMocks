@@ -128,6 +128,64 @@ class Skeleton {
     );
   }
 
+  /// Full-screen reel placeholder — matches the EventsFeedTab trailer/memory card.
+  static Widget reel(BuildContext context) {
+    final h = MediaQuery.of(context).size.height;
+    const baseC    = Color(0xFF1A1A1A);
+    const shimmerC = Color(0xFF2E2E2E);
+    return Shimmer.fromColors(
+      baseColor: baseC,
+      highlightColor: shimmerC,
+      child: Container(
+        width: double.infinity,
+        height: h,
+        color: baseC,
+        child: Stack(children: [
+          // Badge pill top-left
+          Positioned(
+            left: 20, bottom: 205,
+            child: Container(
+              width: 60, height: 18,
+              decoration: BoxDecoration(
+                color: shimmerC,
+                borderRadius: BorderRadius.circular(4)),
+            ),
+          ),
+          // Title block
+          Positioned(
+            left: 20, right: 20, bottom: 175,
+            child: Container(
+              height: 24,
+              decoration: BoxDecoration(
+                color: shimmerC,
+                borderRadius: BorderRadius.circular(6)),
+            ),
+          ),
+          // Venue block
+          Positioned(
+            left: 20, right: 80, bottom: 148,
+            child: Container(
+              height: 14,
+              decoration: BoxDecoration(
+                color: shimmerC,
+                borderRadius: BorderRadius.circular(4)),
+            ),
+          ),
+          // CTA pill button
+          Positioned(
+            left: 20, right: 20, bottom: 80,
+            child: Container(
+              height: 54,
+              decoration: BoxDecoration(
+                color: shimmerC,
+                borderRadius: BorderRadius.circular(999)),
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
   static Widget _circle(BuildContext context, double size) {
     return Container(
       width: size, height: size,

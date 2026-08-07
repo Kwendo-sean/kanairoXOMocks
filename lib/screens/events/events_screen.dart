@@ -378,7 +378,7 @@ class _EventSearchOverlayState extends State<EventSearchOverlay> {
       body: Consumer<EventsProvider>(
         builder: (context, provider, child) {
           if (provider.isSearching) {
-            return const Center(child: CircularProgressIndicator(color: Color(0xFF9B111E)));
+            return Skeleton.list(context, count: 4);
           }
 
           if (provider.searchResults.isEmpty && _searchController.text.isNotEmpty) {

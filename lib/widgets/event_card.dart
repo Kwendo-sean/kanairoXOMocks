@@ -168,6 +168,33 @@ class EventCard extends StatelessWidget {
                     ),
             ),
 
+            // Layer 3b — display_status badge (top-center)
+            if (event.statusBadgeLabel != null)
+              Positioned(
+                top: 14,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: event.statusBadgeColor ?? Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      event.statusBadgeLabel!.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'DMSans',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+
             // Layer 4 — bookmark icon top-right
             Positioned(
               top: 10,

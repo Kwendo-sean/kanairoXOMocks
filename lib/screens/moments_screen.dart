@@ -112,12 +112,12 @@ class _MomentsScreenState extends State<MomentsScreen> {
       WidgetService.refreshAllWidgets(_allMoments, 0, 0);
       // Push the most recent moment to the iOS home-screen widget.
       if (_allMoments.isNotEmpty) {
-        final m = _allMoments.first;
+        final latest = _allMoments.first;
         unawaited(HomeWidgetService.instance.updateFromMoment({
-          'media_url': m.photoUrl,
-          'media_type': m.mediaType,
-          'thumbnail_url': m.thumbnailUrl ?? '',
-          'caption': m.caption,
+          'media_url': latest.photoUrl,
+          'media_type': latest.mediaType,
+          'thumbnail_url': latest.thumbnailUrl ?? '',
+          'caption': latest.caption,
         }));
       }
     } catch (e) {

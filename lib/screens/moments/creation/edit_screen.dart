@@ -8,12 +8,11 @@ import 'package:kanairoxo/widgets/moments/local_media_preview.dart';
 
 class EditScreen extends StatefulWidget {
   final List<MediaItem> mediaItems;
-  /// Receives: list of media items (always size 1 now), the chosen filter id,
-  /// trim start seconds (for video), and trim duration seconds (for video).
+  final VoidCallback onBack;
   final Function(List<MediaItem> items, String filterId,
       double trimStart, double trimDuration) onComplete;
 
-  const EditScreen({super.key, required this.mediaItems, required this.onComplete});
+  const EditScreen({super.key, required this.mediaItems, required this.onBack, required this.onComplete});
 
   @override
   State<EditScreen> createState() => _EditScreenState();
@@ -101,7 +100,7 @@ class _EditScreenState extends State<EditScreen> with SingleTickerProviderStateM
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context)),
+          onPressed: widget.onBack),
         title: Text('Edit',
           style: TextStyle(
             fontFamily: 'DMSans', color: textColor,

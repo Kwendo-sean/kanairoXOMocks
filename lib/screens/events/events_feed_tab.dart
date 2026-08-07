@@ -45,7 +45,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return Skeleton.feed(context, count: 3);
+    if (_loading) return Skeleton.reel(context);
     if (_items.isEmpty) {
       return Center(child: Padding(
         padding: const EdgeInsets.all(32),
@@ -92,8 +92,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       if (trailer.isNotEmpty)
         NetworkMediaPreview(
           url: trailer, mediaType: 'video',
-          fit: BoxFit.cover, autoPlay: index < 2,
-          muted: false)
+          fit: BoxFit.cover, autoPlay: index < 2, muted: false)
       else if ((c['cover_url'] ?? '').toString().isNotEmpty)
         NetworkMediaPreview(
           url: c['cover_url'], mediaType: 'image', fit: BoxFit.cover)
@@ -107,7 +106,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           colors: [Colors.transparent, Colors.black.withOpacity(0.85)]))),
 
       // Title + venue sit above the CTA so the thumb-zone button has space.
-      Positioned(left: 20, right: 20, bottom: 170, child: Column(
+      Positioned(left: 20, right: 20, bottom: 205, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -131,7 +130,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
 
       // Primary CTA: full-width pill right above the floating nav so it sits
       // squarely in the thumb-zone, easy to tap one-handed.
-      Positioned(left: 20, right: 20, bottom: 100,
+      Positioned(left: 20, right: 20, bottom: 135,
         child: GestureDetector(
           onTap: () {
             if (eventId != null) {
@@ -171,7 +170,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
     return Stack(fit: StackFit.expand, children: [
       if (media.isNotEmpty)
         NetworkMediaPreview(url: media, mediaType: mediaType,
-          fit: BoxFit.cover, autoPlay: mediaType == 'video' && index < 2)
+          fit: BoxFit.cover, autoPlay: mediaType == 'video' && index < 2, muted: false)
       else
         Container(color: Colors.black),
 

@@ -27,6 +27,7 @@ class LoginScreen extends StatefulWidget {
 
 class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
+  // P1-5: accepts email or phone number
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
@@ -40,15 +41,8 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _handleLogin(AuthProvider auth) async {
     if (!_formKey.currentState!.validate()) return;
     try {
-      String phoneNumber = _phoneController.text.trim();
-      if (!phoneNumber.startsWith('+')) {
-        if (phoneNumber.startsWith('0')) {
-          phoneNumber = '+254${phoneNumber.substring(1)}';
-        } else if (phoneNumber.startsWith('7')) {
-          phoneNumber = '+254$phoneNumber';
-        }
-      }
-      await auth.login(phoneNumber, _passwordController.text);
+      // P1-5: pass the identifier as-is; auth_service formats phone if needed.
+      await auth.login(_phoneController.text.trim(), _passwordController.text);
       await NotificationService().registerDeviceToken();
       widget.onLoginSuccess();
     } catch (e) {
@@ -69,6 +63,7 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       final apiClient = ApiClient();
       await apiClient.post('api/v1/auth/me/restore/', {
+        'identifier': phone, // P1-5: send identifier, keep phone_number fallback
         'phone_number': phone,
         'password': pass,
       });
@@ -128,11 +123,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 _buildGlassTextField(
                   controller: _phoneController,
-                  hintText: 'Phone Number',
-                  keyboardType: TextInputType.phone,
-                  prefixIcon: Icon(Icons.phone_outlined, color: context.mutedColor),
+                  hintText: 'Email or phone', // P1-5
+                  keyboardType: TextInputType.emailAddress,
+                  prefixIcon: Icon(Icons.person_outline, color: context.mutedColor),
                   validator: (value) {
-                    if (value == null || value.isEmpty) return 'Please enter your phone number';
+                    if (value == null || value.isEmpty) return 'Please enter your email or phone';
                     return null;
                   },
                 ),

@@ -278,13 +278,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: completion < 70 
+      body: (profileProvider.myProfile != null && completion < 70)
         ? _buildGate(completion)
         : _error != null
-              ? _buildError()
-              : (_discoveries.isEmpty && !_isLoading)
-                  ? _buildEmpty()
-                  : _buildPageView(),
+            ? _buildError()
+            : (_discoveries.isEmpty && !_isLoading)
+                ? _buildEmpty()
+                : _buildPageView(),
     );
   }
 
@@ -407,7 +407,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Widget _buildContextCard() {
     if (_contextLoading) {
-      return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)));
+      return const SizedBox.shrink();
     }
     if (_contextCard == null) return const SizedBox.shrink();
 
