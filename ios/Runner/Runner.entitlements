@@ -1,26 +1,22 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  iOS Associated Domains entitlement for universal links.
+  NOTE (P2-8): Universal link domains (applinks:kanairoxo.online and
+  applinks:app.kanairoxo.online) require the Associated Domains capability,
+  which is NOT available on a free Apple Developer Personal Team.
 
-  IMPORTANT: this file is not auto-attached to the Xcode project. After
-  cloning, open ios/Runner.xcworkspace, select the Runner target →
-  Signing & Capabilities → "+ Capability" → Associated Domains, then
-  add the entries:
-        applinks:kanairoxo.online
-        applinks:app.kanairoxo.online
+  To enable universal links on a paid account ($99/yr), add back:
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+      <string>applinks:kanairoxo.online</string>
+      <string>applinks:app.kanairoxo.online</string>
+    </array>
 
-  Xcode will also auto-add this file (Runner.entitlements) to the
-  Code Signing Entitlements build setting. After the first add, the
-  capability persists across builds.
+  The app-group below is kept — it powers the iOS home-screen widget
+  and works on free accounts.
 -->
 <plist version="1.0">
 <dict>
-    <key>com.apple.developer.associated-domains</key>
-    <array>
-        <string>applinks:kanairoxo.online</string>
-        <string>applinks:app.kanairoxo.online</string>
-    </array>
     <key>com.apple.security.application-groups</key>
     <array>
         <string>group.com.kanairoxo.kanairoxo</string>
