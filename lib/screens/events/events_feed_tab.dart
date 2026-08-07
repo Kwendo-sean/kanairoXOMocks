@@ -34,7 +34,11 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       final res = await _api.get('api/v1/events/discover-feed/');
       final List items = (res is Map ? (res['items'] ?? []) : []) as List;
       if (mounted) setState(() {
-        _items = items.map((m) => Map<String, dynamic>.from(m)).toList();
+        // Show only event trailers in the For You feed
+        _items = items
+            .map((m) => Map<String, dynamic>.from(m))
+            .where((m) => m['type'] == 'trailer')
+            .toList();
         _loading = false;
       });
     } catch (_) {
@@ -55,7 +59,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           Text('Nothing in the feed yet',
             style: TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.w600, fontSize: 16)),
           SizedBox(height: 4),
-          Text('Trailers and memories from events show up here.',
+          Text('Event trailers show up here.',
             textAlign: TextAlign.center,
             style: TextStyle(fontFamily: 'DMSans', color: Colors.grey, fontSize: 12)),
         ]),
@@ -74,11 +78,8 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
   }
 
   Widget _itemCard(Map<String, dynamic> item, int index) {
-    final type = item['type'];
     final card = Map<String, dynamic>.from(item['card'] ?? {});
-
-    if (type == 'trailer') return _trailerCard(card, index);
-    return _memoryCard(card, index);
+    return _trailerCard(card, index);
   }
 
   Widget _trailerCard(Map<String, dynamic> c, int index) {
@@ -159,64 +160,4 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
     ]);
   }
 
-  Widget _memoryCard(Map<String, dynamic> c, int index) {
-    final media = (c['media_url'] ?? '').toString();
-    final mediaType = (c['media_type'] ?? 'image').toString();
-    final caption = (c['caption'] ?? '').toString();
-    final name = (c['creator_name'] ?? '').toString();
-    final eventTitle = (c['event_title'] ?? '').toString();
-    final eventId = c['event_id']?.toString();
-
-    return Stack(fit: StackFit.expand, children: [
-      if (media.isNotEmpty)
-        NetworkMediaPreview(url: media, mediaType: mediaType,
-          fit: BoxFit.cover, autoPlay: mediaType == 'video' && index < 2, muted: false)
-      else
-        Container(color: Colors.black),
-
-      DecoratedBox(decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter, end: Alignment.bottomCenter,
-          colors: [Colors.transparent, Colors.black.withOpacity(0.8)]))),
-
-      Positioned(left: 20, right: 20, bottom: 110, child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.85), borderRadius: BorderRadius.circular(4)),
-            child: Text('MEMORY · from $eventTitle'.toUpperCase(),
-              style: const TextStyle(fontFamily: 'DMSans', color: _accent,
-                fontWeight: FontWeight.w700, fontSize: 10, letterSpacing: 1.4),
-              maxLines: 1, overflow: TextOverflow.ellipsis)),
-          const SizedBox(height: 10),
-          if (caption.isNotEmpty)
-            Text(caption,
-              style: const TextStyle(fontFamily: 'DMSans', color: Colors.white,
-                fontWeight: FontWeight.w600, fontSize: 16),
-              maxLines: 3, overflow: TextOverflow.ellipsis),
-          const SizedBox(height: 6),
-          Text('— $name',
-            style: const TextStyle(fontFamily: 'DMSans',
-              color: Colors.white70, fontStyle: FontStyle.italic, fontSize: 12)),
-          if (eventId != null) ...[
-            const SizedBox(height: 16),
-            GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => EventDetailScreen(eventId: eventId))),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: Colors.white70)),
-                child: const Text('Open event',
-                  style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
-                    fontWeight: FontWeight.w700, fontSize: 13))),
-            ),
-          ],
-        ])),
-    ]);
-  }
 }

@@ -85,59 +85,120 @@ struct MomentProvider: TimelineProvider {
     }
 }
 
+// MARK: - KXO Stamp (mirrors the Flutter KXOStamp widget)
+
+struct KXOStampView: View {
+    var size: CGFloat
+    var color: Color
+
+    var body: some View {
+        ZStack {
+            // Dashed circle border — matches KXOStampPainter
+            Circle()
+                .strokeBorder(style: StrokeStyle(lineWidth: 1.2, dash: [3.2, 2.1]))
+                .foregroundColor(color)
+                .frame(width: size, height: size)
+
+            // Inner content: KanairoXO / Moments / separator
+            VStack(spacing: 0) {
+                Text("KanairoXO")
+                    .font(Font.custom("DancingScript-Bold", size: size * 0.177))
+                    .foregroundColor(color)
+                    .lineLimit(1)
+
+                Text("Moments")
+                    .font(Font.custom("DancingScript-Bold", size: size * 0.129))
+                    .foregroundColor(color)
+                    .lineLimit(1)
+
+                Rectangle()
+                    .frame(width: size * 0.45, height: 0.7)
+                    .foregroundColor(color.opacity(0.4))
+                    .padding(.vertical, 1.5)
+            }
+        }
+        .frame(width: size, height: size)
+    }
+}
+
 // MARK: - Polaroid view (small + large widgets show the latest moment)
 
 struct MomentPolaroidView: View {
     var entry: MomentEntry
 
+    private let accent = Color(red: 0.61, green: 0.07, blue: 0.12)
+
     var body: some View {
-        VStack(spacing: 6) {
-            // Photo area
+        GeometryReader { geo in
             ZStack {
-                if let img = entry.image {
-                    Image(uiImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .clipped()
-                } else {
-                    Color(white: 0.90)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .foregroundColor(.gray)
-                                .font(.system(size: 28)))
-                }
+                // White polaroid card — slightly tilted like a real photo
+                VStack(spacing: 0) {
 
-                // Play badge for video moments
-                if entry.isVideo {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Image(systemName: "play.circle.fill")
-                                .font(.system(size: 22))
-                                .foregroundColor(.white)
-                                .shadow(color: .black.opacity(0.4), radius: 4, x: 0, y: 1)
-                                .padding(.top, 6)
-                                .padding(.trailing, 6)
+                    // ── Photo area ──────────────────────────────────────────
+                    ZStack(alignment: .bottomTrailing) {
+                        if let img = entry.image {
+                            Image(uiImage: img)
+                                .resizable()
+                                .aspectRatio(contentMode: .fill)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: geo.size.height * 0.70)
+                                .clipped()
+                        } else {
+                            Color(white: 0.88)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: geo.size.height * 0.70)
+                                .overlay(
+                                    Image(systemName: "photo")
+                                        .foregroundColor(Color(white: 0.60))
+                                        .font(.system(size: 22)))
                         }
-                        Spacer()
-                    }
-                }
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 4))
 
-            // Caption row (the "polaroid" label area)
-            HStack {
-                Text(entry.caption.isEmpty ? "KanairoXO" : entry.caption)
-                    .font(.system(size: 10, weight: .semibold, design: .rounded))
-                    .foregroundColor(Color(red: 0.6, green: 0.07, blue: 0.12))
-                    .lineLimit(1)
-                Spacer()
+                        // Video badge
+                        if entry.isVideo {
+                            Image(systemName: "play.circle.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(.white.opacity(0.90))
+                                .shadow(color: .black.opacity(0.45), radius: 4, x: 0, y: 1)
+                                .padding(7)
+                        }
+                    }
+
+                    // ── Polaroid caption strip ──────────────────────────────
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(entry.caption.isEmpty ? "a moment" : entry.caption)
+                            .font(Font.custom("DMSans-Regular", size: 9.5))
+                            .foregroundColor(Color(red: 0.17, green: 0.03, blue: 0.05))
+                            .lineLimit(2)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Spacer(minLength: 4)
+
+                        // KanairoXO Moments stamp — matches the in-app KXOStamp
+                        KXOStampView(size: 44, color: accent)
+                            .rotationEffect(.degrees(-12))
+                            .opacity(0.82)
+                    }
+                    .padding(.horizontal, 10)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color.white)
+                }
+                .background(Color.white)
+                // 6 pt border on sides/top, 0 extra (the caption strip IS the bottom)
+                .padding(.horizontal, 6)
+                .padding(.top, 6)
+                .background(Color.white)
+                // Subtle drop shadow so the card lifts off the background
+                .shadow(color: .black.opacity(0.28), radius: 14, x: 0, y: 7)
+                .rotationEffect(.degrees(-1.5))
+                .padding(14)
             }
-            .padding(.horizontal, 8)
-            .padding(.bottom, 6)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(8)
-        .containerBackground(Color(red: 0.97, green: 0.94, blue: 0.88), for: .widget)
+        // Warm dark background — makes the white polaroid card pop
+        .containerBackground(Color(red: 0.12, green: 0.08, blue: 0.06), for: .widget)
     }
 }
 

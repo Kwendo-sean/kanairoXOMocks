@@ -7,5 +7,12 @@
 		<key>NSExtensionPointIdentifier</key>
 		<string>com.apple.widgetkit-extension</string>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>Fonts/DMSans-Regular.ttf</string>
+		<string>Fonts/DMSans-SemiBold.ttf</string>
+		<string>Fonts/DMSans-Bold.ttf</string>
+		<string>Fonts/DancingScript-Bold.ttf</string>
+	</array>
 </dict>
 </plist>
