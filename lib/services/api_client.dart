@@ -113,6 +113,35 @@ class ApiClient {
     });
   }
 
+  /// POST a multipart form with one attached file.
+  ///
+  /// [post] runs everything through jsonEncode, so passing a file object in
+  /// its map throws before a request is ever made — which is why photos and
+  /// voice notes in chat silently never left the phone.
+  Future<dynamic> postMultipart(
+    String endpoint, {
+    required Map<String, String> fields,
+    required String fileField,
+    required String filePath,
+  }) async {
+    return _handleRequest(() async {
+      final url = Uri.parse('$baseUrl/$endpoint');
+      final request = http.MultipartRequest('POST', url);
+      final token = await getAccessToken();
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      }
+      // Blank values become empty strings server-side; leave them out.
+      fields.forEach((k, v) {
+        if (v.isNotEmpty) request.fields[k] = v;
+      });
+      request.files.add(await http.MultipartFile.fromPath(fileField, filePath));
+
+      final streamedResponse = await request.send();
+      return http.Response.fromStream(streamedResponse);
+    });
+  }
+
   Future<dynamic> uploadMultipleFiles(String endpoint, {required List<XFile> files, required String fileFieldName}) async {
     return _handleRequest(() async {
       final url = Uri.parse('$baseUrl/$endpoint');
