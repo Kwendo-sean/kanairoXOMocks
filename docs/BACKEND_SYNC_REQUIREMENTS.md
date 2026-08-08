@@ -163,3 +163,53 @@ but only reach users on the next build.
    was importing a function that doesn't exist and silently failed —
    fixed backend-side, so pushes will start arriving once devices
    register tokens.
+
+---
+
+# Session 2 — 2026-08-08
+
+## Fixed in this repo already (no action needed)
+
+* **Chat photos** — `_sendMessage` put a `dio.MultipartFile` into a map and
+  handed it to `ApiClient.post`, which `jsonEncode`s its argument. That threw
+  before a request was made, so photos never left the phone and it looked like
+  a network failure. `ApiClient.postMultipart` was added and the media path
+  uses it.
+* **Voice notes** — were never implemented; the handlers set a bool and
+  nothing else. Now record AAC/m4a via `record: ^5.1.2`, request microphone
+  permission, discard sub-0.7s mis-taps, and send with a real duration.
+  `RECORD_AUDIO` and `NSMicrophoneUsageDescription` added — **the app needs a
+  rebuild, not a hot reload,** because the native permission changed.
+* **Message timestamps** — `DateTime.parse` on the API's offset-aware string
+  yields UTC; without `.toLocal()` everything rendered three hours behind
+  Nairobi.
+
+## Still open on the Flutter side
+
+* **Other timestamp call sites.** Only `MessageModel` was audited. Any other
+  model doing `DateTime.parse(json[...])` and rendering it directly has the
+  same three-hour error — events, tickets, moments and notifications are all
+  worth checking.
+* **Two HTTP clients.** `ApiClient` uses the `http` package for most calls but
+  exposes a `dio` instance that some screens use directly (see
+  `_pollNewMessages`). They have separate interceptors, so auth refresh and
+  error handling do not behave the same way depending on which path a screen
+  took. Worth collapsing onto one.
+
+## Backend changes this session that the app can use
+
+| Change | What the app sees |
+|---|---|
+| Media upload rejections | Now `400 {"error": "..."}` with the reason, not a 500. Surface the message instead of a generic "Failed to send". |
+| Blank `media_duration` | No longer 500s; safe to omit the field entirely. |
+| Two photos in a row | Both are stored. The 5s dedupe is text-only now, so rapid photo sends no longer collapse into one. |
+| `media_thumbnail` | Now serialized on messages — use it for a lightweight preview before the full image loads. |
+| Signup duplicates | `0794805299` against an existing `+254794805299` returns a `phone_number` field error rather than a 500. Show it against the field. |
+| Password strength | Signup now rejects weak passwords with a `password` field error listing the reasons. |
+| `verify-otp/` | Returns **410 Gone**. Remove any remaining calls; email verification is the only path. |
+| Google Sign-In | Server now verifies the token audience against its own configured client IDs. `GOOGLE_CLIENT_IDS` **must be set in the server `.env`** or the endpoint returns 503 — set it before shipping a build that uses Google sign-in. |
+| Date reservation payment | The M-Pesa callback now marks `DateReceipt` paid. A failed STK push returns **502** with the reason instead of a cheerful "check your phone". Handle 502 on the pay screen. |
+| Community date plans | `when_at` must be ISO-8601; a bad value is now a 400 with a clear message rather than a 500. |
+
+Field errors arrive as `{"detail": "...", "fields": {"<field>": "<message>"}}` —
+read `fields` to attach messages to inputs.
