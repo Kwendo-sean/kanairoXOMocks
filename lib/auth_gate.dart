@@ -4,6 +4,7 @@ import 'package:kanairoxo/screens/auth/splash_screen.dart';
 import 'package:kanairoxo/screens/couples/couple_home_screen.dart';
 import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
+import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/services/deep_links.dart';
@@ -20,6 +21,7 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   bool _splashFinished = false;
+  bool _onboardingComplete = false;
 
   @override
   void initState() {
@@ -72,10 +74,14 @@ class _AuthGateState extends State<AuthGate> {
     }
 
     if (!authProvider.isAuthenticated) {
-      return OnboardingScreen(
-        onComplete: () {
-          Navigator.of(context).pushReplacementNamed('/signup');
-        },
+      if (!_onboardingComplete) {
+        return OnboardingScreen(
+          onComplete: () => setState(() => _onboardingComplete = true),
+        );
+      }
+      return LoginScreen(
+        onLoginSuccess: () {},
+        onSignupTap: () => Navigator.pushNamed(context, '/signup'),
       );
     }
 

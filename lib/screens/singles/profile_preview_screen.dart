@@ -510,7 +510,15 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Widget _buildActionButtons() {
-    final status = _profile?.connectionStatus ?? 'none';
+    var status = _profile?.connectionStatus ?? 'none';
+    // If we arrived from a connection-request notification (connectionId was
+    // passed in) and the profile API didn't return request_received, override
+    // so Accept/Decline are shown correctly.
+    if (widget.connectionId != null &&
+        status != 'connected' &&
+        status != 'request_sent') {
+      status = 'request_received';
+    }
 
     if (status == 'connected') {
       return LiquidGlassButton(
