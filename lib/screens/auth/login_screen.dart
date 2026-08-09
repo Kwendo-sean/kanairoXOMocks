@@ -190,14 +190,25 @@ class _LoginScreenState extends State<LoginScreen> {
                     _buildSocialButton(PhosphorIcons.googleLogo(), () async {
                        try {
                         final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-                        if (googleUser == null) return;
-                        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
-                        if (googleAuth.idToken != null) {
-                          final bool isNew = await auth.googleLogin(googleAuth.idToken!);
-                          await NotificationService().registerDeviceToken();
-                          if (isNew) Navigator.pushReplacementNamed(context, '/onboarding');
-                          else widget.onLoginSuccess();
+                        // Null means the user backed out — but it is also what
+                        // you get when the platform config is missing, which
+                        // is why a broken setup looked like "nothing happens".
+                        if (googleUser == null) {
+                          debugPrint('Google sign-in returned no account '
+                              '(cancelled, or iOS client id not configured)');
+                          return;
                         }
+                        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+                        if (googleAuth.idToken == null) {
+                          // Silently skipped before. Usually means
+                          // serverClientId is wrong or not accepted.
+                          throw StateError(
+                              'Google returned no ID token — check serverClientId');
+                        }
+                        final bool isNew = await auth.googleLogin(googleAuth.idToken!);
+                        await NotificationService().registerDeviceToken();
+                        if (isNew) Navigator.pushReplacementNamed(context, '/onboarding');
+                        else widget.onLoginSuccess();
                       } catch (e) {
                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Google Login Error: $e')));
                       }
