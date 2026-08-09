@@ -50,7 +50,10 @@ class MessageModel {
       suggestionType: json['suggestion_type'],
       suggestionData: json['suggestion_data'] as Map<String, dynamic>?,
       isRead: json['is_read'] ?? false,
-      sentAt: DateTime.tryParse(json['sent_at'] ?? '') ?? DateTime.now(),
+      // The API sends an offset-aware timestamp, which DateTime.parse turns
+      // into a UTC DateTime. Rendering that without toLocal() showed every
+      // message three hours behind Nairobi.
+      sentAt: (DateTime.tryParse(json['sent_at'] ?? '') ?? DateTime.now()).toLocal(),
       isDeleted: json['is_deleted'] ?? false,
       isMine: json['is_mine'] ?? false, // Added as per requirement
     );

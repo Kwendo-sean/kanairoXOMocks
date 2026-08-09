@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:dio/dio.dart' as dio;
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_typography.dart';
 import '../../models/messaging/conversation_model.dart';
@@ -32,6 +33,8 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
   
   Timer? _pollTimer;
   bool _isRecordingVoice = false;
+  final _recorder = AudioRecorder();
+  DateTime? _recordingStartedAt;
   
   List<Map<String, dynamic>> _suggestions = [];
   
@@ -52,6 +55,7 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _pollTimer?.cancel();
     _textController.dispose();
     _scrollController.dispose();
+    _recorder.dispose();
     NotificationService.newMessageNotifier.removeListener(_onPushMessage);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
@@ -201,25 +205,31 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     _scrollToBottom();
     
     try {
-      Map<String, dynamic> data;
+      final endpoint = 'api/v1/messaging/${widget.conversation.id}/send/';
+      final dynamic response;
+
       if (mediaFile != null) {
-        data = {
-          'message_type': type,
-          'content': text,
-          'media_duration': duration,
-          'media_file': await dio.MultipartFile.fromFile(mediaFile.path),
-        };
+        // Must go as multipart. This used to build a map holding a
+        // MultipartFile and hand it to apiClient.post, which jsonEncodes its
+        // argument — that threw before any request was made, so photos and
+        // voice notes never left the phone.
+        response = await apiClient.postMultipart(
+          endpoint,
+          fields: {
+            'message_type': type,
+            'content': text,
+            if (duration != null) 'media_duration': duration.toString(),
+          },
+          fileField: 'media_file',
+          filePath: mediaFile.path,
+        );
       } else {
-        data = {
+        response = await apiClient.post(endpoint, {
           'message_type': type,
           'content': text,
-        };
+        });
       }
-      
-      final response = await apiClient.post(
-        'api/v1/messaging/${widget.conversation.id}/send/',
-        data);
-      
+
       if (mounted && response['message'] != null) {
         final real = MessageModel.fromJson(response['message']);
         setState(() {
@@ -428,12 +438,62 @@ class _ChatScreenState extends State<ChatScreen> with WidgetsBindingObserver {
     await _sendMessage(type: 'photo', mediaFile: File(picked.path));
   }
   
-  void _startVoiceRecording() {
-    setState(() => _isRecordingVoice = true);
+  /// Hold the mic to record, release to send.
+  ///
+  /// These two used to flip a bool and nothing else — no recorder, no file,
+  /// no send. Voice notes were never actually implemented.
+  Future<void> _startVoiceRecording() async {
+    if (!await _recorder.hasPermission()) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Microphone access is needed for voice notes'),
+          backgroundColor: Colors.red.shade700,
+          behavior: SnackBarBehavior.floating));
+      return;
+    }
+
+    final dir = await getTemporaryDirectory();
+    final path =
+        '${dir.path}/voice_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    // AAC in an m4a container: what the server's upload validator accepts and
+    // what both platforms can play back without a codec detour.
+    await _recorder.start(
+      const RecordConfig(encoder: AudioEncoder.aacLc), path: path);
+
+    if (!mounted) return;
+    setState(() {
+      _isRecordingVoice = true;
+      _recordingStartedAt = DateTime.now();
+    });
   }
-  
-  void _stopVoiceRecording() {
-    setState(() => _isRecordingVoice = false);
+
+  Future<void> _stopVoiceRecording() async {
+    if (!_isRecordingVoice) return;
+    final startedAt = _recordingStartedAt;
+    final path = await _recorder.stop();
+
+    if (mounted) {
+      setState(() {
+        _isRecordingVoice = false;
+        _recordingStartedAt = null;
+      });
+    }
+    if (path == null) return;
+
+    final seconds = startedAt == null
+        ? 0.0
+        : DateTime.now().difference(startedAt).inMilliseconds / 1000;
+    if (seconds < 0.7) {
+      // A tap rather than a hold. Discard it instead of sending a blip.
+      try {
+        await File(path).delete();
+      } catch (_) {}
+      return;
+    }
+
+    await _sendMessage(
+      type: 'voice', mediaFile: File(path), duration: seconds);
   }
   
   bool _sameDay(DateTime a, DateTime b) => a.year == b.year && a.month == b.month && a.day == b.day;
