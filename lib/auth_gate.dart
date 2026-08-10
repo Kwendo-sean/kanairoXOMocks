@@ -6,6 +6,7 @@ import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
+import 'package:kanairoxo/screens/auth/verify_email_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/services/deep_links.dart';
 import 'package:kanairoxo/widgets/safe_network_image.dart';
@@ -82,6 +83,24 @@ class _AuthGateState extends State<AuthGate> {
       return LoginScreen(
         onLoginSuccess: () {},
         onSignupTap: () => Navigator.pushNamed(context, '/signup'),
+      );
+    }
+
+    // Signed in but not verified yet — the backend 403s every real endpoint
+    // until this is done, so anything past here would just be a wall of
+    // errors.
+    //
+    // This belongs in the gate rather than the signup flow: it also catches
+    // someone who killed the app on the OTP screen and reopened it, which a
+    // signup-only redirect walks straight past. Google users arrive already
+    // verified by Google, so they skip it.
+    final user = authProvider.user;
+    final signedUpWithGoogle = (user?.phoneNumber ?? '').isEmpty ||
+        (user?.phoneNumber ?? '').startsWith('+2540');
+    if (user != null && !user.isVerified && !signedUpWithGoogle) {
+      return VerifyEmailScreen(
+        email: user.email ?? '',
+        onVerified: () => authProvider.refreshProfile(),
       );
     }
 
