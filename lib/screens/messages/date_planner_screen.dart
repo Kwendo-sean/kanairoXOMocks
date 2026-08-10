@@ -702,7 +702,7 @@ class _StepFourDiscovery extends StatelessWidget {
                                 ],
                               ),
                             ),
-                            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.themePrimary(context).withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Text(venue.priceRange, style: GoogleFonts.dmSans(color: AppColors.themePrimary(context), fontSize: 14, fontWeight: FontWeight.bold))),
+                            Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), decoration: BoxDecoration(color: AppColors.themePrimary(context).withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Text(venue.priceLabel, style: GoogleFonts.dmSans(color: AppColors.themePrimary(context), fontSize: 14, fontWeight: FontWeight.bold))),
                           ],
                         ),
                       ),

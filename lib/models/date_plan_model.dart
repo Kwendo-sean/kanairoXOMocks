@@ -48,6 +48,12 @@ class Venue {
   final String priceRange;
   final String category;
   final String? neighborhood;
+  /// Real KES figures. price_range is a $-band and reads as a currency
+  /// symbol to anyone who hasn't been told otherwise — "$$" on a Nairobi
+  /// venue looks like a price in dollars.
+  final int? priceMin;
+  final int? priceMax;
+  final String? trailerUrl;
 
   Venue({
     required this.id,
@@ -58,7 +64,21 @@ class Venue {
     required this.priceRange,
     required this.category,
     this.neighborhood,
+    this.priceMin,
+    this.priceMax,
+    this.trailerUrl,
   });
+
+  /// What to actually show a user: "KSh 2,000 – 5,000 pp".
+  /// Falls back to the band only when the numbers are missing.
+  String get priceLabel {
+    if (priceMin == null || priceMax == null) return priceRange;
+    String k(int v) => v.toString().replaceAllMapped(
+        RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+    return 'KSh ${k(priceMin!)} – ${k(priceMax!)} pp';
+  }
+
+  bool get hasTrailer => (trailerUrl ?? '').isNotEmpty;
 
   factory Venue.fromJson(Map<String, dynamic> json) {
     return Venue(
@@ -70,6 +90,9 @@ class Venue {
       neighborhood: json['neighborhood'] ?? json['location'] ?? 'Nairobi',
       priceRange: json['price_range'] ?? r'$$',
       category: json['category'] ?? json['cuisine'] ?? 'Restaurant',
+      priceMin: int.tryParse(json['price_min']?.toString() ?? ''),
+      priceMax: int.tryParse(json['price_max']?.toString() ?? ''),
+      trailerUrl: ApiConstants.fixMediaUrl(json['trailer'] ?? json['trailer_url']),
     );
   }
 }

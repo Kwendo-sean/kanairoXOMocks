@@ -43,6 +43,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   // Re-checks for new profiles while the "all caught up" state is showing,
   // so the deck comes back on its own instead of needing an app restart.
   Timer? _emptyRetryTimer;
+  bool _isRefreshingDeck = false;
 
   ConnectionContextModel? _contextCard;
   bool _contextLoading = false;
@@ -179,18 +180,57 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   void _moveToNextProfile() {
     if (_isProcessingAction || !mounted) return;
-    setState(() {
-      _currentIndex++;
-      if (_currentIndex >= _discoveries.length) {
-        _initializeDiscovery();
-      } else if (_pageController.hasClients) {
-        _pageController.animateToPage(
-          _currentIndex,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
-      }
-    });
+
+    // Reaching the end used to call _initializeDiscovery(), which flips
+    // _isLoading and blanks the deck — so you got a loading flash and, if
+    // that one request came back empty, the "that's all for today" screen.
+    //
+    // Wrap to the start instead. At this scale seeing the same people again
+    // beats a dead end, and the refetch happens quietly behind the deck so
+    // anyone new slots in without the screen ever going blank.
+    if (_currentIndex + 1 >= _discoveries.length) {
+      setState(() => _currentIndex = 0);
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+      _refreshDeckInBackground();
+      return;
+    }
+
+    setState(() => _currentIndex++);
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        _currentIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
+    }
+  }
+
+  /// Refetch without touching _isLoading or clearing what's on screen.
+  /// Only swaps the deck when something actually comes back, so a failed or
+  /// empty response leaves the user looping over the current set rather than
+  /// staring at an empty screen.
+  Future<void> _refreshDeckInBackground() async {
+    if (_isRefreshingDeck) return;
+    _isRefreshingDeck = true;
+    try {
+      final response = await _apiClient.get('api/v1/discovery/recommendations/');
+      final batch = DiscoveryBatch.fromJson(response);
+      if (!mounted || batch.discoveries.isEmpty) return;
+
+      // Don't yank the card out from under a thumb mid-swipe.
+      if (_currentIndex != 0) return;
+
+      setState(() {
+        _discoveries = batch.discoveries;
+        _currentIndex = 0;
+      });
+      if (_pageController.hasClients) _pageController.jumpToPage(0);
+      if (!_discoveries[0].isAd) _loadContextCard(_discoveries[0].id!);
+    } catch (_) {
+      // Keep looping over what we have.
+    } finally {
+      _isRefreshingDeck = false;
+    }
   }
 
   Future<void> _openChat() async {
