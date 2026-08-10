@@ -30,6 +30,7 @@ class HomeWidgetService {
   static const _captionKey = 'latest_moment_caption';
   static const _isVideoKey = 'latest_moment_is_video';
   static const _upcomingEventsKey = 'upcoming_events_json';
+  static const _userNameKey = 'latest_moment_user_name';
 
   bool _initialised = false;
 
@@ -69,6 +70,8 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData<String>(
         _captionKey, (moment['caption'] ?? '').toString());
       await HomeWidget.saveWidgetData<bool>(_isVideoKey, isVideo);
+      await HomeWidget.saveWidgetData<String>(
+        _userNameKey, (moment['user_name'] ?? moment['username'] ?? '').toString());
 
       await HomeWidget.updateWidget(
         name: _androidWidgetName, iOSName: _iosWidgetName);

@@ -1,19 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  NOTE (P2-8): Universal link domains (applinks:kanairoxo.online and
-  applinks:app.kanairoxo.online) require the Associated Domains capability,
-  which is NOT available on a free Apple Developer Personal Team.
+  This project currently signs with a FREE Apple Developer Personal Team.
 
-  To enable universal links on a paid account ($99/yr), add back:
+  Two capabilities are therefore unavailable, and adding their keys here
+  will fail code signing rather than enable the feature:
+
+    1. Push notifications      (aps-environment)
+    2. Universal links         (com.apple.developer.associated-domains)
+
+  Consequences today:
+    - Remote/push notifications do not arrive. NotificationService detects
+      the missing APNs token and skips device registration quietly.
+      In-app polling still surfaces new messages.
+    - https://kanairoxo.online/... links open Safari, not the app.
+      The kanairoxo:// custom scheme DOES work on a free team and routes
+      through DeepLinks — that path is unaffected.
+
+  ── When upgrading to a paid membership ($99/yr) ────────────────────────
+  Add both keys back:
+
+    <key>aps-environment</key>
+    <string>development</string>
+
     <key>com.apple.developer.associated-domains</key>
     <array>
       <string>applinks:kanairoxo.online</string>
       <string>applinks:app.kanairoxo.online</string>
     </array>
 
-  The app-group below is kept — it powers the iOS home-screen widget
-  and works on free accounts.
+  Then also:
+    - Enable Push Notifications + Associated Domains on the App ID in the
+      Apple Developer portal.
+    - Upload the APNs auth key (.p8) to Firebase Console → Project
+      Settings → Cloud Messaging. Without it FCM cannot deliver to iOS
+      even once the entitlement is present.
+    - Serve /.well-known/apple-app-site-association from both domains
+      over HTTPS, no redirect, Content-Type application/json.
+    - Switch aps-environment to "production" for TestFlight/App Store.
+
+  The app-group below powers the home-screen widget and works on free
+  accounts — leave it in place.
 -->
 <plist version="1.0">
 <dict>

@@ -22,6 +22,7 @@ private let kImagePathKey = "latest_moment_image_path"
 private let kCaptionKey = "latest_moment_caption"
 private let kIsVideoKey = "latest_moment_is_video"
 private let kUpcomingEventsKey = "upcoming_events_json"
+private let kUserNameKey = "latest_moment_user_name"
 
 private func sharedDefaults() -> UserDefaults? {
     UserDefaults(suiteName: kAppGroup)
@@ -43,13 +44,14 @@ struct MomentEntry: TimelineEntry {
     let caption: String
     let isVideo: Bool
     let upcomingEvents: [UpcomingEvent]
+    let userName: String
 }
 
 // MARK: - Provider
 
 struct MomentProvider: TimelineProvider {
     func placeholder(in context: Context) -> MomentEntry {
-        MomentEntry(date: Date(), image: nil, caption: "Your moments", isVideo: false, upcomingEvents: [])
+        MomentEntry(date: Date(), image: nil, caption: "Your moments", isVideo: false, upcomingEvents: [], userName: "")
     }
 
     func getSnapshot(in context: Context, completion: @escaping (MomentEntry) -> Void) {
@@ -69,6 +71,7 @@ struct MomentProvider: TimelineProvider {
         let path = defaults?.string(forKey: kImagePathKey)
         let caption = defaults?.string(forKey: kCaptionKey) ?? ""
         let isVideo = defaults?.bool(forKey: kIsVideoKey) ?? false
+        let userName = defaults?.string(forKey: kUserNameKey) ?? ""
 
         var image: UIImage? = nil
         if let path = path, let data = try? Data(contentsOf: URL(fileURLWithPath: path)) {
@@ -81,7 +84,7 @@ struct MomentProvider: TimelineProvider {
             events = (try? JSONDecoder().decode([UpcomingEvent].self, from: data)) ?? []
         }
 
-        return MomentEntry(date: Date(), image: image, caption: caption, isVideo: isVideo, upcomingEvents: events)
+        return MomentEntry(date: Date(), image: image, caption: caption, isVideo: isVideo, upcomingEvents: events, userName: userName)
     }
 }
 
@@ -90,6 +93,12 @@ struct MomentProvider: TimelineProvider {
 struct KXOStampView: View {
     var size: CGFloat
     var color: Color
+    var userName: String = ""
+
+    private var firstName: String {
+        let first = userName.split(separator: " ").first.map(String.init) ?? ""
+        return first.count > 7 ? String(first.prefix(7)) : first
+    }
 
     var body: some View {
         ZStack {
@@ -99,7 +108,7 @@ struct KXOStampView: View {
                 .foregroundColor(color)
                 .frame(width: size, height: size)
 
-            // Inner content: KanairoXO / Moments / separator
+            // Inner content: KanairoXO / Moments / separator / first name
             VStack(spacing: 0) {
                 Text("KanairoXO")
                     .font(Font.custom("DancingScript-Bold", size: size * 0.177))
@@ -108,6 +117,7 @@ struct KXOStampView: View {
 
                 Text("Moments")
                     .font(Font.custom("DancingScript-Bold", size: size * 0.129))
+                    .tracking(0.5)
                     .foregroundColor(color)
                     .lineLimit(1)
 
@@ -115,9 +125,18 @@ struct KXOStampView: View {
                     .frame(width: size * 0.45, height: 0.7)
                     .foregroundColor(color.opacity(0.4))
                     .padding(.vertical, 1.5)
+
+                if !firstName.isEmpty {
+                    Text(firstName)
+                        .font(Font.custom("DancingScript-Bold", size: size * 0.129))
+                        .tracking(0.3)
+                        .foregroundColor(color)
+                        .lineLimit(1)
+                }
             }
         }
         .frame(width: size, height: size)
+        .rotationEffect(.radians(-0.10))
     }
 }
 
@@ -175,8 +194,7 @@ struct MomentPolaroidView: View {
                         Spacer(minLength: 4)
 
                         // KanairoXO Moments stamp — matches the in-app KXOStamp
-                        KXOStampView(size: 44, color: accent)
-                            .rotationEffect(.degrees(-12))
+                        KXOStampView(size: 44, color: accent, userName: entry.userName)
                             .opacity(0.82)
                     }
                     .padding(.horizontal, 10)
@@ -290,7 +308,7 @@ struct KanairoMomentWidget: Widget {
 #Preview("Moment", as: .systemSmall) {
     KanairoMomentWidget()
 } timeline: {
-    MomentEntry(date: .now, image: nil, caption: "Friday night out", isVideo: false, upcomingEvents: [])
+    MomentEntry(date: .now, image: nil, caption: "Friday night out", isVideo: false, upcomingEvents: [], userName: "Sean")
 }
 
 #Preview("Upcoming", as: .systemMedium) {
@@ -299,5 +317,5 @@ struct KanairoMomentWidget: Widget {
     MomentEntry(date: .now, image: nil, caption: "", isVideo: false, upcomingEvents: [
         UpcomingEvent(title: "Jazz Night", venue: "Alliance Française", startDate: Date().addingTimeInterval(86_400).timeIntervalSince1970),
         UpcomingEvent(title: "Rooftop Mixer", venue: "The Alchemist", startDate: Date().addingTimeInterval(3 * 86_400).timeIntervalSince1970)
-    ])
+    ], userName: "Sean")
 }

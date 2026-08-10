@@ -9,10 +9,10 @@
 	</dict>
 	<key>UIAppFonts</key>
 	<array>
-		<string>Fonts/DMSans-Regular.ttf</string>
-		<string>Fonts/DMSans-SemiBold.ttf</string>
-		<string>Fonts/DMSans-Bold.ttf</string>
-		<string>Fonts/DancingScript-Bold.ttf</string>
+		<string>DMSans-Regular.ttf</string>
+		<string>DMSans-SemiBold.ttf</string>
+		<string>DMSans-Bold.ttf</string>
+		<string>DancingScript-Bold.ttf</string>
 	</array>
 </dict>
 </plist>

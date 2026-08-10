@@ -58,6 +58,21 @@ class DeepLinks {
     _handle(p);
   }
 
+  /// Normalise the two link shapes into one list of path segments.
+  ///
+  /// `https://kanairoxo.online/event/<id>` parses to pathSegments
+  /// `['event', '<id>']`, but the custom scheme `kanairoxo://event/<id>`
+  /// puts `event` in the *host* and leaves `['<id>']` behind — so every
+  /// route match failed on custom-scheme links. Prepend the host back on
+  /// when the scheme is ours.
+  static List<String> _segmentsOf(Uri uri) {
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (uri.scheme == 'kanairoxo' && (uri.host).isNotEmpty) {
+      return [uri.host, ...segments];
+    }
+    return segments;
+  }
+
   void _handle(Uri uri) {
     final navKey = _navKey;
     if (navKey == null) return;
@@ -87,7 +102,7 @@ class DeepLinks {
       return;
     }
 
-    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    final segments = _segmentsOf(uri);
     if (segments.isEmpty) return;
 
     // ── /c/<code>  community invite ────────────────────────────────

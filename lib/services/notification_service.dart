@@ -213,6 +213,7 @@ class NotificationService {
 
   Future<void> registerFCMToken() async {
     try {
+      if (!await _waitForApnsToken()) return;
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         await _apiClient.post('api/v1/auth/device/register/', {
@@ -225,8 +226,25 @@ class NotificationService {
     }
   }
 
+  /// On iOS, FCM can't mint a token until APNs has handed one to the app.
+  /// Calling getToken() before that throws, which silently killed device
+  /// registration. Poll briefly for the APNs token first.
+  Future<bool> _waitForApnsToken() async {
+    if (!Platform.isIOS) return true;
+    for (var attempt = 0; attempt < 10; attempt++) {
+      final apns = await FirebaseMessaging.instance.getAPNSToken();
+      if (apns != null) return true;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    // No APNs token — almost always a missing Push Notifications
+    // entitlement rather than anything transient.
+    debugPrint('APNs token unavailable; push is not configured for this build.');
+    return false;
+  }
+
   Future<void> registerDeviceToken() async {
     try {
+      if (!await _waitForApnsToken()) return;
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       await _sendTokenToBackend(token);

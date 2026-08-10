@@ -155,11 +155,14 @@ class AuthProvider with ChangeNotifier {
     _setLoading(true);
     _error = null;
     try {
-      await _authService.login(
+      // Login response already contains the full user — use it directly so we
+      // don't need a second getProfile() round-trip (which could hang and leave
+      // the loading indicator stuck indefinitely).
+      final response = await _authService.login(
         phoneNumber: phoneNumber,
         password: password,
       );
-      await _checkLoginStatus();
+      _setUser(response.user);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
@@ -174,7 +177,7 @@ class AuthProvider with ChangeNotifier {
     _error = null;
     try {
       final response = await _authService.googleLogin(idToken);
-      await _checkLoginStatus();
+      _setUser(response.user);
       return response.isNewUser;
     } catch (e) {
       _error = e.toString();
@@ -193,7 +196,7 @@ class AuthProvider with ChangeNotifier {
           ? DateTime.parse(data['dateOfBirth'])
           : null;
 
-      await _authService.register(
+      final response = await _authService.register(
         phoneNumber: data['phoneNumber'],
         email: data['email'] ?? '',
         password: data['password'],
@@ -209,8 +212,7 @@ class AuthProvider with ChangeNotifier {
         partnerLastName: data['partnerLastName'],
         partnerEmail: data['partnerEmail'],
       );
-
-      await _checkLoginStatus();
+      _setUser(response.user);
     } catch (e) {
       _error = e.toString();
       notifyListeners();
