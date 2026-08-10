@@ -117,6 +117,11 @@ class Experience {
   final Map<String, dynamic>? analytics;
   final int savesCount;
   final int sharesCount;
+  /// How many of the viewer's connections are attending, plus a few of their
+  /// avatars for the card's social-proof stack. Backend-supplied; defaults to
+  /// empty so the UI simply hides the stack when absent.
+  final int connectionsGoingCount;
+  final List<String> connectionsGoingAvatars;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -160,6 +165,8 @@ class Experience {
     this.analytics,
     required this.savesCount,
     required this.sharesCount,
+    this.connectionsGoingCount = 0,
+    this.connectionsGoingAvatars = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -238,6 +245,11 @@ class Experience {
       analytics: json['analytics'],
       savesCount: json['saves_count'] ?? json['save_count'] ?? 0,
       sharesCount: json['shares_count'] ?? json['share_count'] ?? 0,
+      connectionsGoingCount: json['connections_going_count'] ?? 0,
+      connectionsGoingAvatars: ((json['connections_going_avatars'] as List?) ?? [])
+          .map((a) => ApiConstants.fixMediaUrl(a))
+          .where((a) => a.isNotEmpty)
+          .toList(),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
@@ -281,6 +293,8 @@ class Experience {
         'pricing_tiers': pricingTiers.map((x) => x.toJson()).toList(),
         'saves_count': savesCount,
         'shares_count': sharesCount,
+        'connections_going_count': connectionsGoingCount,
+        'connections_going_avatars': connectionsGoingAvatars,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };
@@ -331,6 +345,8 @@ class Experience {
       analytics: analytics,
       savesCount: savesCount ?? this.savesCount,
       sharesCount: sharesCount,
+      connectionsGoingCount: connectionsGoingCount,
+      connectionsGoingAvatars: connectionsGoingAvatars,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );

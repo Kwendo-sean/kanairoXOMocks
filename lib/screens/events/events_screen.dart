@@ -9,6 +9,11 @@ import 'event_detail_screen.dart';
 import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/screens/events/events_feed_tab.dart';
 import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/models/event_filters.dart';
+import 'package:kanairoxo/screens/events/widgets/event_filter_bar.dart';
+import 'package:kanairoxo/screens/events/widgets/event_filter_sheet.dart';
+import 'package:kanairoxo/screens/events/widgets/event_poster_card.dart';
+import 'package:kanairoxo/screens/events/widgets/past_event_row.dart';
 
 class EventsScreen extends StatefulWidget {
   final ValueChanged<Experience>? onExperienceSelected;
@@ -148,6 +153,51 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     );
   }
 
+  // ── Filter state ──────────────────────────────────────────────────────────
+
+  EventFilters _filters = const EventFilters();
+
+  /// Categories are derived from whatever the feed actually contains, so a new
+  /// backend category shows up without any client change.
+  List<ExperienceCategory> _categoriesIn(List<Experience> events) {
+    final seen = <String, ExperienceCategory>{};
+    for (final e in events) {
+      final c = e.category;
+      if (c != null && c.id.isNotEmpty) seen.putIfAbsent(c.id, () => c);
+    }
+    final list = seen.values.toList();
+    list.sort((a, b) => a.name.compareTo(b.name));
+    return list;
+  }
+
+  List<String> _neighborhoodsIn(List<Experience> events) {
+    final set = events
+        .map((e) => e.neighborhood)
+        .where((n) => n.trim().isNotEmpty)
+        .toSet()
+        .toList();
+    set.sort();
+    return set;
+  }
+
+  double _maxPriceIn(List<Experience> events) {
+    double max = 0;
+    for (final e in events) {
+      if (e.basePrice > max) max = e.basePrice;
+    }
+    return max;
+  }
+
+  Future<void> _openFilterSheet(List<Experience> pool) async {
+    final result = await EventFilterSheet.show(
+      context,
+      initial: _filters,
+      neighborhoods: _neighborhoodsIn(pool),
+      maxPriceInFeed: _maxPriceIn(pool),
+    );
+    if (result != null && mounted) setState(() => _filters = result);
+  }
+
   Widget _buildEventsTab(Color textColor) {
     return Consumer<EventsProvider>(
         builder: (context, provider, child) {
@@ -156,54 +206,206 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
           }
 
           final feed = provider.feed;
-          final trending = feed['trending'] ?? [];
-          final weekend = feed['this_weekend'] ?? [];
-          final week = feed['happening_this_week'] ?? [];
-          final all = feed['all'] ?? [];
+          final trending = feed['trending'] ?? <Experience>[];
+          final weekend = feed['this_weekend'] ?? <Experience>[];
+          final week = feed['happening_this_week'] ?? <Experience>[];
+          final all = feed['all'] ?? <Experience>[];
+
+          // Everything we know about, de-duplicated — the pool that filters
+          // run against and that categories/neighbourhoods are derived from.
+          final pool = <String, Experience>{};
+          for (final e in [...all, ...trending, ...weekend, ...week]) {
+            pool[e.id] = e;
+          }
+          final poolList = pool.values.toList();
 
           final attendedPast = (_pastData?['attended'] as List?) ?? [];
           final otherPast = (_pastData?['others'] as List?) ?? [];
-          final liveEmpty = trending.isEmpty && weekend.isEmpty && week.isEmpty && all.isEmpty;
+          final liveEmpty = poolList.isEmpty;
           final pastEmpty = attendedPast.isEmpty && otherPast.isEmpty;
+
+          final categories = _categoriesIn(poolList);
 
           return RefreshIndicator(
             onRefresh: () async { await provider.fetchFeed(); await _loadPast(); },
             color: const Color(0xFF9B111E),
-            child: liveEmpty && pastEmpty
-              ? _buildEmpty(textColor)
-              : CustomScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  slivers: [
-                    if (trending.isNotEmpty) ...[
-                      _buildSectionHeader('TRENDING NOW'),
-                      _buildSectionList(trending),
-                    ],
-                    if (weekend.isNotEmpty) ...[
-                      _buildSectionHeader('THIS WEEKEND'),
-                      _buildSectionList(weekend),
-                    ],
-                    if (week.isNotEmpty) ...[
-                      _buildSectionHeader('HAPPENING THIS WEEK'),
-                      _buildSectionList(week),
-                    ],
-                    if (all.isNotEmpty) ...[
-                      _buildSectionHeader('ALL EVENTS'),
-                      _buildSectionList(all),
-                    ],
-                    if (attendedPast.isNotEmpty) ...[
-                      _buildSectionHeader('YOU ATTENDED'),
-                      _buildPastSectionList(attendedPast),
-                    ],
-                    if (otherPast.isNotEmpty) ...[
-                      _buildSectionHeader('PAST EVENTS'),
-                      _buildPastSectionList(otherPast),
-                    ],
-                    const SliverToBoxAdapter(child: SizedBox(height: 100)),
-                  ],
-                ),
+            child: Column(children: [
+              EventFilterBar(
+                categories: categories,
+                filters: _filters,
+                onChanged: (f) => setState(() => _filters = f),
+                onOpenSheet: () => _openFilterSheet(poolList),
+              ),
+              Expanded(
+                child: liveEmpty && pastEmpty
+                  ? _buildEmpty(textColor)
+                  : _filters.isActive
+                    ? _buildResults(poolList, categories, textColor)
+                    : _buildBrowse(
+                        trending: trending,
+                        weekend: weekend,
+                        week: week,
+                        all: all,
+                        attendedPast: attendedPast,
+                        otherPast: otherPast,
+                        textColor: textColor),
+              ),
+            ]),
           );
         },
       );
+  }
+
+  /// Filters active — curation steps aside for a flat, countable result list.
+  Widget _buildResults(List<Experience> pool,
+      List<ExperienceCategory> categories, Color textColor) {
+    final results = _filters.apply(pool);
+
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
+            child: Row(children: [
+              Expanded(
+                child: Text(
+                  '${results.length} ${results.length == 1 ? 'event' : 'events'}'
+                  '${_filters.summary(categories).isEmpty ? '' : ' · ${_filters.summary(categories)}'}',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: textColor.withOpacity(0.75),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              GestureDetector(
+                onTap: () => setState(() => _filters = const EventFilters()),
+                child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                  Text('Clear',
+                      style: TextStyle(
+                          fontFamily: 'DMSans',
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF9B111E))),
+                  SizedBox(width: 3),
+                  Icon(Icons.close_rounded, size: 15, color: Color(0xFF9B111E)),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+        if (results.isEmpty)
+          SliverToBoxAdapter(child: _buildNoResults(textColor))
+        else
+          _buildSectionList(results),
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+      ],
+    );
+  }
+
+  Widget _buildNoResults(Color textColor) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(32, 60, 32, 60),
+      child: Column(children: [
+        Icon(Icons.search_off_rounded, size: 46, color: textColor.withOpacity(0.25)),
+        const SizedBox(height: 16),
+        Text('Nothing matches those filters',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: textColor)),
+        const SizedBox(height: 6),
+        Text('Try widening your search — or clear the filters to see everything.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontFamily: 'DMSans',
+                fontSize: 13,
+                height: 1.4,
+                color: textColor.withOpacity(0.55))),
+        const SizedBox(height: 20),
+        TextButton(
+          onPressed: () => setState(() => _filters = const EventFilters()),
+          child: const Text('Clear filters',
+              style: TextStyle(
+                  fontFamily: 'DMSans',
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF9B111E))),
+        ),
+      ]),
+    );
+  }
+
+  /// Nothing filtered — curated rails on top, then the full list, then past.
+  Widget _buildBrowse({
+    required List<Experience> trending,
+    required List<Experience> weekend,
+    required List<Experience> week,
+    required List<Experience> all,
+    required List attendedPast,
+    required List otherPast,
+    required Color textColor,
+  }) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        if (trending.isNotEmpty) ...[
+          _buildSectionHeader('TRENDING NOW'),
+          _buildRail(trending),
+        ],
+        if (weekend.isNotEmpty) ...[
+          _buildSectionHeader('THIS WEEKEND'),
+          _buildRail(weekend),
+        ],
+        if (week.isNotEmpty) ...[
+          _buildSectionHeader('HAPPENING THIS WEEK'),
+          _buildRail(week),
+        ],
+        if (all.isNotEmpty) ...[
+          _buildSectionHeader('ALL EVENTS'),
+          _buildSectionList(all),
+        ],
+        if (attendedPast.isNotEmpty) ...[
+          _buildSectionHeader('YOU ATTENDED'),
+          _buildPastSectionList(attendedPast, attended: true),
+        ],
+        if (otherPast.isNotEmpty) ...[
+          _buildSectionHeader('PAST EVENTS'),
+          _buildPastSectionList(otherPast),
+        ],
+        const SliverToBoxAdapter(child: SizedBox(height: 100)),
+      ],
+    );
+  }
+
+  /// Horizontal rail of poster cards. Curated rows preview breadth instead of
+  /// burying the next section under a long vertical stack.
+  Widget _buildRail(List<Experience> events) {
+    return SliverToBoxAdapter(
+      child: SizedBox(
+        height: 356,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          itemCount: events.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, i) {
+            final e = events[i];
+            return EventPosterCard(
+              event: e,
+              onTap: () => _navigateToDetail(e),
+              onSaveToggle: () => context.read<EventsProvider>().toggleSave(e),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildEmpty(Color textColor) {
@@ -292,44 +494,17 @@ class _EventsScreenState extends State<EventsScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildPastSectionList(List events) {
+  Widget _buildPastSectionList(List events, {bool attended = false}) {
     return SliverList(
       delegate: SliverChildBuilderDelegate(
         (context, index) {
           final m = Map<String, dynamic>.from(events[index] as Map);
-          final id = (m['id'] ?? '').toString();
-          final title = (m['title'] ?? 'Untitled').toString();
-          final venue = (m['venue_name'] ?? m['neighborhood'] ?? '').toString();
-          final cover = (m['cover_url'] ?? m['cover_image'] ?? '').toString();
-          return Padding(
-            padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-            child: GestureDetector(
-              onTap: () => Navigator.push(context, MaterialPageRoute(
-                builder: (_) => EventDetailScreen(eventId: id))),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Stack(children: [
-                  if (cover.isNotEmpty)
-                    Image.network(cover, height: 120, width: double.infinity, fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(height: 120, color: Colors.grey.shade300))
-                  else
-                    Container(height: 120, color: Colors.grey.shade300),
-                  Positioned.fill(child: DecoratedBox(decoration: BoxDecoration(
-                    gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, Colors.black.withOpacity(0.75)])))),
-                  Positioned(left: 12, right: 12, bottom: 12, child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title,
-                        style: const TextStyle(fontFamily: 'DMSans', color: Colors.white,
-                          fontWeight: FontWeight.w700, fontSize: 14),
-                        maxLines: 1, overflow: TextOverflow.ellipsis),
-                      if (venue.isNotEmpty)
-                        Text(venue, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    ])),
-                ]),
-              ),
-            ),
+          return PastEventRow(
+            event: m,
+            attended: attended,
+            onTap: () => Navigator.push(context, MaterialPageRoute(
+              builder: (_) => EventDetailScreen(
+                eventId: (m['id'] ?? '').toString()))),
           );
         },
         childCount: events.length,

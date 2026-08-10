@@ -195,22 +195,6 @@ class EventCard extends StatelessWidget {
                 ),
               ),
 
-            // Layer 4 — bookmark icon top-right
-            Positioned(
-              top: 10,
-              right: 10,
-              child: IconButton(
-                icon: Icon(
-                  isBookmarked
-                      ? AppIcons.bookmarkFill
-                      : AppIcons.bookmark,
-                ),
-                color: Colors.white,
-                iconSize: 22,
-                onPressed: () => onSaveToggle?.call(event),
-              ),
-            ),
-
             // Layer 5 — event details bottom
             Positioned(
               bottom: 0,
@@ -312,6 +296,29 @@ class EventCard extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onTap,
+                ),
+              ),
+            ),
+
+            // Bookmark sits above the card-wide tap overlay, otherwise the
+            // InkWell swallows its taps and saving never fires.
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onSaveToggle?.call(event),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      isBookmarked ? AppIcons.bookmarkFill : AppIcons.bookmark,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
             ),
