@@ -88,12 +88,25 @@ class _NetworkMediaPreviewState extends State<NetworkMediaPreview>
     if (controller == null || !controller.value.isInitialized) return;
 
     final isVisible = info.visibleFraction > 0.5;
-    if (!isVisible && controller.value.isPlaying) {
-      _pausedByVisibility = true;
-      controller.pause();
-    } else if (isVisible && _pausedByVisibility) {
+
+    if (!isVisible) {
+      if (controller.value.isPlaying) {
+        _pausedByVisibility = true;
+        controller.pause();
+      }
+      return;
+    }
+
+    // On screen: start if we're meant to autoplay and aren't already running.
+    //
+    // This used to require _pausedByVisibility, which is only ever set when we
+    // pause a video that was already playing. Since _initVideo() deliberately
+    // doesn't call play() and waits for this callback instead, nothing had
+    // ever played, so nothing had ever been paused by us — and the resume
+    // branch could never fire. No video ever started.
+    if (widget.autoPlay && !controller.value.isPlaying) {
       _pausedByVisibility = false;
-      if (widget.autoPlay) controller.play();
+      controller.play();
     }
   }
 
