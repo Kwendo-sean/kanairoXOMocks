@@ -3,6 +3,7 @@ import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/screens/events/event_detail_screen.dart';
+import 'package:kanairoxo/screens/dates/plan_date_screen.dart';
 
 /// TikTok-style vertical PageView mixing event trailers and recent memories.
 class EventsFeedTab extends StatefulWidget {
@@ -78,6 +79,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
     final card = Map<String, dynamic>.from(item['card'] ?? {});
 
     if (type == 'trailer') return _trailerCard(card, index);
+    if (type == 'venue') return _venueCard(card, index);
     return _memoryCard(card, index);
   }
 
@@ -152,6 +154,95 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
               Icon(Icons.confirmation_number_outlined, color: Colors.white, size: 18),
               SizedBox(width: 8),
               Text('Get tickets',
+                style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+                  fontWeight: FontWeight.w700, fontSize: 15)),
+            ]),
+          ),
+        )),
+    ]);
+  }
+
+
+  /// Date venues in the same feed as event trailers. The server only sends
+  /// venues that have both a trailer and a bookable package, so this card
+  /// never has to handle "nothing to play" or "nothing to book".
+  Widget _venueCard(Map<String, dynamic> c, int index) {
+    final trailer = (c['trailer_url'] ?? '').toString();
+    final name = (c['name'] ?? 'A venue').toString();
+    final location = (c['location'] ?? '').toString();
+    final category = (c['category'] ?? '').toString();
+    final fromPrice = (c['from_price'] ?? '').toString();
+    final packageName = (c['package_name'] ?? '').toString();
+
+    String money(String v) {
+      final n = double.tryParse(v) ?? 0;
+      return 'KSh ${n.toStringAsFixed(0).replaceAllMapped(
+          RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},')}';
+    }
+
+    return Stack(fit: StackFit.expand, children: [
+      if (trailer.isNotEmpty)
+        NetworkMediaPreview(
+          url: trailer, mediaType: 'video',
+          fit: BoxFit.cover, autoPlay: index < 2, muted: false)
+      else if ((c['image_url'] ?? '').toString().isNotEmpty)
+        NetworkMediaPreview(
+          url: c['image_url'], mediaType: 'image', fit: BoxFit.cover)
+      else
+        Container(color: Colors.black),
+
+      DecoratedBox(decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter, end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.black.withOpacity(0.85)]))),
+
+      Positioned(left: 20, right: 20, bottom: 170, child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: _accent, borderRadius: BorderRadius.circular(4)),
+            child: const Text('DATE SPOT',
+              style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+                fontWeight: FontWeight.w700, fontSize: 10, letterSpacing: 1.4))),
+          const SizedBox(height: 10),
+          Text(name,
+            style: const TextStyle(fontFamily: 'DMSans', color: Colors.white,
+              fontWeight: FontWeight.w700, fontSize: 22),
+            maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 4),
+          Text([category, location].where((x) => x.isNotEmpty).join(' · '),
+            style: const TextStyle(
+              color: Colors.white70, fontFamily: 'DMSans', fontSize: 13)),
+          if (packageName.isNotEmpty) ...[
+            const SizedBox(height: 6),
+            Text('$packageName · from ${money(fromPrice)}',
+              style: const TextStyle(
+                color: Colors.white, fontFamily: 'DMSans', fontSize: 13,
+                fontWeight: FontWeight.w600)),
+          ],
+        ])),
+
+      Positioned(left: 20, right: 20, bottom: 100,
+        child: GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => const PlanDateScreen())),
+          child: Container(
+            height: 54,
+            decoration: BoxDecoration(
+              color: _accent,
+              borderRadius: BorderRadius.circular(999),
+              boxShadow: [BoxShadow(
+                color: _accent.withOpacity(0.45),
+                blurRadius: 24, offset: const Offset(0, 6))],
+            ),
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(Icons.favorite_border, color: Colors.white, size: 18),
+              SizedBox(width: 8),
+              Text('Book this date',
                 style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
                   fontWeight: FontWeight.w700, fontSize: 15)),
             ]),
