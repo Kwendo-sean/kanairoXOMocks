@@ -11,7 +11,12 @@ import '../../models/date_plan_model.dart';
 import '../../widgets/liquid_glass_button.dart';
 
 class DatePlannerScreen extends StatefulWidget {
-  const DatePlannerScreen({super.key});
+  /// A venue the user already picked — e.g. tapping "Book this date" on a
+  /// venue card in the For You feed. When set, the vibe and venue-discovery
+  /// steps are skipped: both answers came in with the venue.
+  final Venue? preselectedVenue;
+
+  const DatePlannerScreen({super.key, this.preselectedVenue});
 
   @override
   State<DatePlannerScreen> createState() => _DatePlannerScreenState();
@@ -19,6 +24,16 @@ class DatePlannerScreen extends StatefulWidget {
 
 class _DatePlannerScreenState extends State<DatePlannerScreen> {
   final PageController _pageController = PageController();
+
+  /// Only skip the middle steps when we can actually load this venue's
+  /// packages. Without an id, "The Evening" would show an empty list and no
+  /// way to pick a venue — worse than just asking.
+  bool get _skipsVenueSteps =>
+      widget.preselectedVenue != null &&
+      widget.preselectedVenue!.id.isNotEmpty;
+
+  /// Steps 2 (The Vibe) and 3 (Discovery), skipped in both directions.
+  static const _skippedSteps = {2, 3};
 
   @override
   void initState() {
@@ -28,6 +43,14 @@ class _DatePlannerScreenState extends State<DatePlannerScreen> {
       provider.reset();
       provider.fetchConnections();
       provider.fetchConfig();
+
+      final venue = widget.preselectedVenue;
+      if (venue != null) {
+        // Carry the venue through, and treat its category as the vibe so the
+        // confirmation step still has one to show.
+        provider.updatePlan(venue: venue, vibe: venue.category);
+        if (venue.id.isNotEmpty) provider.fetchPackages(venue.id);
+      }
     });
   }
 
@@ -108,18 +131,27 @@ class _DatePlannerScreenState extends State<DatePlannerScreen> {
   }
 
   Widget _buildProgressBar(int currentStep, ThemeData theme) {
+    // Only count steps this run can actually reach, otherwise the bar reserves
+    // room for two segments that never fill and never reaches the end.
+    final steps = [
+      for (var i = 0; i <= 5; i++)
+        if (!(_skipsVenueSteps && _skippedSteps.contains(i))) i
+    ];
+
     return Container(
       height: 3,
       width: double.infinity,
       color: theme.dividerColor.withOpacity(0.1),
       child: Row(
-        children: List.generate(6, (index) {
+        children: steps.map((index) {
           return Expanded(
             child: Container(
-              color: index <= currentStep ? AppColors.themePrimary(context) : Colors.transparent,
+              color: index <= currentStep
+                  ? AppColors.themePrimary(context)
+                  : Colors.transparent,
             ),
           );
-        }),
+        }).toList(),
       ),
     );
   }
@@ -137,18 +169,32 @@ class _DatePlannerScreenState extends State<DatePlannerScreen> {
   }
 
   void _nextPage() {
-    context.read<DatePlanProvider>().nextStep();
-    _pageController.animateToPage(
-      context.read<DatePlanProvider>().currentStep,
-      duration: const Duration(milliseconds: 400),
-      curve: Curves.easeInOutCubic,
-    );
+    final provider = context.read<DatePlanProvider>();
+    var target = provider.currentStep + 1;
+    if (_skipsVenueSteps) {
+      while (_skippedSteps.contains(target) && target < 5) {
+        target++;
+      }
+    }
+    provider.goToStep(target);
+    _animateTo(provider.currentStep);
   }
 
   void _prevPage() {
-    context.read<DatePlanProvider>().previousStep();
+    final provider = context.read<DatePlanProvider>();
+    var target = provider.currentStep - 1;
+    if (_skipsVenueSteps) {
+      while (_skippedSteps.contains(target) && target > 0) {
+        target--;
+      }
+    }
+    provider.goToStep(target);
+    _animateTo(provider.currentStep);
+  }
+
+  void _animateTo(int step) {
     _pageController.animateToPage(
-      context.read<DatePlanProvider>().currentStep,
+      step,
       duration: const Duration(milliseconds: 400),
       curve: Curves.easeInOutCubic,
     );

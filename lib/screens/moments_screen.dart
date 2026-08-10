@@ -533,7 +533,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                               url: widget.moment.photoUrl,
                               mediaType: widget.moment.mediaType,
                               fit: BoxFit.cover,
-                              autoPlay: widget.index < 2, // only first 2 cards auto-play
+                              autoPlay: true, // visibility decides what actually plays
                               thumbnailMode: widget.index >= 2,
                             ),
                           ),
