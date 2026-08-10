@@ -186,16 +186,74 @@ class AdSponsor {
 class DiscoveryBatch {
   final List<DiscoveryItem> discoveries;
 
-  DiscoveryBatch({required this.discoveries});
+  /// True when the response carried a payload we couldn't read — an
+  /// unrecognised envelope key, or items that all failed to parse.
+  ///
+  /// Without this, a shape mismatch and a genuinely empty deck both produced
+  /// an empty list, so the UI showed the same "no one left" fallback for a
+  /// client bug as for the real thing.
+  final bool unrecognisedPayload;
 
-  factory DiscoveryBatch.fromJson(Map<String, dynamic> json) {
-    var list = json['recommendations'] as List?
-        ?? json['discoveries'] as List?
-        ?? json['profiles'] as List?
-        ?? [];
+  DiscoveryBatch({
+    required this.discoveries,
+    this.unrecognisedPayload = false,
+  });
+
+  /// Envelope keys seen from the API, plus the DRF pagination default.
+  static const _listKeys = [
+    'recommendations',
+    'discoveries',
+    'profiles',
+    'results',
+    'data',
+    'items',
+  ];
+
+  factory DiscoveryBatch.fromJson(dynamic json) {
+    // A bare list is a valid shape too; it used to throw on the Map cast.
+    if (json is List) {
+      return DiscoveryBatch(discoveries: _parseItems(json));
+    }
+    if (json is! Map) {
+      return DiscoveryBatch(discoveries: const [], unrecognisedPayload: true);
+    }
+
+    final map = Map<String, dynamic>.from(json);
+
+    for (final key in _listKeys) {
+      final value = map[key];
+      if (value is List) {
+        final parsed = _parseItems(value);
+        // A non-empty list that yielded nothing means the items themselves
+        // didn't match what DiscoveryItem expects.
+        return DiscoveryBatch(
+          discoveries: parsed,
+          unrecognisedPayload: value.isNotEmpty && parsed.isEmpty,
+        );
+      }
+    }
+
+    // No key we know about. If the body carried a list under some other name,
+    // that's a shape we need to learn — flag it rather than showing "empty".
+    final hasUnreadList = map.values.any((v) => v is List && v.isNotEmpty);
     return DiscoveryBatch(
-      discoveries: list.map((item) => DiscoveryItem.fromJson(item)).toList(),
+      discoveries: const [],
+      unrecognisedPayload: hasUnreadList,
     );
+  }
+
+  /// Skip individual items that fail to parse instead of losing the batch.
+  static List<DiscoveryItem> _parseItems(List raw) {
+    final out = <DiscoveryItem>[];
+    for (final item in raw) {
+      try {
+        out.add(DiscoveryItem.fromJson(item));
+      } catch (_) {
+        // Ignore the bad row; a single malformed profile shouldn't empty
+        // the whole deck.
+      }
+    }
+    return out;
   }
 }
 

@@ -45,6 +45,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   Timer? _emptyRetryTimer;
   bool _isRefreshingDeck = false;
 
+  /// The server sent profiles we couldn't read. Distinct from an empty deck:
+  /// showing the connections fallback here would blame an empty city for what
+  /// is a parsing problem.
+  bool _unreadablePayload = false;
+
   ConnectionContextModel? _contextCard;
   bool _contextLoading = false;
 
@@ -88,6 +93,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       if (!mounted) return;
       setState(() {
         _discoveries = batch.discoveries;
+        _unreadablePayload = batch.unrecognisedPayload;
         _currentIndex = 0;
         _isLoading = false;
       });
@@ -128,9 +134,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     try {
       final response = await _apiClient.get('api/v1/discovery/recommendations/');
       final batch = DiscoveryBatch.fromJson(response);
-      if (!mounted || batch.discoveries.isEmpty) return;
+      if (!mounted) return;
+      // Keep the diagnosis current even when the retry also comes back
+      // unreadable, so the screen doesn't drift back to "no one left".
+      if (batch.discoveries.isEmpty) {
+        if (batch.unrecognisedPayload != _unreadablePayload) {
+          setState(() => _unreadablePayload = batch.unrecognisedPayload);
+        }
+        return;
+      }
       setState(() {
         _discoveries = batch.discoveries;
+        _unreadablePayload = false;
         _currentIndex = 0;
         _error = null;
       });
@@ -302,7 +317,9 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       body: _error != null
           ? _buildError()
           : (_discoveries.isEmpty && !_isLoading)
-              ? _buildEmpty()
+              // An unreadable payload is a bug on our side, not an empty
+              // city — don't quietly fall back to the connections list.
+              ? (_unreadablePayload ? _buildUnreadable() : _buildEmpty())
               : _buildPageView(),
     );
   }
@@ -545,6 +562,51 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Widget _buildEmpty() {
     return _ConnectionsFallbackList(onCheckAgain: _initializeDiscovery);
+  }
+
+  /// Profiles came back but none could be read. Says so plainly rather than
+  /// pretending there's no one to show.
+  Widget _buildUnreadable() {
+    final textColor = context.textColor;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sync_problem_rounded,
+                size: 48, color: AppColors.primary.withOpacity(0.7)),
+            const SizedBox(height: 16),
+            Text("We couldn't read today's profiles",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textColor)),
+            const SizedBox(height: 6),
+            Text(
+                'There are people to show — the app just choked on the '
+                'response. This is on us, not you.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 13,
+                    height: 1.4,
+                    color: textColor.withOpacity(0.55))),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: _initializeDiscovery,
+              child: const Text('Try again',
+                  style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
