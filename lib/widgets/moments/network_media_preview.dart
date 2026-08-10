@@ -40,7 +40,9 @@ class NetworkMediaPreview extends StatefulWidget {
 class _NetworkMediaPreviewState extends State<NetworkMediaPreview>
     with WidgetsBindingObserver {
   VideoPlayerController? _controller;
-  bool _isVisible = false;
+  // True when WE paused the video due to it scrolling off-screen.
+  // Used to resume only videos we paused (not user-paused ones).
+  bool _pausedByVisibility = false;
 
   bool get _isVideo => widget.mediaType == 'video';
 
@@ -77,14 +79,30 @@ class _NetworkMediaPreviewState extends State<NetworkMediaPreview>
     }
   }
 
+  /// Pauses playback when the preview scrolls off-screen or its tab/route
+  /// stops being the visible one (e.g. swiping to another bottom-nav tab, or
+  /// pushing the event-detail screen on top) — otherwise the audio keeps
+  /// playing in the background. Resumes only if we're the one who paused it.
+  void _onVisibilityChanged(VisibilityInfo info) {
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) return;
+
+    final isVisible = info.visibleFraction > 0.5;
+    if (!isVisible && controller.value.isPlaying) {
+      _pausedByVisibility = true;
+      controller.pause();
+    } else if (isVisible && _pausedByVisibility) {
+      _pausedByVisibility = false;
+      if (widget.autoPlay) controller.play();
+    }
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // App backgrounded -> pause. Returning to foreground -> resume only if
-    // still visible (visibility callback handles re-plays for in-app nav).
+    // App backgrounded -> pause. Returning to foreground -> the
+    // VisibilityDetector will fire again and resume if still on-screen.
     if (state != AppLifecycleState.resumed) {
       _controller?.pause();
-    } else if (_isVisible) {
-      _controller?.play();
     }
   }
 
@@ -93,18 +111,6 @@ class _NetworkMediaPreviewState extends State<NetworkMediaPreview>
     WidgetsBinding.instance.removeObserver(this);
     _controller?.dispose();
     super.dispose();
-  }
-
-  void _onVisibilityChanged(VisibilityInfo info) {
-    if (!mounted || _controller == null) return;
-    final wasVisible = _isVisible;
-    _isVisible = info.visibleFraction > 0.5;
-
-    if (_isVisible && !wasVisible) {
-      if (widget.autoPlay) _controller!.play();
-    } else if (!_isVisible && wasVisible) {
-      _controller!.pause();
-    }
   }
 
   @override
@@ -131,7 +137,7 @@ class _NetworkMediaPreviewState extends State<NetworkMediaPreview>
     // Unique visibility key per URL so multiple previews on the same page
     // each track their own visibility independently.
     return VisibilityDetector(
-      key: Key('vmp:${widget.url}:${hashCode}'),
+      key: Key('vmp:${widget.url}:$hashCode'),
       onVisibilityChanged: _onVisibilityChanged,
       child: Stack(fit: StackFit.expand, children: [
         FittedBox(

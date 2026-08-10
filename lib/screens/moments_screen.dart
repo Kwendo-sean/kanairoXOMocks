@@ -25,7 +25,6 @@ import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/screens/moments/creation/moment_creation_flow.dart';
 import 'package:kanairoxo/screens/moments/moment_detail_screen.dart';
 import 'package:kanairoxo/widgets/modals/report_modal.dart';
-import 'package:kanairoxo/utils/swahili_phrases.dart';
 
 class MomentsScreen extends StatefulWidget {
   const MomentsScreen({super.key});
@@ -112,12 +111,12 @@ class _MomentsScreenState extends State<MomentsScreen> {
       WidgetService.refreshAllWidgets(_allMoments, 0, 0);
       // Push the most recent moment to the iOS home-screen widget.
       if (_allMoments.isNotEmpty) {
-        final m = _allMoments.first;
+        final latest = _allMoments.first;
         unawaited(HomeWidgetService.instance.updateFromMoment({
-          'media_url': m.photoUrl,
-          'media_type': m.mediaType,
-          'thumbnail_url': m.thumbnailUrl ?? '',
-          'caption': m.caption,
+          'media_url': latest.photoUrl,
+          'media_type': latest.mediaType,
+          'thumbnail_url': latest.thumbnailUrl ?? '',
+          'caption': latest.caption,
         }));
       }
     } catch (e) {
@@ -222,8 +221,7 @@ class _MomentsScreenState extends State<MomentsScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(_carouselSubtitle,
                   style: AppTypography.caption.copyWith(
-                    color: context.mutedColor,
-                    fontStyle: FontStyle.italic),
+                    color: context.mutedColor),
                   textAlign: TextAlign.center))),
 
             if (_isLoading && _allMoments.isEmpty)
@@ -456,18 +454,24 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
 
   Future<void> _toggleSave() async {
     final wasSaved = _isSaved;
-    setState(() {
-      _isSaved = !wasSaved;
-    });
+    setState(() => _isSaved = !wasSaved);
     try {
       await ApiClient.instance.dio.post('/api/v1/moments/${widget.moment.id}/save/', data: {});
+      // Show centered save flash only when saving (not unsaving)
+      if (!wasSaved && mounted) _showSaveFlash();
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isSaved = wasSaved;
-        });
-      }
+      if (mounted) setState(() => _isSaved = wasSaved);
     }
+  }
+
+  void _showSaveFlash() {
+    final overlay = Overlay.of(context);
+    late OverlayEntry entry;
+    entry = OverlayEntry(builder: (_) => _SaveFlash(
+      photoUrl: widget.moment.photoUrl,
+      onDone: () => entry.remove(),
+    ));
+    overlay.insert(entry);
   }
 
   Color get _paperColor {
@@ -589,7 +593,7 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                                     ),
                                   ),
                                 Text(
-                                  widget.moment.caption.isNotEmpty ? widget.moment.caption : SwahiliPhrases.getPhrase(widget.moment),
+                                  widget.moment.caption,
                                   style: GoogleFonts.pacifico(
                                     fontSize: 16,
                                     color: const Color(0xFF2C2C2C),
@@ -684,6 +688,88 @@ class _PolaroidFeedCardState extends State<_PolaroidFeedCard> {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Centered save flash ─────────────────────────────────────────────────────
+
+class _SaveFlash extends StatefulWidget {
+  final String photoUrl;
+  final VoidCallback onDone;
+  const _SaveFlash({required this.photoUrl, required this.onDone});
+
+  @override
+  State<_SaveFlash> createState() => _SaveFlashState();
+}
+
+class _SaveFlashState extends State<_SaveFlash>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _scale;
+  late Animation<double> _opacity;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 700));
+    _scale = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.72, end: 1.06).chain(CurveTween(curve: Curves.easeOut)), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.06, end: 1.0).chain(CurveTween(curve: Curves.easeIn)), weight: 20),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 10),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.88).chain(CurveTween(curve: Curves.easeIn)), weight: 20),
+    ]).animate(_ctrl);
+    _opacity = TweenSequence([
+      TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0).chain(CurveTween(curve: Curves.easeOut)), weight: 25),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.0), weight: 50),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.0).chain(CurveTween(curve: Curves.easeIn)), weight: 25),
+    ]).animate(_ctrl);
+    _ctrl.forward().then((_) => widget.onDone());
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _ctrl,
+      builder: (_, __) => Opacity(
+        opacity: _opacity.value,
+        child: Center(
+          child: Transform.scale(
+            scale: _scale.value,
+            child: Container(
+              width: 200, height: 200,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(20),
+                color: Colors.black87,
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.5), blurRadius: 40)]),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Stack(fit: StackFit.expand, children: [
+                  if (widget.photoUrl.isNotEmpty)
+                    Image.network(widget.photoUrl, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: Colors.black54)),
+                  Container(color: Colors.black.withOpacity(0.30)),
+                  const Center(
+                    child: Column(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.bookmark_rounded, color: Colors.white, size: 40),
+                      SizedBox(height: 8),
+                      Text('Saved',
+                        style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                    ]),
+                  ),
+                ]),
+              ),
             ),
           ),
         ),

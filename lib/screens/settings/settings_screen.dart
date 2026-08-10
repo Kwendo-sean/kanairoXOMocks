@@ -1,7 +1,17 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
+import 'package:kanairoxo/services/moments_prefs.dart';
+import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/providers/theme_provider.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
+import 'package:kanairoxo/screens/settings/privacy_settings_screen.dart';
+import 'package:kanairoxo/screens/settings/notification_settings_screen.dart';
+import 'package:kanairoxo/screens/settings/blocked_accounts_screen.dart';
+import 'package:kanairoxo/screens/settings/delete_account_screen.dart';
+import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -10,10 +20,10 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
-
     final bg = context.bgColor;
     final surface = context.surfaceColor;
     final textColor = context.textColor;
+    final muted = textColor.withOpacity(0.45);
     final primary = context.primaryColor;
     final divider = context.borderColor;
 
@@ -23,183 +33,360 @@ class SettingsScreen extends StatelessWidget {
         backgroundColor: bg,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: textColor, size: 22),
+          icon: PhosphorIcon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.regular),
+            color: textColor, size: 22),
           onPressed: () => Navigator.pop(context)),
         title: Text('Settings',
-          style: TextStyle(
-            fontFamily: 'DMSans',
-            fontSize: 17,
-            fontWeight: FontWeight.w600,
-            color: textColor)),
+          style: TextStyle(fontFamily: 'DMSans', fontSize: 17,
+            fontWeight: FontWeight.w600, color: textColor)),
         centerTitle: true),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
-          Padding(
-            padding: const EdgeInsets.only(left: 4, bottom: 8, top: 8),
-            child: Text('Appearance',
-              style: TextStyle(
-                fontFamily: 'DMSans',
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: textColor.withOpacity(0.5),
-                letterSpacing: 0.8))),
-          Container(
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: divider)),
-            child: Column(children: [
-              _SettingsTile(
-                icon: Icons.phone_android_outlined,
-                title: 'Follow Device Theme',
-                subtitle: themeProvider.followSystem
-                    ? 'Matches your device setting'
-                    : 'Using manual setting',
-                trailing: Switch(
-                  value: themeProvider.followSystem,
-                  onChanged: (v) => themeProvider.setFollowSystem(v),
-                  activeColor: primary,
-                  activeTrackColor: primary.withOpacity(0.3),
-                  inactiveThumbColor: Colors.white,
-                  inactiveTrackColor: Colors.grey.shade300),
-                onTap: () => themeProvider.setFollowSystem(!themeProvider.followSystem)),
-              if (!themeProvider.followSystem) ...[
-                Divider(height: 1, color: divider),
-                _SettingsTile(
-                  icon: isDark ? Icons.dark_mode_outlined : Icons.light_mode_outlined,
-                  title: 'Dark Mode',
-                  subtitle: isDark ? 'Dark theme is on' : 'Light theme is on',
-                  trailing: Switch(
-                    value: isDark,
-                    onChanged: (_) => themeProvider.toggleTheme(),
-                    activeColor: primary,
-                    activeTrackColor: primary.withOpacity(0.3),
-                    inactiveThumbColor: Colors.white,
-                    inactiveTrackColor: Colors.grey.shade300),
-                  onTap: () => themeProvider.toggleTheme()),
-              ],
-            ])),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: divider)),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Theme Preview',
-                  style: TextStyle(
-                    fontFamily: 'DMSans',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: textColor)),
-                const SizedBox(height: 12),
-                Row(children: [
-                  _ColorDot(color: primary, label: 'Brand Red'),
-                  const SizedBox(width: 12),
-                  _ColorDot(
-                    color: isDark ? const Color(0xFFF5EFE6) : const Color(0xFFFAF7F4),
-                    label: isDark ? 'Cream Text' : 'Beige BG',
-                    hasBorder: !isDark),
-                  const SizedBox(width: 12),
-                  _ColorDot(
-                    color: isDark ? const Color(0xFF1C1612) : const Color(0xFFFFFFFF),
-                    label: 'Surface',
-                    hasBorder: true),
-                ]),
-              ])),
-          const SizedBox(height: 24),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: surface,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: divider)),
-            child: Row(children: [
-              Icon(Icons.settings_outlined, size: 18, color: textColor.withOpacity(0.3)),
-              const SizedBox(width: 12),
-              Text('More settings coming soon',
-                style: TextStyle(
-                  fontFamily: 'DMSans',
-                  fontSize: 13,
-                  color: textColor.withOpacity(0.4))),
-            ])),
-        ]));
+
+          // ── Account ──────────────────────────────────────────────────────
+          _SectionHeader(label: 'Account', textColor: muted),
+          _Group(surface: surface, divider: divider, children: [
+            _Tile(
+              icon: PhosphorIcons.user(PhosphorIconsStyle.regular),
+              label: 'Edit Profile',
+              primary: primary, textColor: textColor,
+              onTap: () => Navigator.push(context, MaterialPageRoute(
+                builder: (_) => ProfileEditorScreen(
+                  onClose: () => Navigator.pop(context))))),
+            _Tile(
+              icon: PhosphorIcons.shield(PhosphorIconsStyle.regular),
+              label: 'Privacy',
+              primary: primary, textColor: textColor,
+              onTap: () => Navigator.pushNamed(context, '/settings/privacy')),
+            _Tile(
+              icon: PhosphorIcons.bell(PhosphorIconsStyle.regular),
+              label: 'Notifications',
+              primary: primary, textColor: textColor,
+              onTap: () => Navigator.pushNamed(context, '/settings/notifications')),
+          ]),
+
+          // ── Moments ───────────────────────────────────────────────────────
+          _SectionHeader(label: 'Moments', textColor: muted),
+          _MomentsPrivacyTile(
+            surface: surface, divider: divider,
+            textColor: textColor, primary: primary, isDark: isDark),
+
+          // ── Appearance ────────────────────────────────────────────────────
+          _SectionHeader(label: 'Appearance', textColor: muted),
+          _Group(surface: surface, divider: divider, children: [
+            _SwitchTile(
+              icon: PhosphorIcons.devices(PhosphorIconsStyle.regular),
+              label: 'Follow Device Theme',
+              value: themeProvider.followSystem,
+              primary: primary, textColor: textColor,
+              onChanged: (v) => themeProvider.setFollowSystem(v)),
+            if (!themeProvider.followSystem)
+              _SwitchTile(
+                icon: isDark
+                  ? PhosphorIcons.moon(PhosphorIconsStyle.regular)
+                  : PhosphorIcons.sun(PhosphorIconsStyle.regular),
+                label: 'Dark Mode',
+                value: isDark,
+                primary: primary, textColor: textColor,
+                onChanged: (_) => themeProvider.toggleTheme()),
+          ]),
+
+          // ── Safety ────────────────────────────────────────────────────────
+          _SectionHeader(label: 'Safety', textColor: muted),
+          _Group(surface: surface, divider: divider, children: [
+            _Tile(
+              icon: PhosphorIcons.prohibit(PhosphorIconsStyle.regular),
+              label: 'Blocked Accounts',
+              primary: primary, textColor: textColor,
+              onTap: () => Navigator.pushNamed(context, '/settings/blocked')),
+          ]),
+
+          // ── About ─────────────────────────────────────────────────────────
+          _SectionHeader(label: 'About', textColor: muted),
+          _Group(surface: surface, divider: divider, children: [
+            _Tile(
+              icon: PhosphorIcons.bookOpen(PhosphorIconsStyle.regular),
+              label: 'Terms of Service',
+              primary: primary, textColor: textColor,
+              onTap: () {}),
+            _Tile(
+              icon: PhosphorIcons.shieldCheck(PhosphorIconsStyle.regular),
+              label: 'Privacy Policy',
+              primary: primary, textColor: textColor,
+              onTap: () {}),
+            _Tile(
+              icon: PhosphorIcons.question(PhosphorIconsStyle.regular),
+              label: 'Help & Support',
+              primary: primary, textColor: textColor,
+              onTap: () {}),
+            _InfoTile(label: 'Version', value: '1.0.0',
+              textColor: textColor, muted: muted),
+          ]),
+
+          const SizedBox(height: 12),
+
+          // ── Danger zone ───────────────────────────────────────────────────
+          _Group(surface: surface, divider: divider, children: [
+            _Tile(
+              icon: PhosphorIcons.signOut(PhosphorIconsStyle.regular),
+              label: 'Sign Out',
+              primary: const Color(0xFF9B111E),
+              textColor: const Color(0xFF9B111E),
+              onTap: () async {
+                final ok = await showDialog<bool>(
+                  context: context,
+                  builder: (_) => AlertDialog(
+                    title: const Text('Sign out?',
+                      style: TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.w700)),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: const Text('Cancel', style: TextStyle(fontFamily: 'DMSans'))),
+                      TextButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: const Text('Sign Out',
+                          style: TextStyle(color: Color(0xFF9B111E), fontFamily: 'DMSans'))),
+                    ],
+                  ),
+                );
+                if (ok == true && context.mounted) {
+                  context.read<AuthProvider>().logout();
+                  Navigator.pushNamedAndRemoveUntil(context, '/login', (_) => false);
+                }
+              }),
+            _Tile(
+              icon: PhosphorIcons.trash(PhosphorIconsStyle.regular),
+              label: 'Delete Account',
+              primary: const Color(0xFF9B111E),
+              textColor: const Color(0xFF9B111E),
+              onTap: () => Navigator.pushNamed(context, '/settings/delete-account')),
+          ]),
+        ],
+      ),
+    );
   }
 }
 
-class _SettingsTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final Widget trailing;
+// ── Moments privacy tile ──────────────────────────────────────────────────────
+
+class _MomentsPrivacyTile extends StatefulWidget {
+  final Color surface, divider, textColor, primary;
+  final bool isDark;
+  const _MomentsPrivacyTile({
+    required this.surface, required this.divider,
+    required this.textColor, required this.primary, required this.isDark});
+
+  @override
+  State<_MomentsPrivacyTile> createState() => _MomentsPrivacyTileState();
+}
+
+class _MomentsPrivacyTileState extends State<_MomentsPrivacyTile> {
+  // These three were plain in-memory fields initialised to `true`, so every
+  // rebuild of the settings screen reset them — toggling anything off looked
+  // like it silently failed to save. They're now backed by MomentsPrefs.
+  bool _publicByDefault = true;
+  bool _allowSaves = true;
+  bool _allowShares = true;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final p = await MomentsPrefs.load();
+    if (!mounted) return;
+    setState(() {
+      _publicByDefault = p.publicByDefault;
+      _allowSaves = p.allowSaves;
+      _allowShares = p.allowShares;
+      _loaded = true;
+    });
+  }
+
+  Future<void> _set(String field, bool value, void Function(bool) apply) async {
+    setState(() => apply(value));
+    await MomentsPrefs.save(
+      publicByDefault: _publicByDefault,
+      allowSaves: _allowSaves,
+      allowShares: _allowShares,
+    );
+    // Best-effort server sync. Saves/shares need server-side enforcement to
+    // mean anything; until the backend carries these fields the PATCH is a
+    // no-op and the local value still drives the UI.
+    unawaited(MomentsPrefs.syncToServer(field, value));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loaded) {
+      return _Group(surface: widget.surface, divider: widget.divider, children: [
+        const SizedBox(
+          height: 168,
+          child: Center(
+            child: SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ),
+      ]);
+    }
+
+    return _Group(surface: widget.surface, divider: widget.divider, children: [
+      _SwitchTile(
+        icon: PhosphorIcons.globe(PhosphorIconsStyle.regular),
+        label: 'Public moments by default',
+        sublabel: _publicByDefault ? 'Everyone can see your moments' : 'Only connections see your moments',
+        value: _publicByDefault,
+        primary: widget.primary, textColor: widget.textColor,
+        onChanged: (v) => _set('moments_public_by_default', v,
+            (b) => _publicByDefault = b)),
+      _SwitchTile(
+        icon: PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.regular),
+        label: 'Allow saves',
+        sublabel: 'Let others save your moments',
+        value: _allowSaves,
+        primary: widget.primary, textColor: widget.textColor,
+        onChanged: (v) => _set('moments_allow_saves', v,
+            (b) => _allowSaves = b)),
+      _SwitchTile(
+        icon: PhosphorIcons.shareFat(PhosphorIconsStyle.regular),
+        label: 'Allow shares',
+        sublabel: 'Let others share your moments',
+        value: _allowShares,
+        primary: widget.primary, textColor: widget.textColor,
+        onChanged: (v) => _set('moments_allow_shares', v,
+            (b) => _allowShares = b)),
+    ]);
+  }
+}
+
+// ── Shared sub-widgets ────────────────────────────────────────────────────────
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+  final Color textColor;
+  const _SectionHeader({required this.label, required this.textColor});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
+    child: Text(label.toUpperCase(),
+      style: TextStyle(fontFamily: 'DMSans', fontSize: 11,
+        fontWeight: FontWeight.w700, color: textColor, letterSpacing: 0.9)));
+}
+
+class _Group extends StatelessWidget {
+  final Color surface, divider;
+  final List<Widget> children;
+  const _Group({required this.surface, required this.divider, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    final List<Widget> separated = [];
+    for (int i = 0; i < children.length; i++) {
+      separated.add(children[i]);
+      if (i < children.length - 1) {
+        separated.add(Divider(height: 1, color: divider, indent: 56));
+      }
+    }
+    return Container(
+      decoration: BoxDecoration(
+        color: surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: divider)),
+      child: Column(children: separated));
+  }
+}
+
+class _Tile extends StatelessWidget {
+  final PhosphorIconData icon;
+  final String label;
+  final Color primary, textColor;
   final VoidCallback onTap;
 
-  const _SettingsTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.trailing,
+  const _Tile({
+    required this.icon, required this.label,
+    required this.primary, required this.textColor,
     required this.onTap});
 
   @override
-  Widget build(BuildContext context) {
-    final textColor = context.textColor;
-    final primary = context.primaryColor;
-
-    return ListTile(
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      leading: Container(
-        width: 36, height: 36,
-        decoration: BoxDecoration(
-          color: primary.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, size: 18, color: primary)),
-      title: Text(title,
-        style: TextStyle(
-          fontFamily: 'DMSans',
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-          color: textColor)),
-      subtitle: Text(subtitle,
-        style: TextStyle(
-          fontFamily: 'DMSans',
-          fontSize: 12,
-          color: textColor.withOpacity(0.5))),
-      trailing: trailing);
-  }
+  Widget build(BuildContext context) => ListTile(
+    onTap: onTap,
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: Container(
+      width: 34, height: 34,
+      decoration: BoxDecoration(
+        color: primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(10)),
+      child: Center(child: PhosphorIcon(icon, size: 17, color: primary))),
+    title: Text(label,
+      style: TextStyle(fontFamily: 'DMSans', fontSize: 14,
+        fontWeight: FontWeight.w500, color: textColor)),
+    trailing: PhosphorIcon(PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
+      size: 15, color: textColor.withOpacity(0.3)));
 }
 
-class _ColorDot extends StatelessWidget {
-  final Color color;
+class _SwitchTile extends StatelessWidget {
+  final PhosphorIconData icon;
   final String label;
-  final bool hasBorder;
+  final String? sublabel;
+  final bool value;
+  final Color primary, textColor;
+  final ValueChanged<bool> onChanged;
 
-  const _ColorDot({
-    required this.color,
-    required this.label,
-    this.hasBorder = false});
+  const _SwitchTile({
+    required this.icon, required this.label,
+    this.sublabel,
+    required this.value, required this.primary, required this.textColor,
+    required this.onChanged});
 
   @override
-  Widget build(BuildContext context) {
-    final textColor = context.textColor;
-    return Column(children: [
-      Container(
-        width: 32, height: 32,
-        decoration: BoxDecoration(
-          color: color,
-          shape: BoxShape.circle,
-          border: hasBorder ? Border.all(color: textColor.withOpacity(0.15), width: 1) : null)),
-      const SizedBox(height: 4),
+  Widget build(BuildContext context) => ListTile(
+    onTap: () => onChanged(!value),
+    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 2),
+    leading: Container(
+      width: 34, height: 34,
+      decoration: BoxDecoration(
+        color: primary.withOpacity(0.10),
+        borderRadius: BorderRadius.circular(10)),
+      child: Center(child: PhosphorIcon(icon, size: 17, color: primary))),
+    title: Text(label,
+      style: TextStyle(fontFamily: 'DMSans', fontSize: 14,
+        fontWeight: FontWeight.w500, color: textColor)),
+    subtitle: sublabel != null
+      ? Text(sublabel!,
+          style: TextStyle(fontFamily: 'DMSans', fontSize: 11,
+            color: textColor.withOpacity(0.45)))
+      : null,
+    trailing: Switch(
+      value: value,
+      onChanged: onChanged,
+      activeColor: primary,
+      activeTrackColor: primary.withOpacity(0.25),
+      inactiveThumbColor: Colors.white,
+      inactiveTrackColor: Colors.grey.shade300,
+      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap));
+}
+
+class _InfoTile extends StatelessWidget {
+  final String label, value;
+  final Color textColor, muted;
+  const _InfoTile({required this.label, required this.value,
+    required this.textColor, required this.muted});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+    child: Row(children: [
       Text(label,
-        style: TextStyle(
-          fontFamily: 'DMSans',
-          fontSize: 9,
-          color: textColor.withOpacity(0.5))),
-    ]);
-  }
+        style: TextStyle(fontFamily: 'DMSans', fontSize: 14,
+          fontWeight: FontWeight.w500, color: textColor)),
+      const Spacer(),
+      Text(value,
+        style: TextStyle(fontFamily: 'DMSans', fontSize: 13, color: muted)),
+    ]));
 }

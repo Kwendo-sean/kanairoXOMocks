@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
 import 'package:kanairoxo/screens/discovery_screen.dart';
@@ -6,9 +7,10 @@ import 'package:kanairoxo/screens/moments_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_screen.dart';
 import 'package:kanairoxo/screens/messaging/conversations_screen.dart';
 import 'package:kanairoxo/widgets/bottom_nav_bar.dart';
+import 'package:kanairoxo/widgets/liquid_glass_navbar.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/providers/events_provider.dart';
-import 'dart:io';
 
 class MainAppScreen extends StatefulWidget {
   const MainAppScreen({super.key});
@@ -101,11 +103,24 @@ class _MainAppScreenState extends State<MainAppScreen> {
           itemCount: 5,
           itemBuilder: (_, i) => _screenAt(i),
         ),
-        bottomNavigationBar: BottomNavBar(
-          currentIndex: _currentIndex,
-          onTap: _onItemTapped,
-          onSettingsLongPress: () => Navigator.pushNamed(context, '/settings'),
-        ),
+        bottomNavigationBar: Platform.isIOS
+            ? LiquidGlassNavbar(
+                currentIndex: _currentIndex,
+                onTap: _onItemTapped,
+                onLongPressLastItem: () => Navigator.pushNamed(context, '/settings'),
+                items: [
+                  LiquidNavItem(icon: PhosphorIcons.compass(PhosphorIconsStyle.regular),     label: 'Discover'),
+                  LiquidNavItem(icon: PhosphorIcons.calendar(PhosphorIconsStyle.regular),    label: 'Events'),
+                  LiquidNavItem(icon: PhosphorIcons.sparkle(PhosphorIconsStyle.regular),     label: 'Moments'),
+                  LiquidNavItem(icon: PhosphorIcons.chatsCircle(PhosphorIconsStyle.regular), label: 'Messages'),
+                  LiquidNavItem(icon: PhosphorIcons.user(PhosphorIconsStyle.regular),        label: 'Profile'),
+                ],
+              )
+            : BottomNavBar(
+                currentIndex: _currentIndex,
+                onTap: _onItemTapped,
+                onSettingsLongPress: () => Navigator.pushNamed(context, '/settings'),
+              ),
       ),
     );
   }

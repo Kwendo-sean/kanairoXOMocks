@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart' show Color;
 import 'package:kanairoxo/utils/constants.dart';
 
 class UserProfile {
@@ -100,6 +101,10 @@ class Experience {
   final bool isFeatured;
   final bool isVerified;
   final String status;
+  /// Backend-computed display status: live | ongoing | completed | draft | cancelled | pending_approval
+  final String displayStatus;
+  /// Backend flag: true if the event is in the past
+  final bool isPast;
   final String eventType;
   final ExperienceCategory? category;
   final List<ExperienceTag> tags;
@@ -112,6 +117,11 @@ class Experience {
   final Map<String, dynamic>? analytics;
   final int savesCount;
   final int sharesCount;
+  /// How many of the viewer's connections are attending, plus a few of their
+  /// avatars for the card's social-proof stack. Backend-supplied; defaults to
+  /// empty so the UI simply hides the stack when absent.
+  final int connectionsGoingCount;
+  final List<String> connectionsGoingAvatars;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -141,6 +151,8 @@ class Experience {
     required this.isFeatured,
     required this.isVerified,
     required this.status,
+    this.displayStatus = '',
+    this.isPast = false,
     required this.eventType,
     this.category,
     required this.tags,
@@ -153,6 +165,8 @@ class Experience {
     this.analytics,
     required this.savesCount,
     required this.sharesCount,
+    this.connectionsGoingCount = 0,
+    this.connectionsGoingAvatars = const [],
     required this.createdAt,
     required this.updatedAt,
   });
@@ -194,6 +208,8 @@ class Experience {
       isFeatured: json['is_featured'] ?? false,
       isVerified: json['is_verified'] ?? false,
       status: json['status'] ?? 'live',
+      displayStatus: json['display_status']?.toString() ?? '',
+      isPast: json['is_past'] ?? false,
       eventType: json['event_type'] ?? 'community',
       category: json['category'] != null
           ? (json['category'] is String 
@@ -229,6 +245,11 @@ class Experience {
       analytics: json['analytics'],
       savesCount: json['saves_count'] ?? json['save_count'] ?? 0,
       sharesCount: json['shares_count'] ?? json['share_count'] ?? 0,
+      connectionsGoingCount: json['connections_going_count'] ?? 0,
+      connectionsGoingAvatars: ((json['connections_going_avatars'] as List?) ?? [])
+          .map((a) => ApiConstants.fixMediaUrl(a))
+          .where((a) => a.isNotEmpty)
+          .toList(),
       createdAt: json['created_at'] != null ? DateTime.parse(json['created_at']) : DateTime.now(),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at']) : DateTime.now(),
     );
@@ -259,6 +280,8 @@ class Experience {
         'is_featured': isFeatured,
         'is_verified': isVerified,
         'status': status,
+        'display_status': displayStatus,
+        'is_past': isPast,
         'event_type': eventType,
         'category': category?.toJson(),
         'tags': tags.map((x) => x.toJson()).toList(),
@@ -270,6 +293,8 @@ class Experience {
         'pricing_tiers': pricingTiers.map((x) => x.toJson()).toList(),
         'saves_count': savesCount,
         'shares_count': sharesCount,
+        'connections_going_count': connectionsGoingCount,
+        'connections_going_avatars': connectionsGoingAvatars,
         'created_at': createdAt.toIso8601String(),
         'updated_at': updatedAt.toIso8601String(),
       };
@@ -306,6 +331,8 @@ class Experience {
       isFeatured: isFeatured,
       isVerified: isVerified,
       status: status,
+      displayStatus: displayStatus,
+      isPast: isPast,
       eventType: eventType,
       category: category,
       tags: tags,
@@ -318,6 +345,8 @@ class Experience {
       analytics: analytics,
       savesCount: savesCount ?? this.savesCount,
       sharesCount: sharesCount,
+      connectionsGoingCount: connectionsGoingCount,
+      connectionsGoingAvatars: connectionsGoingAvatars,
       createdAt: createdAt,
       updatedAt: updatedAt,
     );
@@ -341,6 +370,35 @@ class Experience {
 
   String get formattedTime {
     return '${startDateTime.hour.toString().padLeft(2, '0')}:${startDateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  /// Returns the badge label to show on cards/details, respecting backend priority.
+  /// cancelled and draft always win; ongoing shows "Happening Now"; completed/past → "Past Event".
+  /// Returns null when no public badge should be shown.
+  String? get statusBadgeLabel {
+    final ds = displayStatus.isNotEmpty ? displayStatus : status;
+    switch (ds) {
+      case 'cancelled': return 'Cancelled';
+      case 'draft':
+      case 'pending_approval': return null; // not public
+      case 'ongoing': return 'Happening Now';
+      case 'completed': return 'Past Event';
+      default:
+        // Fallback to clock-based detection when backend doesn't send display_status
+        if (isPast || endDateTime.isBefore(DateTime.now())) return 'Past Event';
+        if (isOngoing) return 'Happening Now';
+        return null;
+    }
+  }
+
+  /// Badge color matching the label.
+  Color? get statusBadgeColor {
+    switch (statusBadgeLabel) {
+      case 'Cancelled': return const Color(0xFF9B111E);
+      case 'Happening Now': return const Color(0xFF1E8B4F);
+      case 'Past Event': return const Color(0xFF555555);
+      default: return null;
+    }
   }
 
   bool get isUpcoming => startDateTime.isAfter(DateTime.now());

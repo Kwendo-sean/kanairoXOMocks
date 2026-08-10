@@ -21,9 +21,15 @@ class AuthService {
     required String phoneNumber,
     required String password,
   }) async {
-    final formattedPhone = _formatPhoneNumber(phoneNumber);
+    // P1-5: send `identifier` key; the backend accepts email or phone.
+    // If the input looks like a phone number, format it. Otherwise send as-is.
+    final bool looksLikePhone = !phoneNumber.contains('@');
+    final String identifier =
+        looksLikePhone ? _formatPhoneNumber(phoneNumber) : phoneNumber.trim();
     final response = await _api.post('api/v1/auth/login/', {
-      'phone_number': formattedPhone,
+      'identifier': identifier,
+      // Keep `phone_number` fallback so older backend versions still work.
+      if (looksLikePhone) 'phone_number': identifier,
       'password': password,
     });
     await _api.saveTokens(response['access'], response['refresh']);

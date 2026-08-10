@@ -168,21 +168,32 @@ class EventCard extends StatelessWidget {
                     ),
             ),
 
-            // Layer 4 — bookmark icon top-right
-            Positioned(
-              top: 10,
-              right: 10,
-              child: IconButton(
-                icon: Icon(
-                  isBookmarked
-                      ? AppIcons.bookmarkFill
-                      : AppIcons.bookmark,
+            // Layer 3b — display_status badge (top-center)
+            if (event.statusBadgeLabel != null)
+              Positioned(
+                top: 14,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: event.statusBadgeColor ?? Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      event.statusBadgeLabel!.toUpperCase(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontFamily: 'DMSans',
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.8,
+                      ),
+                    ),
+                  ),
                 ),
-                color: Colors.white,
-                iconSize: 22,
-                onPressed: () => onSaveToggle?.call(event),
               ),
-            ),
 
             // Layer 5 — event details bottom
             Positioned(
@@ -285,6 +296,29 @@ class EventCard extends StatelessWidget {
                 color: Colors.transparent,
                 child: InkWell(
                   onTap: onTap,
+                ),
+              ),
+            ),
+
+            // Bookmark sits above the card-wide tap overlay, otherwise the
+            // InkWell swallows its taps and saving never fires.
+            Positioned(
+              top: 10,
+              right: 10,
+              child: Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: () => onSaveToggle?.call(event),
+                  child: Padding(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      isBookmarked ? AppIcons.bookmarkFill : AppIcons.bookmark,
+                      color: Colors.white,
+                      size: 22,
+                    ),
+                  ),
                 ),
               ),
             ),

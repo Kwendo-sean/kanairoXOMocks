@@ -28,9 +28,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       'icon': Icons.calendar_today_outlined,
     },
     {
-      'title': 'Your Mood Matters',
-      'description': 'Our AI matches you with experiences based on how you\'re feeling.',
-      'icon': Icons.favorite_border_outlined,
+      'title': 'Go on Real Dates',
+      'description': 'Discover Nairobi\'s best spots and plan meaningful dates with people who get you.',
+      'icon': Icons.restaurant_outlined,
     },
   ];
   

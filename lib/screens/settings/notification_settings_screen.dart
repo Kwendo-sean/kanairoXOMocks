@@ -33,24 +33,22 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
     }
   }
 
-  Future<void> _togglePreference(int index, String field, bool value) async {
-    final updatedPref = Map<String, dynamic>.from(_preferences[index]);
-    updatedPref[field] = value;
+  /// One switch per category — flips push and in-app together. Email is never
+  /// exposed; the backend keeps whatever it already has for that channel.
+  Future<void> _togglePreference(int index, bool value) async {
+    final previous = Map<String, dynamic>.from(_preferences[index]);
+    final updated = Map<String, dynamic>.from(previous)
+      ..['push_enabled'] = value
+      ..['in_app_enabled'] = value;
 
-    setState(() {
-      _preferences[index] = updatedPref;
-    });
+    setState(() => _preferences[index] = updated);
 
     try {
       await apiClient.patch('api/v1/notifications/preferences/', {
-        'preferences': [_preferences[index]]
+        'preferences': [updated]
       });
     } catch (e) {
-      // Revert on error
-      setState(() {
-        _preferences[index][field] = !value;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Failed to update preference')));
+      setState(() => _preferences[index] = previous);
     }
   }
 
@@ -73,7 +71,6 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
               _buildGroup('Messages', ['new_message']),
               _buildGroup('Events', ['event_reminder', 'ticket_ready']),
               _buildGroup('Dates', ['date_request', 'date_accepted', 'date_declined', 'date_reminder']),
-              _buildGroup('Marketing', ['marketing']),
             ],
           ),
     );
@@ -113,42 +110,25 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
   }
 
   Widget _buildPrefTile(int index, Map<String, dynamic> pref) {
-    final label = pref['category'].toString().replaceAll('_', ' ').replaceFirst(pref['category'][0], pref['category'][0].toUpperCase());
-    
+    final raw = pref['category'].toString();
+    final label = raw.replaceAll('_', ' ').replaceFirst(raw[0], raw[0].toUpperCase());
+    final enabled = pref['push_enabled'] == true || pref['in_app_enabled'] == true;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
         children: [
-          Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              _buildToggle(index, 'Push', 'push_enabled', pref['push_enabled']),
-              const SizedBox(width: 24),
-              _buildToggle(index, 'In-App', 'in_app_enabled', pref['in_app_enabled']),
-              const SizedBox(width: 24),
-              _buildToggle(index, 'Email', 'email_enabled', pref['email_enabled']),
-            ],
+          Expanded(
+            child: Text(label,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+          ),
+          Switch(
+            value: enabled,
+            activeColor: AppConstants.primaryRed,
+            onChanged: (val) => _togglePreference(index, val),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildToggle(int index, String label, String field, bool value) {
-    return Row(
-      children: [
-        Transform.scale(
-          scale: 0.8,
-          child: Switch(
-            value: value,
-            activeColor: AppConstants.primaryRed,
-            onChanged: (val) => _togglePreference(index, field, val),
-          ),
-        ),
-        Text(label, style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
-      ],
     );
   }
 }

@@ -1,28 +1,52 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  iOS Associated Domains entitlement for kanairoxo.online universal links.
+  This project currently signs with a FREE Apple Developer Personal Team.
 
-  IMPORTANT: this file is not auto-attached to the Xcode project. After
-  cloning, open ios/Runner.xcworkspace, select the Runner target →
-  Signing & Capabilities → "+ Capability" → Associated Domains, then
-  add the entry:
-        applinks:kanairoxo.online
+  Two capabilities are therefore unavailable, and adding their keys here
+  will fail code signing rather than enable the feature:
 
-  Xcode will also auto-add this file (Runner.entitlements) to the
-  Code Signing Entitlements build setting. After the first add, the
-  capability persists across builds.
+    1. Push notifications      (aps-environment)
+    2. Universal links         (com.apple.developer.associated-domains)
 
-  Apple verifies the entitlement against
-    https://kanairoxo.online/.well-known/apple-app-site-association
-  which the backend serves once APP_APPLE_TEAM_ID + APP_APPLE_BUNDLE_ID
-  are set in /opt/kanairoxo/.env on the production server.
+  Consequences today:
+    - Remote/push notifications do not arrive. NotificationService detects
+      the missing APNs token and skips device registration quietly.
+      In-app polling still surfaces new messages.
+    - https://kanairoxo.online/... links open Safari, not the app.
+      The kanairoxo:// custom scheme DOES work on a free team and routes
+      through DeepLinks — that path is unaffected.
+
+  ── When upgrading to a paid membership ($99/yr) ────────────────────────
+  Add both keys back:
+
+    <key>aps-environment</key>
+    <string>development</string>
+
+    <key>com.apple.developer.associated-domains</key>
+    <array>
+      <string>applinks:kanairoxo.online</string>
+      <string>applinks:app.kanairoxo.online</string>
+    </array>
+
+  Then also:
+    - Enable Push Notifications + Associated Domains on the App ID in the
+      Apple Developer portal.
+    - Upload the APNs auth key (.p8) to Firebase Console → Project
+      Settings → Cloud Messaging. Without it FCM cannot deliver to iOS
+      even once the entitlement is present.
+    - Serve /.well-known/apple-app-site-association from both domains
+      over HTTPS, no redirect, Content-Type application/json.
+    - Switch aps-environment to "production" for TestFlight/App Store.
+
+  The app-group below powers the home-screen widget and works on free
+  accounts — leave it in place.
 -->
 <plist version="1.0">
 <dict>
-    <key>com.apple.developer.associated-domains</key>
+    <key>com.apple.security.application-groups</key>
     <array>
-        <string>applinks:kanairoxo.online</string>
+        <string>group.com.kanairoxo.kanairoxo</string>
     </array>
 </dict>
 </plist>

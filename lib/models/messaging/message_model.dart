@@ -16,8 +16,10 @@ class MessageModel {
   final bool isRead;
   final DateTime sentAt;
   final bool isDeleted;
-  final bool isMine; // Added as per requirement
-  
+  final bool isMine;
+  // [{emoji, count, reacted_by_me}] — populated by backend once reactions are live
+  final List<Map<String, dynamic>> reactions;
+
   MessageModel({
     required this.id,
     required this.conversationId,
@@ -34,8 +36,30 @@ class MessageModel {
     required this.sentAt,
     required this.isDeleted,
     required this.isMine,
+    this.reactions = const [],
   });
-  
+
+  MessageModel copyWith({List<Map<String, dynamic>>? reactions, bool? isDeleted}) {
+    return MessageModel(
+      id: id,
+      conversationId: conversationId,
+      senderId: senderId,
+      senderName: senderName,
+      senderPhotoUrl: senderPhotoUrl,
+      messageType: messageType,
+      content: content,
+      mediaUrl: mediaUrl,
+      mediaDuration: mediaDuration,
+      suggestionType: suggestionType,
+      suggestionData: suggestionData,
+      isRead: isRead,
+      sentAt: sentAt,
+      isDeleted: isDeleted ?? this.isDeleted,
+      isMine: isMine,
+      reactions: reactions ?? this.reactions,
+    );
+  }
+
   factory MessageModel.fromJson(Map<String, dynamic> json) {
     return MessageModel(
       id: json['id']?.toString() ?? '',
@@ -55,7 +79,11 @@ class MessageModel {
       // message three hours behind Nairobi.
       sentAt: (DateTime.tryParse(json['sent_at'] ?? '') ?? DateTime.now()).toLocal(),
       isDeleted: json['is_deleted'] ?? false,
-      isMine: json['is_mine'] ?? false, // Added as per requirement
+      isMine: json['is_mine'] ?? false,
+      reactions: (json['reactions'] as List?)
+              ?.map((r) => r as Map<String, dynamic>)
+              .toList() ??
+          [],
     );
   }
 }

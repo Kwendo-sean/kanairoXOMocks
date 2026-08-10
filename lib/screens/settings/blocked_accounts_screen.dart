@@ -43,7 +43,7 @@ class _BlockedAccountsScreenState extends State<BlockedAccountsScreen> {
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to unblock: $e'), backgroundColor: Colors.red),
+        const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E)),
       );
     }
   }

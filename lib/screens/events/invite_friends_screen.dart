@@ -1,25 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
 import 'package:kanairoxo/services/tickets_service.dart';
 
 /// Combined screen for the two flavours of "bring friends":
 ///
-///   Mode.invite     — send referral invites by email. Each recipient
-///                     gets a Resend email with the event short URL.
-///                     They buy their own ticket. The inviter's
-///                     "Going with you" widget lights up after they do.
-///
-///   Mode.groupBuy   — buy N tickets in one M-Pesa STK push. Each
-///                     recipient's ticket lands in their inbox via
-///                     the same Resend email flow used for individual
-///                     ticket confirmations.
+///   Mode.invite     — send referral invites by email.
+///   Mode.groupBuy   — buy N tickets in one M-Pesa STK push.
 class InviteFriendsScreen extends StatefulWidget {
   final String eventId;
   final String eventTitle;
   final InviteMode initialMode;
   final String? pricingTierId;
-  final num? unitPrice;       // KSh, for the group-buy total
+  final num? unitPrice;
   const InviteFriendsScreen({
     super.key,
     required this.eventId,
@@ -43,6 +37,8 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
   bool _busy = false;
   final _events = EventsApiService();
   final _tickets = TicketsService();
+
+  static const _accent = Color(0xFF9B111E);
 
   @override
   void initState() {
@@ -76,17 +72,12 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
         .where((m) => (m['email'] ?? '').isNotEmpty)
         .toList();
 
-    if (cleaned.isEmpty) {
-      _toast('Add at least one email');
-      return;
-    }
+    if (cleaned.isEmpty) { _toast('Add at least one email'); return; }
     if (_mode == InviteMode.groupBuy && cleaned.length < 2) {
-      _toast('Group purchase needs 2 or more recipients. Use Invite for one friend.');
-      return;
+      _toast('Group purchase needs 2 or more recipients.'); return;
     }
     if (_mode == InviteMode.groupBuy && _phoneCtrl.text.trim().isEmpty) {
-      _toast('Enter the M-Pesa phone number paying for the group');
-      return;
+      _toast('Enter the M-Pesa phone number paying for the group'); return;
     }
 
     setState(() => _busy = true);
@@ -102,9 +93,10 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
         _toast('Invited $sent ${sent == 1 ? 'friend' : 'friends'}');
         if (mounted) Navigator.of(context).pop();
         if (shareUrl.isNotEmpty) {
-          // After dismissal, offer to share the link in WhatsApp / etc.
           Future.delayed(const Duration(milliseconds: 250), () {
-            Share.share('${widget.eventTitle} — $shareUrl');
+            if (!mounted) return;
+            Share.share('${widget.eventTitle} — $shareUrl',
+              sharePositionOrigin: shareOriginFor(context));
           });
         }
       } else {
@@ -130,170 +122,191 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(m)));
   }
 
-  Widget _modePicker() {
-    Widget chip(InviteMode m, String label, IconData icon) {
-      final selected = _mode == m;
-      return Expanded(child: GestureDetector(
-        onTap: () => setState(() => _mode = m),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          decoration: BoxDecoration(
-            color: selected ? const Color(0xFFC0394B) : Colors.white.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: selected ? const Color(0xFFC0394B) : Colors.white.withOpacity(0.10)),
-          ),
-          child: Column(children: [
-            Icon(icon, color: Colors.white, size: 18),
-            const SizedBox(height: 4),
-            Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-          ]),
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final bg      = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surface = isDark ? const Color(0xFF1C1614) : Colors.white;
+    final text    = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final muted   = isDark ? Colors.white60 : const Color(0xFF1A1A1A).withOpacity(0.50);
+    final border  = isDark ? Colors.white.withOpacity(0.08) : Colors.black.withOpacity(0.08);
+
+    final isGroup = _mode == InviteMode.groupBuy;
+
+    return Scaffold(
+      backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: bg,
+        elevation: 0,
+        title: Text('Bring friends',
+          style: TextStyle(fontFamily: 'DMSans', color: text,
+            fontSize: 17, fontWeight: FontWeight.w600)),
+        iconTheme: IconThemeData(color: text),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Text(widget.eventTitle,
+              style: TextStyle(color: text, fontSize: 16,
+                fontFamily: 'DMSans', fontWeight: FontWeight.w600)),
+            const SizedBox(height: 16),
+
+            // Mode picker
+            Container(
+              decoration: BoxDecoration(
+                color: surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: border),
+              ),
+              child: Row(children: [
+                _modeChip(InviteMode.invite, 'Invite friends', Icons.send_outlined, text, isDark),
+                _modeChip(InviteMode.groupBuy, 'Buy for group', Icons.payments_outlined, text, isDark),
+              ]),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              isGroup
+                ? 'Pay for everyone in one M-Pesa prompt. Each person gets their own ticket.'
+                : 'Send your friends the event link. They grab their own ticket.',
+              style: TextStyle(color: muted, fontSize: 12, height: 1.5, fontFamily: 'DMSans'),
+            ),
+
+            const SizedBox(height: 22),
+            Text('Recipients',
+              style: TextStyle(color: muted, fontSize: 11,
+                letterSpacing: 1.8, fontWeight: FontWeight.w700, fontFamily: 'DMSans')),
+            const SizedBox(height: 10),
+            for (var i = 0; i < _recipients.length; i++) _row(i, text, border, isDark),
+            TextButton.icon(
+              icon: const Icon(Icons.add, color: _accent),
+              label: const Text('Add another',
+                style: TextStyle(color: _accent, fontFamily: 'DMSans')),
+              onPressed: _addRow,
+            ),
+
+            const SizedBox(height: 18),
+            TextField(
+              controller: _msgCtrl,
+              maxLines: 3,
+              maxLength: 200,
+              style: TextStyle(color: text, fontFamily: 'DMSans'),
+              decoration: _decoration('Message (optional)', text, border, isDark),
+            ),
+
+            if (isGroup) ...[
+              const SizedBox(height: 12),
+              TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                style: TextStyle(color: text, fontFamily: 'DMSans'),
+                decoration: _decoration('Your M-Pesa phone (e.g. +254712345678)', text, border, isDark),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _accent.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: _accent.withOpacity(0.25)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.payments_outlined, color: _accent),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(
+                    'Total: KSh ${_total.toStringAsFixed(0)} '
+                    '(${_recipients.length} × KSh ${widget.unitPrice?.toStringAsFixed(0) ?? '—'})',
+                    style: TextStyle(color: text, fontWeight: FontWeight.w600, fontFamily: 'DMSans'),
+                  )),
+                ]),
+              ),
+            ],
+
+            const SizedBox(height: 26),
+            ElevatedButton(
+              onPressed: _busy ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _accent,
+                foregroundColor: Colors.white,
+                minimumSize: const Size.fromHeight(52),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+              ),
+              child: _busy
+                ? const SizedBox(width: 22, height: 22,
+                    child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : Text(isGroup ? 'Pay KSh ${_total.toStringAsFixed(0)}' : 'Send invites',
+                    style: const TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.w700)),
+            ),
+          ],
         ),
-      ));
-    }
-    return Row(children: [
-      chip(InviteMode.invite, 'Invite friends', Icons.send),
-      const SizedBox(width: 10),
-      chip(InviteMode.groupBuy, 'Buy for group', Icons.payments),
-    ]);
+      ),
+    );
   }
 
-  Widget _row(int i) {
+  Widget _modeChip(InviteMode m, String label, IconData icon, Color text, bool isDark) {
+    final selected = _mode == m;
+    return Expanded(child: GestureDetector(
+      onTap: () => setState(() => _mode = m),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: selected ? _accent : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(children: [
+          Icon(icon, color: selected ? Colors.white : text.withOpacity(0.55), size: 18),
+          const SizedBox(height: 4),
+          Text(label,
+            style: TextStyle(
+              color: selected ? Colors.white : text.withOpacity(0.55),
+              fontSize: 12, fontWeight: FontWeight.w600, fontFamily: 'DMSans')),
+        ]),
+      ),
+    ));
+  }
+
+  Widget _row(int i, Color text, Color border, bool isDark) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(children: [
         Expanded(flex: 5, child: TextField(
           controller: _recipients[i].email,
-          decoration: _decoration('Email'),
-          style: const TextStyle(color: Colors.white),
+          decoration: _decoration('Email', text, border, isDark),
+          style: TextStyle(color: text, fontFamily: 'DMSans'),
           keyboardType: TextInputType.emailAddress,
         )),
         const SizedBox(width: 8),
         Expanded(flex: 4, child: TextField(
           controller: _recipients[i].name,
-          decoration: _decoration('Name'),
-          style: const TextStyle(color: Colors.white),
+          decoration: _decoration('Name', text, border, isDark),
+          style: TextStyle(color: text, fontFamily: 'DMSans'),
         )),
         IconButton(
           icon: Icon(Icons.remove_circle_outline,
-              color: _recipients.length == 1 ? Colors.white24 : Colors.white70),
+            color: _recipients.length == 1 ? text.withOpacity(0.2) : text.withOpacity(0.55)),
           onPressed: _recipients.length == 1 ? null : () => _removeRow(i),
         ),
       ]),
     );
   }
 
-  InputDecoration _decoration(String hint) => InputDecoration(
+  InputDecoration _decoration(String hint, Color text, Color border, bool isDark) => InputDecoration(
     hintText: hint,
-    hintStyle: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 13),
+    hintStyle: TextStyle(color: text.withOpacity(0.35), fontSize: 13, fontFamily: 'DMSans'),
     isDense: true,
     contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
     filled: true,
-    fillColor: Colors.white.withOpacity(0.05),
+    fillColor: isDark ? Colors.white.withOpacity(0.04) : Colors.black.withOpacity(0.03),
     enabledBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
-      borderSide: BorderSide(color: Colors.white.withOpacity(0.10)),
+      borderSide: BorderSide(color: border),
     ),
     focusedBorder: OutlineInputBorder(
       borderRadius: BorderRadius.circular(8),
-      borderSide: const BorderSide(color: Color(0xFFC0394B)),
+      borderSide: const BorderSide(color: _accent),
     ),
   );
-
-  @override
-  Widget build(BuildContext context) {
-    final isGroup = _mode == InviteMode.groupBuy;
-    return Scaffold(
-      backgroundColor: const Color(0xFF0F0F0F),
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Bring friends', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
-      ),
-      body: SafeArea(child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(widget.eventTitle,
-            style: const TextStyle(color: Colors.white, fontSize: 16, fontFamily: 'Georgia')),
-          const SizedBox(height: 14),
-          _modePicker(),
-          const SizedBox(height: 8),
-          Text(
-            isGroup
-              ? 'Pay for everyone in one M-Pesa prompt. Each person gets their own ticket emailed to them.'
-              : 'Send your friends the event. They grab their own ticket — you\'ll see them in "Going with you" once they do.',
-            style: TextStyle(color: Colors.white.withOpacity(0.55), fontSize: 12, height: 1.5),
-          ),
-
-          const SizedBox(height: 22),
-          Text('Recipients',
-            style: TextStyle(color: Colors.white.withOpacity(0.5),
-              fontSize: 11, letterSpacing: 2, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 10),
-          for (var i = 0; i < _recipients.length; i++) _row(i),
-          TextButton.icon(
-            icon: const Icon(Icons.add, color: Color(0xFFC0394B)),
-            label: const Text('Add another',
-                style: TextStyle(color: Color(0xFFC0394B))),
-            onPressed: _addRow,
-          ),
-
-          const SizedBox(height: 18),
-          TextField(
-            controller: _msgCtrl,
-            maxLines: 3,
-            maxLength: 200,
-            style: const TextStyle(color: Colors.white),
-            decoration: _decoration('Message (optional) — "come thru!"'),
-          ),
-
-          if (isGroup) ...[
-            const SizedBox(height: 18),
-            TextField(
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
-              decoration: _decoration('Your M-Pesa phone (e.g. +254712345678)'),
-            ),
-            const SizedBox(height: 14),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFC0394B).withOpacity(0.08),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFC0394B).withOpacity(0.3)),
-              ),
-              child: Row(children: [
-                const Icon(Icons.payments, color: Color(0xFFC0394B)),
-                const SizedBox(width: 10),
-                Expanded(child: Text(
-                  'Total: KSh ${_total.toStringAsFixed(0)} '
-                  '(${_recipients.length} × KSh ${widget.unitPrice?.toStringAsFixed(0) ?? '—'})',
-                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-                )),
-              ]),
-            ),
-          ],
-
-          const SizedBox(height: 26),
-          ElevatedButton(
-            onPressed: _busy ? null : _submit,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC0394B),
-              foregroundColor: Colors.white,
-              minimumSize: const Size.fromHeight(52),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-            ),
-            child: _busy
-              ? const SizedBox(width: 22, height: 22,
-                  child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-              : Text(isGroup ? 'Pay KSh ${_total.toStringAsFixed(0)}' : 'Send invites'),
-          ),
-        ],
-      )),
-    );
-  }
 }
 
 class _Recipient {

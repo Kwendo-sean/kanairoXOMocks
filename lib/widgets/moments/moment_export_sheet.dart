@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:gal/gal.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
+import 'package:kanairoxo/widgets/center_toast.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/tickets_service.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
@@ -190,17 +192,9 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
       } else {
         await Gal.putImage(f.path, album: 'KanairoXO');
       }
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Saved to gallery')),
-        );
-      }
+      if (mounted) CenterToast.show(context, 'Saved to gallery');
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Save failed: $e')),
-        );
-      }
+      if (mounted) CenterToast.show(context, 'Sorry, something went wrong', isError: true);
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -213,12 +207,11 @@ class _MomentExportSheetState extends State<MomentExportSheet> {
       await Share.shareXFiles(
         [XFile(f.path)],
         text: widget.captionForShare ?? 'My KanairoXO moment',
+        sharePositionOrigin: shareOriginFor(context),
       );
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Share failed: $e')),
-        );
+        CenterToast.show(context, 'Sorry, something went wrong', isError: true);
       }
     } finally {
       if (mounted) setState(() => _busy = false);

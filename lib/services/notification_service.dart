@@ -32,8 +32,20 @@ class NotificationService {
     const AndroidInitializationSettings initializationSettingsAndroid =
         AndroidInitializationSettings('@mipmap/ic_launcher');
 
+    // iOS won't display anything from flutter_local_notifications without
+    // this — it's what wires the plugin into UNUserNotificationCenter.
+    const DarwinInitializationSettings initializationSettingsDarwin =
+        DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+
     const InitializationSettings initializationSettings =
-        InitializationSettings(android: initializationSettingsAndroid);
+        InitializationSettings(
+      android: initializationSettingsAndroid,
+      iOS: initializationSettingsDarwin,
+    );
 
     await _localNotifications.initialize(
       initializationSettings,
@@ -50,6 +62,14 @@ class NotificationService {
 
     // Request permission (required on Android 13+ and iOS)
     await FirebaseMessaging.instance.requestPermission(
+      alert: true,
+      badge: true,
+      sound: true,
+    );
+
+    // Foreground push notifications on iOS arrive silently unless we tell
+    // APNs to still show the banner/sound while the app is active.
+    await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(
       alert: true,
       badge: true,
       sound: true,
@@ -193,6 +213,7 @@ class NotificationService {
 
   Future<void> registerFCMToken() async {
     try {
+      if (!await _waitForApnsToken()) return;
       final token = await FirebaseMessaging.instance.getToken();
       if (token != null) {
         await _apiClient.post('api/v1/auth/device/register/', {
@@ -205,8 +226,25 @@ class NotificationService {
     }
   }
 
+  /// On iOS, FCM can't mint a token until APNs has handed one to the app.
+  /// Calling getToken() before that throws, which silently killed device
+  /// registration. Poll briefly for the APNs token first.
+  Future<bool> _waitForApnsToken() async {
+    if (!Platform.isIOS) return true;
+    for (var attempt = 0; attempt < 10; attempt++) {
+      final apns = await FirebaseMessaging.instance.getAPNSToken();
+      if (apns != null) return true;
+      await Future.delayed(const Duration(milliseconds: 500));
+    }
+    // No APNs token — almost always a missing Push Notifications
+    // entitlement rather than anything transient.
+    debugPrint('APNs token unavailable; push is not configured for this build.');
+    return false;
+  }
+
   Future<void> registerDeviceToken() async {
     try {
+      if (!await _waitForApnsToken()) return;
       final token = await FirebaseMessaging.instance.getToken();
       if (token == null) return;
       await _sendTokenToBackend(token);
@@ -242,8 +280,16 @@ class NotificationService {
       importance: Importance.max,
       priority: Priority.high,
     );
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
+    const DarwinNotificationDetails iosPlatformChannelSpecifics =
+        DarwinNotificationDetails(
+      presentAlert: true,
+      presentBadge: true,
+      presentSound: true,
+    );
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+      iOS: iosPlatformChannelSpecifics,
+    );
     await _localNotifications.show(
       DateTime.now().millisecond,
       title,

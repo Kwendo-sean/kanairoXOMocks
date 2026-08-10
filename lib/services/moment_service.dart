@@ -12,13 +12,17 @@ class MomentService {
 
 
   Future<List<Moment>> getMoments({String? type}) async {
-    final queryParams = type != null ? {'type': type} : <String, String>{};
+    final queryParams = <String, String>{
+      'page_size': '100',
+      'ordering': '-created_at',
+      if (type != null) 'type': type,
+    };
     final response = await _api.get('api/v1/moments/', queryParameters: queryParams);
-    
-    final List data = response is List 
-        ? response 
+
+    final List data = response is List
+        ? response
         : (response['results'] ?? []);
-        
+
     return data.map((json) => Moment.fromJson(json)).toList();
   }
 

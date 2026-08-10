@@ -160,19 +160,45 @@ class ApiClient {
     });
   }
 
+  /// Retries transient failures (network drops, 5xx, 429) up to 3 attempts
+  /// with backoff before surfacing anything to the caller. Client errors and
+  /// auth failures are never retried — they won't succeed on a second try.
   Future<dynamic> _handleRequest(Future<http.Response> Function() request) async {
-    var response = await request();
+    const maxAttempts = 3;
+    Object? lastError;
 
-    if (response.statusCode == 401) {
-      if (await _refreshToken()) {
-        response = await request(); // Retry the request with the new token
-      } else {
-        // If refresh fails, throw a specific auth exception to be caught by the UI layer
-        throw AuthException('Your session has expired. Please log in again.');
+    for (var attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        var response = await request();
+
+        if (response.statusCode == 401) {
+          if (await _refreshToken()) {
+            response = await request();
+          } else {
+            throw AuthException('Your session has expired. Please log in again.');
+          }
+        }
+
+        final isTransient =
+            response.statusCode >= 500 || response.statusCode == 429;
+        if (isTransient && attempt < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: 400 * attempt));
+          continue;
+        }
+
+        return _handleResponse(response);
+      } on AuthException {
+        rethrow;
+      } catch (e) {
+        lastError = e;
+        if (attempt < maxAttempts) {
+          await Future.delayed(Duration(milliseconds: 400 * attempt));
+          continue;
+        }
       }
     }
 
-    return _handleResponse(response);
+    throw lastError ?? Exception('Request failed');
   }
 
   Future<bool> _refreshToken() async {

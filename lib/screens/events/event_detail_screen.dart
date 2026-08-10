@@ -129,18 +129,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Widget build(BuildContext context) {
     final primaryColor = AppConstants.primaryRed;
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bgColor = Colors.black;
-    final surfaceColor = Colors.grey[900]!;
-    final textColor = Colors.white;
-    final mutedTextColor = Colors.white70;
-    final borderColor = Colors.white10;
+    final bgColor = isDark ? const Color(0xFF0D0D0D) : const Color(0xFFFAF7F4);
+    final surfaceColor = isDark ? const Color(0xFF1C1614) : Colors.white;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final mutedTextColor = isDark ? Colors.white70 : const Color(0xFF1A1A1A).withOpacity(0.55);
+    final borderColor = isDark ? Colors.white10 : Colors.black.withOpacity(0.08);
 
     if (_isLoading) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: CircularProgressIndicator()));
+      return Scaffold(backgroundColor: bgColor, body: Center(child: CircularProgressIndicator(color: primaryColor)));
     }
 
     if (_experience == null) {
-      return const Scaffold(backgroundColor: Colors.black, body: Center(child: Text('Event not found', style: TextStyle(color: Colors.white))));
+      return Scaffold(backgroundColor: bgColor, body: Center(child: Text('Event not found', style: TextStyle(color: textColor))));
     }
 
     final formattedDate = DateFormat('EEE, d MMM').format(_experience!.startDateTime);
@@ -154,7 +154,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           SliverAppBar(
             expandedHeight: 350,
             pinned: true,
-            backgroundColor: Colors.black,
+            backgroundColor: bgColor,
             flexibleSpace: FlexibleSpaceBar(
               background: Stack(
                 fit: StackFit.expand,
@@ -185,10 +185,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ],
               ),
             ),
-            leading: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.white), onPressed: () => Navigator.pop(context)),
+            leading: IconButton(icon: Icon(Icons.arrow_back, color: textColor), onPressed: () => Navigator.pop(context)),
             actions: [
               IconButton(
-                icon: Icon(AppIcons.share, color: Colors.white),
+                icon: Icon(AppIcons.share, color: textColor),
                 tooltip: 'Share event',
                 onPressed: () => EventShareSheet.show(
                   context,
@@ -198,7 +198,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
               IconButton(
-                icon: Icon(AppIcons.groupAdd, color: Colors.white),
+                icon: Icon(AppIcons.groupAdd, color: textColor),
                 tooltip: 'Invite friends',
                 onPressed: () => Navigator.of(context).push(MaterialPageRoute(
                   builder: (_) => InviteFriendsScreen(
@@ -252,13 +252,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ),
                     const SizedBox(height: 10),
                   ],
-                  Text(_experience!.title, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                  // display_status badge (P0-1)
+                  if (_experience!.statusBadgeLabel != null) ...[
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: _experience!.statusBadgeColor ?? Colors.black54,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _experience!.statusBadgeLabel!.toUpperCase(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontFamily: 'DMSans',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ),
+                  ],
+                  Text(_experience!.title, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 12),
                   Row(
                     children: [
                       Icon(AppIcons.calendar, size: 16, color: Colors.redAccent),
                       const SizedBox(width: 8),
-                      Text('$formattedDate · ${_experience!.formattedTime}', style: const TextStyle(color: Colors.white70)),
+                      Text('$formattedDate · ${_experience!.formattedTime}', style: TextStyle(color: mutedTextColor)),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -266,17 +287,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     children: [
                       Icon(AppIcons.location, size: 16, color: Colors.redAccent),
                       const SizedBox(width: 8),
-                      Text('${_experience!.venueName}, ${_experience!.neighborhood}', style: const TextStyle(color: Colors.white70)),
+                      Text('${_experience!.venueName}, ${_experience!.neighborhood}', style: TextStyle(color: mutedTextColor)),
                     ],
                   ),
                   const SizedBox(height: 32),
-                  const Text('About this Experience', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                  Text('About this Experience', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                   const SizedBox(height: 12),
-                  Text(_experience!.description, style: const TextStyle(color: Colors.white70, height: 1.5)),
+                  Text(_experience!.description, style: TextStyle(color: mutedTextColor, height: 1.5)),
                   const SizedBox(height: 32),
                   
                   if (_tiers.isNotEmpty) ...[
-                    const Text('Select Ticket Type', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text('Select Ticket Type', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textColor)),
                     const SizedBox(height: 16),
                     ..._tiers.map((tier) => _buildTierCard(tier)),
                     const SizedBox(height: 24),
@@ -294,6 +315,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildTierCard(EventTier tier) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final textColor = isDark ? Colors.white : const Color(0xFF1A1A1A);
+    final mutedColor = isDark ? Colors.white54 : const Color(0xFF1A1A1A).withOpacity(0.45);
+    final surfaceColor = isDark ? const Color(0xFF1C1614) : Colors.white;
+    final borderColor = isDark ? Colors.white.withOpacity(0.1) : Colors.black.withOpacity(0.08);
     final isSelected = _selectedTier?.id == tier.id;
     return GestureDetector(
       onTap: tier.isAvailableNow ? () => setState(() => _selectedTier = tier) : null,
@@ -301,10 +327,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected ? AppConstants.primaryRed.withOpacity(0.1) : Colors.white.withOpacity(0.05),
+          color: isSelected ? AppConstants.primaryRed.withOpacity(0.1) : surfaceColor,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? AppConstants.primaryRed : Colors.white.withOpacity(0.1),
+            color: isSelected ? AppConstants.primaryRed : borderColor,
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -314,21 +340,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(tier.name, style: TextStyle(color: tier.isAvailableNow ? Colors.white : Colors.white38, fontWeight: FontWeight.bold, fontSize: 16)),
-                Text('KES ${tier.price}', style: TextStyle(color: tier.isAvailableNow ? AppConstants.primaryRed : Colors.white24, fontWeight: FontWeight.bold, fontSize: 18)),
+                Text(tier.name, style: TextStyle(color: tier.isAvailableNow ? textColor : mutedColor, fontWeight: FontWeight.bold, fontSize: 16)),
+                Text('KES ${tier.price}', style: TextStyle(color: tier.isAvailableNow ? AppConstants.primaryRed : mutedColor, fontWeight: FontWeight.bold, fontSize: 18)),
               ],
             ),
             if (tier.description.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 4),
-                child: Text(tier.description, style: TextStyle(color: Colors.white54, fontSize: 12)),
+                child: Text(tier.description, style: TextStyle(color: mutedColor, fontSize: 12)),
               ),
             if (tier.benefits.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Wrap(
                   spacing: 8,
-                  children: tier.benefits.map((b) => Text('• $b', style: const TextStyle(color: Colors.white70, fontSize: 11))).toList(),
+                  children: tier.benefits.map((b) => Text('• $b', style: TextStyle(color: mutedColor, fontSize: 11))).toList(),
                 ),
               ),
             if (tier.remaining > 0 && tier.remaining < 20)
@@ -348,8 +374,32 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildPurchaseAction(Color primaryColor, Color surfaceColor, Color borderColor) {
-    final bool isPast = _experience != null
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final mutedTextColor = isDark ? Colors.white70 : const Color(0xFF1A1A1A).withOpacity(0.55);
+    // Use backend display_status first (P0-1), fall back to clock check.
+    final String ds = _experience?.displayStatus ?? '';
+    final bool backendIsPast = _experience?.isPast ?? false;
+    final bool clockIsPast = _experience != null
       && _experience!.endDateTime.isBefore(DateTime.now());
+    // Cancelled/draft events are never purchasable.
+    final bool isCancelled = ds == 'cancelled';
+    final bool isDraft = ds == 'draft' || ds == 'pending_approval';
+    final bool isPast = ds == 'completed' || backendIsPast || clockIsPast;
+
+    if (isCancelled || isDraft) {
+      return Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: surfaceColor,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(children: [
+          Text(isCancelled ? 'This event has been cancelled.' : 'This event is not yet public.',
+            style: TextStyle(color: mutedTextColor, fontSize: 13)),
+        ]),
+      );
+    }
 
     // For past events: show "View memories" instead of "Get tickets".
     if (isPast) {
@@ -361,8 +411,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           border: Border.all(color: borderColor),
         ),
         child: Column(children: [
-          const Text('This experience has ended.',
-            style: TextStyle(color: Colors.white70, fontSize: 13)),
+          Text('This experience has ended.',
+            style: TextStyle(color: mutedTextColor, fontSize: 13)),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity,
@@ -400,7 +450,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 children: [
                   Text(_selectedTier != null ? 'KES ${_selectedTier!.price}' : _experience!.priceDisplay,
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: primaryColor)),
-                  const Text('Price per ticket', style: TextStyle(color: Colors.white38, fontSize: 12)),
+                  Text('Price per ticket', style: TextStyle(color: mutedTextColor, fontSize: 12)),
                 ],
               ),
               if (_hasTicket)

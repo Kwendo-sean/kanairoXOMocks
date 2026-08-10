@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
 import 'package:kanairoxo/services/communities_service.dart';
 import 'package:kanairoxo/screens/singles/profile_preview_screen.dart';
 
@@ -66,7 +67,8 @@ class _CommunityDetailScreenState extends State<CommunityDetailScreen> with Sing
     final url = (_community?['invite_url'] ?? '').toString();
     final code = (_community?['invite_code'] ?? '').toString();
     Share.share(url.isNotEmpty ? url : 'Join with code: $code',
-      subject: 'Join ${_community?['name']} on KanairoXO');
+      subject: 'Join ${_community?['name']} on KanairoXO',
+      sharePositionOrigin: shareOriginFor(context));
   }
 
   Future<void> _leaveOrDelete() async {

@@ -70,6 +70,11 @@ class Moment {
   final int commentsCount;
   final bool isLikedByMe;
   final bool isSavedByMe;
+
+  // Privacy/visibility
+  final bool isPublic;
+  final bool allowSaves;
+  final bool allowShares;
   
   // Backwards compatibility getters
   int get likeCount => likesCount;
@@ -104,6 +109,9 @@ class Moment {
     required this.commentsCount,
     required this.isLikedByMe,
     required this.isSavedByMe,
+    this.isPublic = true,
+    this.allowSaves = true,
+    this.allowShares = true,
     this.trackName,
     this.trackArtist,
     this.trackImageUrl,
@@ -128,6 +136,9 @@ class Moment {
     int? commentsCount,
     bool? isLikedByMe,
     bool? isSavedByMe,
+    bool? isPublic,
+    bool? allowSaves,
+    bool? allowShares,
     String? trackName,
     String? trackArtist,
     String? trackImageUrl,
@@ -151,6 +162,9 @@ class Moment {
       commentsCount: commentsCount ?? this.commentsCount,
       isLikedByMe: isLikedByMe ?? this.isLikedByMe,
       isSavedByMe: isSavedByMe ?? this.isSavedByMe,
+      isPublic: isPublic ?? this.isPublic,
+      allowSaves: allowSaves ?? this.allowSaves,
+      allowShares: allowShares ?? this.allowShares,
       trackName: trackName ?? this.trackName,
       trackArtist: trackArtist ?? this.trackArtist,
       trackImageUrl: trackImageUrl ?? this.trackImageUrl,
@@ -214,6 +228,9 @@ class Moment {
       commentsCount: json['comments_count'] ?? json['comment_count'] ?? 0,
       isLikedByMe: json['is_liked_by_me'] ?? json['is_liked'] ?? false,
       isSavedByMe: json['is_saved_by_me'] ?? json['is_saved'] ?? false,
+      isPublic: json['is_public'] ?? true,
+      allowSaves: json['allow_saves'] ?? json['allow_save'] ?? true,
+      allowShares: json['allow_shares'] ?? json['allow_share'] ?? true,
       location: json['location_name'] ?? json['location'],
       trackName: json['track_name'],
       trackArtist: json['track_artist'],

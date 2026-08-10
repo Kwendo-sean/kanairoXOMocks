@@ -4,7 +4,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:kanairoxo/models/notification_model.dart';
 import 'package:kanairoxo/providers/notification_provider.dart';
 import 'package:kanairoxo/screens/singles/profile_preview_screen.dart';
+import 'package:kanairoxo/screens/moments/moment_detail_screen.dart';
+import 'package:kanairoxo/services/moment_service.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:intl/intl.dart';
 
@@ -25,7 +28,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
     });
   }
 
-  void _handleTap(NotificationModel notification) {
+  Future<void> _handleTap(NotificationModel notification) async {
     context.read<NotificationProvider>().markAsRead(notification.id);
 
     switch (notification.notificationType) {
@@ -34,10 +37,19 @@ class _NotificationScreenState extends State<NotificationScreen> {
       case 'moment_save':
       case 'new_like':
       case 'new_comment':
-        if (notification.referenceId != null) {
-          // Navigate to MomentDetailScreen
-          // Navigator.pushNamed(context, '/moment-detail', arguments: notification.referenceId);
+        final refId = notification.referenceId;
+        if (refId != null) {
+          try {
+            final moment = await MomentService().getMomentDetail(refId);
+            if (mounted) {
+              Navigator.push(context, MaterialPageRoute(
+                builder: (_) => MomentDetailScreen(moments: [moment], initialIndex: 0)));
+            }
+          } catch (_) {}
         }
+        break;
+      case 'date_request':
+        Navigator.pushNamed(context, '/date-requests');
         break;
       case 'connection_request':
         final senderId = notification.sender?.id.toString();
@@ -280,7 +292,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
                         width: 2,
                       ),
                     ),
-                    child: Icon(
+                    child: PhosphorIcon(
                       _typeIcon(notification.notificationType),
                       size: 11,
                       color: Colors.white,
@@ -382,22 +394,24 @@ class _NotificationScreenState extends State<NotificationScreen> {
     );
   }
 
-  IconData _typeIcon(String type) {
+  PhosphorIconData _typeIcon(String type) {
     switch (type) {
       case 'moment_like':
       case 'new_like':
-        return Icons.favorite_rounded;
+        return PhosphorIcons.heart(PhosphorIconsStyle.fill);
       case 'moment_comment':
       case 'new_comment':
-        return Icons.chat_bubble_rounded;
+        return PhosphorIcons.chatCircle(PhosphorIconsStyle.fill);
       case 'moment_save':
-        return Icons.bookmark_rounded;
+        return PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.fill);
       case 'connection_request':
-        return Icons.person_add_rounded;
+        return PhosphorIcons.userPlus(PhosphorIconsStyle.fill);
       case 'connection_accepted':
-        return Icons.handshake_outlined;
+        return PhosphorIcons.sealCheck(PhosphorIconsStyle.fill);
+      case 'date_request':
+        return PhosphorIcons.star(PhosphorIconsStyle.fill);
       default:
-        return Icons.notifications_rounded;
+        return PhosphorIcons.bell(PhosphorIconsStyle.fill);
     }
   }
 
@@ -406,9 +420,10 @@ class _NotificationScreenState extends State<NotificationScreen> {
       return const Color(0xFF9B111E);
     }
     if (['connection_request', 'connection_accepted', 'connection_rejected'].contains(type)) {
-      return const Color(0xFF2E7D32);
+      return const Color(0xFF2E8B57);
     }
-    return const Color(0xFF666666);
+    if (type == 'date_request') return const Color(0xFFB8860B);
+    return const Color(0xFF888888);
   }
 
   String _bodyText(NotificationModel n) {
@@ -418,7 +433,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return 'liked your moment';
       case 'moment_comment':
       case 'new_comment':
-        return 'commented: "${n.message}"';
+        return 'commented on your moment';
       case 'moment_save':
         return 'saved your moment';
       case 'connection_request':
@@ -427,6 +442,8 @@ class _NotificationScreenState extends State<NotificationScreen> {
         return 'accepted your connection';
       case 'connection_rejected':
         return 'declined your connection';
+      case 'date_request':
+        return 'sent you a date request';
       default:
         return n.message;
     }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/data_models.dart';
 import '../services/events_api_service.dart';
+import '../services/home_widget_service.dart';
 import './auth_provider.dart';
 
 class EventsProvider with ChangeNotifier {
@@ -43,6 +44,8 @@ class EventsProvider with ChangeNotifier {
 
     try {
       _feed = await _eventsApiService.fetchEventFeed();
+      unawaited(HomeWidgetService.instance
+          .updateFromUpcomingEvents(_feed.values.expand((e) => e).toList()));
     } catch (e) {
       _error = e.toString();
       debugPrint('Error fetching feed: $e');

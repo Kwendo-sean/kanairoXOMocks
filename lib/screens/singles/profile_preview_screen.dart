@@ -16,6 +16,7 @@ import 'package:kanairoxo/widgets/safe_network_image.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/providers/connection_provider.dart';
 import 'package:kanairoxo/utils/constants.dart';
+import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/widgets/modals/report_modal.dart';
 import 'package:kanairoxo/core/theme/app_icons.dart';
 
@@ -106,7 +107,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {
@@ -129,7 +130,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {
@@ -149,7 +150,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {
@@ -264,7 +265,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      body: _loading ? const Center(child: CircularProgressIndicator()) : _profile == null ? _buildError() : _buildContent(),
+      body: _loading ? Skeleton.profileCard(context) : _profile == null ? _buildError() : _buildContent(),
     );
   }
 
@@ -509,7 +510,15 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
   }
 
   Widget _buildActionButtons() {
-    final status = _profile?.connectionStatus ?? 'none';
+    var status = _profile?.connectionStatus ?? 'none';
+    // If we arrived from a connection-request notification (connectionId was
+    // passed in) and the profile API didn't return request_received, override
+    // so Accept/Decline are shown correctly.
+    if (widget.connectionId != null &&
+        status != 'connected' &&
+        status != 'request_sent') {
+      status = 'request_received';
+    }
 
     if (status == 'connected') {
       return LiquidGlassButton(

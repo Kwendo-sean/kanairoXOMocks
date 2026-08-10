@@ -218,14 +218,15 @@ class _MomentPageViewState extends State<_MomentPageView> {
 
     return Stack(
       children: [
-        // Layer 1: Full bleed media (image or video)
+        // Layer 1: the original media, uncropped. `contain` keeps the photo's
+        // own aspect ratio — `cover` was zooming in and cutting off edges.
         Positioned.fill(
           child: Hero(
             tag: 'moment_${widget.moment.id}',
             child: NetworkMediaPreview(
               url: widget.moment.photoUrl,
               mediaType: widget.moment.mediaType,
-              fit: BoxFit.cover,
+              fit: BoxFit.contain,
             ),
           ),
         ),

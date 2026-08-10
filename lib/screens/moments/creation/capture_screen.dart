@@ -45,8 +45,9 @@ class _CaptureScreenState extends State<CaptureScreen> {
     if (_cameras == null || _cameras!.isEmpty) return;
     final c = CameraController(
       _cameras![_selectedCameraIndex],
-      ResolutionPreset.high,
+      ResolutionPreset.max,
       enableAudio: true,
+      imageFormatGroup: ImageFormatGroup.jpeg,
     );
     await c.initialize();
     if (mounted) setState(() => _controller = c);
@@ -138,7 +139,7 @@ class _CaptureScreenState extends State<CaptureScreen> {
           return;
         }
       } else {
-        final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 90);
+        final img = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 100);
         if (img != null) {
           if (mounted) {
             setState(() {
@@ -224,25 +225,33 @@ class _CaptureScreenState extends State<CaptureScreen> {
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(2),
                   child: Stack(fit: StackFit.expand, children: [
-                    // Center-crop the camera feed to fit the square without stretching
-                    LayoutBuilder(builder: (ctx, box) {
-                      final previewAspect = _controller!.value.previewSize == null
-                        ? 1.0
-                        : _controller!.value.previewSize!.height / _controller!.value.previewSize!.width;
-                      return ClipRect(
-                        child: OverflowBox(
-                          maxWidth: double.infinity, maxHeight: double.infinity,
-                          child: FittedBox(
-                            fit: BoxFit.cover,
-                            child: SizedBox(
-                              width: box.maxWidth,
-                              height: box.maxWidth / previewAspect,
-                              child: CameraPreview(_controller!),
+                    if (_captured.isNotEmpty)
+                      // Show what was captured so the user can review before hitting Next
+                      LocalMediaPreview(
+                        item: _captured.first,
+                        fit: BoxFit.cover,
+                        autoPlay: _captured.first.type == MediaType.video,
+                      )
+                    else
+                      // Live viewfinder — center-crop to fill the square without stretching
+                      LayoutBuilder(builder: (ctx, box) {
+                        final previewAspect = _controller!.value.previewSize == null
+                          ? 1.0
+                          : _controller!.value.previewSize!.height / _controller!.value.previewSize!.width;
+                        return ClipRect(
+                          child: OverflowBox(
+                            maxWidth: double.infinity, maxHeight: double.infinity,
+                            child: FittedBox(
+                              fit: BoxFit.cover,
+                              child: SizedBox(
+                                width: box.maxWidth,
+                                height: box.maxWidth / previewAspect,
+                                child: CameraPreview(_controller!),
+                              ),
                             ),
                           ),
-                        ),
-                      );
-                    }),
+                        );
+                      }),
                     if (_isRecording)
                       Positioned(
                         top: 10, left: 10,
@@ -257,6 +266,26 @@ class _CaptureScreenState extends State<CaptureScreen> {
                               style: const TextStyle(color: Colors.white,
                                 fontFamily: 'DMSans', fontSize: 11, fontWeight: FontWeight.w700)),
                           ]),
+                        )),
+                    // Retake badge — tap to discard and go back to live camera
+                    if (_captured.isNotEmpty && !_isRecording)
+                      Positioned(
+                        top: 10, right: 10,
+                        child: GestureDetector(
+                          onTap: () => setState(() => _captured.clear()),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: Colors.black.withOpacity(0.55),
+                              borderRadius: BorderRadius.circular(999)),
+                            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.replay_rounded, color: Colors.white, size: 13),
+                              SizedBox(width: 4),
+                              Text('Retake', style: TextStyle(
+                                color: Colors.white, fontFamily: 'DMSans',
+                                fontSize: 12, fontWeight: FontWeight.w600)),
+                            ]),
+                          ),
                         )),
                   ]),
                 ),

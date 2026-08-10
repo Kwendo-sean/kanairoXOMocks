@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:kanairoxo/core/theme/app_colors.dart';
@@ -131,7 +132,7 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 final img = await picker.pickImage(source: ImageSource.camera, imageQuality: 85);
-                if (img != null) setState(() => _profilePhotoFile = File(img.path));
+                if (img != null) await _cropAndSet(img.path);
               }),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined, color: AppColors.primary),
@@ -139,10 +140,28 @@ class _ProfileEditorScreenState extends State<ProfileEditorScreen> {
               onTap: () async {
                 Navigator.pop(context);
                 final img = await picker.pickImage(source: ImageSource.gallery, imageQuality: 85);
-                if (img != null) setState(() => _profilePhotoFile = File(img.path));
+                if (img != null) await _cropAndSet(img.path);
               }),
             const SizedBox(height: 8),
           ])));
+  }
+
+  Future<void> _cropAndSet(String sourcePath) async {
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: sourcePath,
+      aspectRatio: const CropAspectRatio(ratioX: 3, ratioY: 4),
+      uiSettings: [
+        IOSUiSettings(
+          title: 'Crop Photo',
+          aspectRatioLockEnabled: true,
+          resetAspectRatioEnabled: false,
+          rotateButtonsHidden: false,
+        ),
+      ],
+    );
+    if (cropped != null && mounted) {
+      setState(() => _profilePhotoFile = File(cropped.path));
+    }
   }
 
   Future<void> _addInterest() async {

@@ -5,7 +5,7 @@ import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/screens/events/event_detail_screen.dart';
 import 'package:kanairoxo/screens/dates/plan_date_screen.dart';
 
-/// TikTok-style vertical PageView mixing event trailers and recent memories.
+/// TikTok-style vertical PageView mixing event trailers and date venues.
 class EventsFeedTab extends StatefulWidget {
   const EventsFeedTab({super.key});
 
@@ -35,7 +35,12 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       final res = await _api.get('api/v1/events/discover-feed/');
       final List items = (res is Map ? (res['items'] ?? []) : []) as List;
       if (mounted) setState(() {
-        _items = items.map((m) => Map<String, dynamic>.from(m)).toList();
+        // Trailers and bookable date venues only — event memories are not
+        // part of the For You feed.
+        _items = items
+            .map((m) => Map<String, dynamic>.from(m))
+            .where((m) => m['type'] == 'trailer' || m['type'] == 'venue')
+            .toList();
         _loading = false;
       });
     } catch (_) {
@@ -46,7 +51,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    if (_loading) return Skeleton.feed(context, count: 3);
+    if (_loading) return Skeleton.reel(context);
     if (_items.isEmpty) {
       return Center(child: Padding(
         padding: const EdgeInsets.all(32),
@@ -56,7 +61,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           Text('Nothing in the feed yet',
             style: TextStyle(fontFamily: 'DMSans', fontWeight: FontWeight.w600, fontSize: 16)),
           SizedBox(height: 4),
-          Text('Trailers and memories from events show up here.',
+          Text('Event trailers and date spots show up here.',
             textAlign: TextAlign.center,
             style: TextStyle(fontFamily: 'DMSans', color: Colors.grey, fontSize: 12)),
         ]),
@@ -75,12 +80,11 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
   }
 
   Widget _itemCard(Map<String, dynamic> item, int index) {
-    final type = item['type'];
     final card = Map<String, dynamic>.from(item['card'] ?? {});
-
-    if (type == 'trailer') return _trailerCard(card, index);
-    if (type == 'venue') return _venueCard(card, index);
-    return _memoryCard(card, index);
+    // Memories are filtered out upstream, so the feed is trailers and date
+    // venues only — there is no _memoryCard branch to fall through to.
+    if (item['type'] == 'venue') return _venueCard(card, index);
+    return _trailerCard(card, index);
   }
 
   Widget _trailerCard(Map<String, dynamic> c, int index) {
@@ -94,8 +98,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       if (trailer.isNotEmpty)
         NetworkMediaPreview(
           url: trailer, mediaType: 'video',
-          fit: BoxFit.cover, autoPlay: index < 2,
-          muted: false)
+          fit: BoxFit.cover, autoPlay: index < 2, muted: false)
       else if ((c['cover_url'] ?? '').toString().isNotEmpty)
         NetworkMediaPreview(
           url: c['cover_url'], mediaType: 'image', fit: BoxFit.cover)
@@ -109,7 +112,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
           colors: [Colors.transparent, Colors.black.withOpacity(0.85)]))),
 
       // Title + venue sit above the CTA so the thumb-zone button has space.
-      Positioned(left: 20, right: 20, bottom: 170, child: Column(
+      Positioned(left: 20, right: 20, bottom: 205, child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -133,7 +136,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
 
       // Primary CTA: full-width pill right above the floating nav so it sits
       // squarely in the thumb-zone, easy to tap one-handed.
-      Positioned(left: 20, right: 20, bottom: 100,
+      Positioned(left: 20, right: 20, bottom: 135,
         child: GestureDetector(
           onTap: () {
             if (eventId != null) {
@@ -228,7 +231,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       Positioned(left: 20, right: 20, bottom: 100,
         child: GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => const PlanDateScreen())),
+            builder: (_) => PlanDateScreen(preselectedVenue: c))),
           child: Container(
             height: 54,
             decoration: BoxDecoration(

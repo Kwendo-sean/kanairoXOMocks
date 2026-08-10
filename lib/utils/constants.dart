@@ -44,7 +44,7 @@ class AppStrings {
 }
 
 class ApiConstants {
-  static const String baseUrl = 'http://192.168.100.6:8000';
+  static const String baseUrl = 'https://api.kanairoxo.online';
   static const int timeout = 30;
   static String fixMediaUrl(String? raw) {
     if (raw == null || raw.trim().isEmpty) return '';

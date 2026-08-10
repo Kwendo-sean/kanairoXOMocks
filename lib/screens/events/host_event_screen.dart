@@ -149,8 +149,15 @@ class _HostEventScreenState extends State<HostEventScreen> {
         'letter_font': _ticketType == 'letter' ? _fontChoice : null,
       };
 
-      final provider = Provider.of<EventsProvider>(context, listen: false);
-      final result = await provider.hostEvent(eventData);
+      // Direct API call — EventsProvider.hostEvent was removed; call the
+      // events API service directly to avoid a provider dependency.
+      final api = ApiClient();
+      final rawResult = await api.post('api/v1/events/', eventData);
+      final result = <String, dynamic>{
+        'success': rawResult != null,
+        'event': rawResult,
+        'error': rawResult == null ? 'Failed to create event' : null,
+      };
 
       if (result['success']) {
         if (widget.onEventCreated != null) widget.onEventCreated!(result['event']);
@@ -166,7 +173,7 @@ class _HostEventScreenState extends State<HostEventScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {

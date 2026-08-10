@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:provider/provider.dart';
@@ -17,13 +18,26 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
   bool _isUploading = false;
 
   Future<void> _pickImages() async {
-    final List<XFile> pickedFiles = await _picker.pickMultiImage(
-      imageQuality: 80, // Compress images to 80% quality
-    );
-    if (pickedFiles.isNotEmpty) {
-      setState(() {
-        _selectedImages.addAll(pickedFiles);
-      });
+    final List<XFile> pickedFiles = await _picker.pickMultiImage(imageQuality: 80);
+    if (pickedFiles.isEmpty) return;
+
+    final List<XFile> cropped = [];
+    for (final file in pickedFiles) {
+      final result = await ImageCropper().cropImage(
+        sourcePath: file.path,
+        aspectRatio: const CropAspectRatio(ratioX: 3, ratioY: 4),
+        uiSettings: [
+          IOSUiSettings(
+            title: 'Crop Photo',
+            aspectRatioLockEnabled: true,
+            resetAspectRatioEnabled: false,
+          ),
+        ],
+      );
+      if (result != null) cropped.add(XFile(result.path));
+    }
+    if (cropped.isNotEmpty) {
+      setState(() => _selectedImages.addAll(cropped));
     }
   }
 
@@ -52,7 +66,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload photos: $e')),
+          const SnackBar(content: Text('Sorry, something went wrong')),
         );
       }
     } finally {

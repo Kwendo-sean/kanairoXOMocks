@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:app_links/app_links.dart';
 import 'package:flutter/material.dart';
 
+import 'package:kanairoxo/screens/auth/claim_account_screen.dart';
 import 'package:kanairoxo/screens/communities/join_by_code_screen.dart';
 import 'package:kanairoxo/screens/events/event_detail_screen.dart';
 import 'package:kanairoxo/screens/events/event_memories_screen.dart';
@@ -57,9 +58,37 @@ class DeepLinks {
     _handle(p);
   }
 
+  /// Normalise the two link shapes into one list of path segments.
+  ///
+  /// `https://kanairoxo.online/event/<id>` parses to pathSegments
+  /// `['event', '<id>']`, but the custom scheme `kanairoxo://event/<id>`
+  /// puts `event` in the *host* and leaves `['<id>']` behind — so every
+  /// route match failed on custom-scheme links. Prepend the host back on
+  /// when the scheme is ours.
+  static List<String> _segmentsOf(Uri uri) {
+    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    if (uri.scheme == 'kanairoxo' && (uri.host).isNotEmpty) {
+      return [uri.host, ...segments];
+    }
+    return segments;
+  }
+
   void _handle(Uri uri) {
     final navKey = _navKey;
     if (navKey == null) return;
+
+    // ── P1-4: ?claim=<email> — handled BEFORE the auth gate ──────────
+    // This link is received by unauthenticated users who were invited by
+    // email. We route them to ClaimAccountScreen regardless of auth state.
+    final claimEmail = uri.queryParameters['claim'];
+    if (claimEmail != null && claimEmail.isNotEmpty) {
+      final state = navKey.currentState;
+      if (state != null) {
+        state.push(MaterialPageRoute(
+            builder: (_) => ClaimAccountScreen(email: claimEmail)));
+      }
+      return;
+    }
 
     // Stash for after-auth replay if the user isn't signed in yet.
     if (!isAuthenticated) {
@@ -73,7 +102,7 @@ class DeepLinks {
       return;
     }
 
-    final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
+    final segments = _segmentsOf(uri);
     if (segments.isEmpty) return;
 
     // ── /c/<code>  community invite ────────────────────────────────

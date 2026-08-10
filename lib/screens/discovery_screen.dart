@@ -11,7 +11,6 @@ import 'package:kanairoxo/services/discovery_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/widgets/profile_card.dart';
 import 'package:kanairoxo/widgets/discovery/ad_card.dart';
-import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
 import 'package:kanairoxo/screens/singles/profile_preview_screen.dart';
 import 'package:kanairoxo/screens/connections/my_connections_screen.dart';
@@ -19,7 +18,6 @@ import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/models/messaging/conversation_model.dart';
 import 'package:kanairoxo/screens/messaging/chat_screen.dart';
 import 'package:kanairoxo/providers/notification_provider.dart';
-import 'package:kanairoxo/providers/profile_provider.dart';
 import 'package:kanairoxo/screens/messages/date_planner_screen.dart';
 import 'package:kanairoxo/utils/constants.dart';
 
@@ -46,6 +44,11 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   // so the deck comes back on its own instead of needing an app restart.
   Timer? _emptyRetryTimer;
   bool _isRefreshingDeck = false;
+
+  /// The server sent profiles we couldn't read. Distinct from an empty deck:
+  /// showing the connections fallback here would blame an empty city for what
+  /// is a parsing problem.
+  bool _unreadablePayload = false;
 
   ConnectionContextModel? _contextCard;
   bool _contextLoading = false;
@@ -78,21 +81,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   Future<void> _initializeDiscovery() async {
     if (!mounted) return;
 
-    // GATE: Check profile completion
-    final profileProvider = Provider.of<ProfileProvider>(context, listen: false);
-    if (profileProvider.myProfile == null) {
-      await profileProvider.refreshMyProfile();
-    }
-    
-    final completion = profileProvider.myProfile?.completionPercentage ?? 0;
-    if (completion < 70) {
-      setState(() {
-        _isLoading = false;
-        _discoveries = [];
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _error = null;
@@ -105,6 +93,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
       if (!mounted) return;
       setState(() {
         _discoveries = batch.discoveries;
+        _unreadablePayload = batch.unrecognisedPayload;
         _currentIndex = 0;
         _isLoading = false;
       });
@@ -145,9 +134,18 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     try {
       final response = await _apiClient.get('api/v1/discovery/recommendations/');
       final batch = DiscoveryBatch.fromJson(response);
-      if (!mounted || batch.discoveries.isEmpty) return;
+      if (!mounted) return;
+      // Keep the diagnosis current even when the retry also comes back
+      // unreadable, so the screen doesn't drift back to "no one left".
+      if (batch.discoveries.isEmpty) {
+        if (batch.unrecognisedPayload != _unreadablePayload) {
+          setState(() => _unreadablePayload = batch.unrecognisedPayload);
+        }
+        return;
+      }
       setState(() {
         _discoveries = batch.discoveries;
+        _unreadablePayload = false;
         _currentIndex = 0;
         _error = null;
       });
@@ -279,8 +277,6 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
     final primaryColor = context.primaryColor;
     final notificationProvider = context.watch<NotificationProvider>();
     final unreadCount = notificationProvider.unreadCount;
-    final profileProvider = context.watch<ProfileProvider>();
-    final completion = profileProvider.myProfile?.completionPercentage ?? 0;
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -318,45 +314,13 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
           const SizedBox(width: 8),
         ],
       ),
-      body: completion < 70 
-        ? _buildGate(completion)
-        : _error != null
-              ? _buildError()
-              : (_discoveries.isEmpty && !_isLoading)
-                  ? _buildEmpty()
-                  : _buildPageView(),
-    );
-  }
-
-  Widget _buildGate(int completion) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const Icon(Icons.lock_outline, size: 64, color: Colors.white24),
-            const SizedBox(height: 24),
-            Text('Complete your profile', style: AppTypography.displaySmall.copyWith(color: Colors.white)),
-            const SizedBox(height: 12),
-            Text('Your profile is $completion% complete. Reach 70% to start discovering people.', 
-              textAlign: TextAlign.center,
-              style: AppTypography.bodyMedium.copyWith(color: Colors.white70)),
-            const SizedBox(height: 32),
-            LinearProgressIndicator(
-              value: completion / 100,
-              backgroundColor: Colors.white10,
-              valueColor: AlwaysStoppedAnimation(AppConstants.primaryRed),
-              borderRadius: BorderRadius.circular(4),
-            ),
-            const SizedBox(height: 48),
-            LiquidGlassButton(
-              onPressed: () => Navigator.pushNamed(context, '/profile_editor'),
-              child: const Text('Finish Profile'),
-            ),
-          ],
-        ),
-      ),
+      body: _error != null
+          ? _buildError()
+          : (_discoveries.isEmpty && !_isLoading)
+              // An unreadable payload is a bug on our side, not an empty
+              // city — don't quietly fall back to the connections list.
+              ? (_unreadablePayload ? _buildUnreadable() : _buildEmpty())
+              : _buildPageView(),
     );
   }
 
@@ -447,7 +411,7 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
 
   Widget _buildContextCard() {
     if (_contextLoading) {
-      return const Center(child: Padding(padding: EdgeInsets.all(20), child: CircularProgressIndicator(strokeWidth: 2)));
+      return const SizedBox.shrink();
     }
     if (_contextCard == null) return const SizedBox.shrink();
 
@@ -599,6 +563,51 @@ class _DiscoveryScreenState extends State<DiscoveryScreen>
   Widget _buildEmpty() {
     return _ConnectionsFallbackList(onCheckAgain: _initializeDiscovery);
   }
+
+  /// Profiles came back but none could be read. Says so plainly rather than
+  /// pretending there's no one to show.
+  Widget _buildUnreadable() {
+    final textColor = context.textColor;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.sync_problem_rounded,
+                size: 48, color: AppColors.primary.withOpacity(0.7)),
+            const SizedBox(height: 16),
+            Text("We couldn't read today's profiles",
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: textColor)),
+            const SizedBox(height: 6),
+            Text(
+                'There are people to show — the app just choked on the '
+                'response. This is on us, not you.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    fontFamily: 'DMSans',
+                    fontSize: 13,
+                    height: 1.4,
+                    color: textColor.withOpacity(0.55))),
+            const SizedBox(height: 20),
+            TextButton(
+              onPressed: _initializeDiscovery,
+              child: const Text('Try again',
+                  style: TextStyle(
+                      fontFamily: 'DMSans',
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.primary)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 class _ConnectionsFallbackList extends StatefulWidget {
@@ -661,40 +670,11 @@ class _ConnectionsFallbackListState extends State<_ConnectionsFallbackList> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: 16),
-          const Text('NOTHING NEW · CHECK BACK SOON',
-            style: TextStyle(
-              fontFamily: 'DMSans', fontSize: 11, fontWeight: FontWeight.w700,
-              color: accent, letterSpacing: 1.8)),
-          const SizedBox(height: 4),
-          Container(width: 24, height: 2, color: accent),
-          const SizedBox(height: 20),
-          Text("That's all for today",
-            style: TextStyle(
-              fontFamily: 'DMSans', color: textColor, fontSize: 20, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 6),
-          Text("People you skipped come back tomorrow, and new members show up as they join. In the meantime — your connections:",
-            style: TextStyle(
-              fontFamily: 'DMSans', color: textColor.withOpacity(0.55), fontSize: 13, height: 1.4)),
-          const SizedBox(height: 14),
-          if (widget.onCheckAgain != null)
-            OutlinedButton.icon(
-              onPressed: () => widget.onCheckAgain!(),
-              icon: const Icon(Icons.refresh_rounded, size: 16, color: accent),
-              label: const Text('Check for new people',
-                style: TextStyle(
-                  fontFamily: 'DMSans', color: accent, fontSize: 13, fontWeight: FontWeight.w600)),
-              style: OutlinedButton.styleFrom(
-                side: BorderSide(color: accent.withOpacity(0.4)),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
-              ),
-            ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
           Expanded(
             child: _connections.isEmpty
               ? Center(child: Text("You haven't connected with anyone yet.",

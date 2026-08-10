@@ -66,6 +66,7 @@ class MomentsScreen extends StatelessWidget {
     return [
       Moment(
         id: '1',
+        userId: '',
         userName: 'User One',
         caption: 'Workshop fun!',
         likesCount: 5,
@@ -79,6 +80,7 @@ class MomentsScreen extends StatelessWidget {
       ),
       Moment(
         id: '2',
+        userId: '',
         userName: 'User Two',
         caption: 'Great dinner.',
         likesCount: 12,
@@ -92,6 +94,7 @@ class MomentsScreen extends StatelessWidget {
       ),
       Moment(
         id: '3',
+        userId: '',
         userName: 'User Three',
         caption: 'Festival vibes',
         likesCount: 45,
@@ -103,8 +106,9 @@ class MomentsScreen extends StatelessWidget {
         type: MomentType.event,
         photoUrl: 'https://images.unsplash.com/photo-1586922572364-3dd437ae10e2?q=80&w=2574&auto=format&fit=crop&ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
       ),
-       Moment(
+      Moment(
         id: '4',
+        userId: '',
         userName: 'User Four',
         caption: 'Jazzing it up',
         likesCount: 21,
@@ -114,10 +118,11 @@ class MomentsScreen extends StatelessWidget {
         eventName: 'Jazz Night at J\'s',
         date: DateTime.now().subtract(const Duration(days: 45)),
         type: MomentType.event,
-        photoUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2670&auto=format&fit=crop&ixlib-rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D',
+        photoUrl: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?q=80&w=2670&auto=format&fit=crop',
       ),
-       Moment(
+      Moment(
         id: '5',
+        userId: '',
         userName: 'User Five',
         caption: 'Nature walks',
         likesCount: 33,

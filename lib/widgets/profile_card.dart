@@ -112,7 +112,7 @@ class _ProfileCardState extends State<ProfileCard> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: const Text('Sorry, something went wrong'),
             backgroundColor: Colors.red,
           ),
         );

@@ -12,6 +12,8 @@ class TicketModel {
   final String qrHash;
   final String? pdfUrl;
   final DateTime createdAt;
+  /// All ticket IDs when quantity > 1 (P0-3).
+  final List<String> ticketIds;
 
   TicketModel({
     required this.id,
@@ -23,6 +25,7 @@ class TicketModel {
     required this.qrHash,
     this.pdfUrl,
     required this.createdAt,
+    this.ticketIds = const [],
   });
 
   factory TicketModel.fromJson(Map<String, dynamic> json) {
@@ -48,6 +51,9 @@ class TicketModel {
           : (json['created_at'] != null
               ? DateTime.parse(json['created_at'])
               : DateTime.now()),
+      ticketIds: json['ticket_ids'] != null
+          ? List<String>.from((json['ticket_ids'] as List).map((e) => e.toString()))
+          : (json['ticket_id'] != null ? [json['ticket_id'].toString()] : []),
     );
   }
 }

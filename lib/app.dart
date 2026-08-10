@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/auth_gate.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
-import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/providers/theme_provider.dart';
 import 'package:kanairoxo/screens/auth/login_screen.dart';
 import 'package:kanairoxo/screens/auth/signup_screen.dart';
@@ -9,7 +8,7 @@ import 'package:kanairoxo/screens/couples/couple_home_screen.dart';
 import 'package:kanairoxo/screens/couples/partner_selection_screen.dart';
 import 'package:kanairoxo/screens/main_app_screen.dart';
 import 'package:kanairoxo/screens/notification_screen.dart';
-import 'package:kanairoxo/screens/onboarding/new_onboarding_screen.dart';
+import 'package:kanairoxo/screens/onboarding/onboarding_screen.dart';
 import 'package:kanairoxo/screens/profile/profile_editor_screen.dart';
 import 'package:kanairoxo/screens/settings/settings_screen.dart';
 import 'package:kanairoxo/screens/settings/blocked_accounts_screen.dart';
@@ -80,7 +79,11 @@ class _KanairoXOAppState extends State<KanairoXOApp> {
         return null;
       },
       routes: {
-        '/onboarding': (context) => const NewOnboardingScreen(),
+        '/onboarding': (context) => OnboardingScreen(
+              onComplete: () {
+                Navigator.of(context).pushReplacementNamed('/main_single');
+              },
+            ),
         '/login': (context) => LoginScreen(
               onLoginSuccess: () {
                 Navigator.of(context).pushReplacementNamed('/');
@@ -89,7 +92,7 @@ class _KanairoXOAppState extends State<KanairoXOApp> {
             ),
         '/signup': (context) => SignupScreen(
               onSignupSuccess: () {
-                Navigator.pushReplacementNamed(context, '/main_single');
+                Navigator.pushReplacementNamed(context, '/onboarding');
               },
               onLoginTap: () => Navigator.pushNamed(context, '/login'),
             ),
@@ -103,7 +106,8 @@ class _KanairoXOAppState extends State<KanairoXOApp> {
         '/settings': (context) => const SettingsScreen(),
         '/settings/blocked': (context) => const BlockedAccountsScreen(),
         '/settings/privacy': (context) => const PrivacySettingsScreen(),
-        '/settings/notifications': (context) => const NotificationSettingsScreen(),
+        '/settings/notifications': (context) =>
+            const NotificationSettingsScreen(),
         '/settings/delete-account': (context) => const DeleteAccountScreen(),
         '/premium': (context) => const PremiumScreen(),
         '/date-requests': (context) => const DateRequestsScreen(),

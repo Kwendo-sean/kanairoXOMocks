@@ -1,9 +1,12 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
+import 'package:path_provider_foundation/path_provider_foundation.dart';
 import 'package:path/path.dart' as p;
+import '../models/data_models.dart';
 
 /// Pushes the most-recent moment's still image to the iOS home-screen widget.
 ///
@@ -26,6 +29,8 @@ class HomeWidgetService {
   static const _imageKey = 'latest_moment_image_path';
   static const _captionKey = 'latest_moment_caption';
   static const _isVideoKey = 'latest_moment_is_video';
+  static const _upcomingEventsKey = 'upcoming_events_json';
+  static const _userNameKey = 'latest_moment_user_name';
 
   bool _initialised = false;
 
@@ -65,6 +70,8 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData<String>(
         _captionKey, (moment['caption'] ?? '').toString());
       await HomeWidget.saveWidgetData<bool>(_isVideoKey, isVideo);
+      await HomeWidget.saveWidgetData<String>(
+        _userNameKey, (moment['user_name'] ?? moment['username'] ?? '').toString());
 
       await HomeWidget.updateWidget(
         name: _androidWidgetName, iOSName: _iosWidgetName);
@@ -73,22 +80,68 @@ class HomeWidgetService {
     }
   }
 
+  /// Call after the events feed loads. Pushes the soonest few upcoming
+  /// experiences (future `startDateTime`) to the medium-sized widget, which
+  /// renders them as a compact agenda instead of the latest-moment polaroid.
+  Future<void> updateFromUpcomingEvents(List<Experience> events) async {
+    if (!Platform.isIOS && !Platform.isAndroid) return;
+
+    try {
+      await _ensureInit();
+
+      final upcoming = events.where((e) => e.isUpcoming).toList()
+        ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
+
+      final payload = upcoming
+          .take(3)
+          .map((e) => {
+                'title': e.title,
+                'venue': e.venueName,
+                'startDate': e.startDateTime.millisecondsSinceEpoch / 1000,
+              })
+          .toList();
+
+      await HomeWidget.saveWidgetData<String>(
+          _upcomingEventsKey, jsonEncode(payload));
+      await HomeWidget.updateWidget(
+        name: _androidWidgetName, iOSName: _iosWidgetName);
+    } catch (e) {
+      if (kDebugMode) debugPrint('HomeWidget upcoming-events update failed: $e');
+    }
+  }
+
   /// Downloads the image and writes it to the App Group container so the
-  /// widget extension (which is a separate process) can read it.
+  /// widget extension (which runs as a separate, separately-sandboxed
+  /// process) can read it. The app's own Documents directory is NOT visible
+  /// to the extension — only files placed in the shared App Group container
+  /// are.
   Future<String?> _downloadToAppGroup(String url) async {
     try {
       final res = await http.get(Uri.parse(url));
       if (res.statusCode != 200) return null;
 
-      // home_widget exposes the App Group directory on iOS; on Android it
-      // writes to the regular shared prefs file location.
-      final dir = await getApplicationDocumentsDirectory();
-      final out = File(p.join(dir.path, 'latest_moment.jpg'));
+      final dirPath = await _sharedContainerPath();
+      if (dirPath == null) return null;
+
+      final out = File(p.join(dirPath, 'latest_moment.jpg'));
+      await out.parent.create(recursive: true);
       await out.writeAsBytes(res.bodyBytes);
       return out.path;
     } catch (e) {
       if (kDebugMode) debugPrint('download failed: $e');
       return null;
     }
+  }
+
+  /// On iOS this is the shared App Group container (the only place both the
+  /// app and the widget extension can read/write). Android widgets run in
+  /// the same process/sandbox as the app, so the regular documents directory
+  /// is fine there.
+  Future<String?> _sharedContainerPath() async {
+    if (Platform.isIOS) {
+      return PathProviderFoundation()
+          .getContainerPath(appGroupIdentifier: _appGroupId);
+    }
+    return (await getApplicationDocumentsDirectory()).path;
   }
 }
