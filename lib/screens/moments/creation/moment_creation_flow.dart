@@ -62,6 +62,8 @@ class _MomentCreationFlowState extends State<MomentCreationFlow> {
             filterId: _filterId,
             trimStart: _trimStart,
             trimDuration: _trimDuration,
+            onBack: () => _pageController.previousPage(
+              duration: const Duration(milliseconds: 300), curve: Curves.easeInOut),
             onComplete: () => Navigator.pop(context, true),
           ),
         ],

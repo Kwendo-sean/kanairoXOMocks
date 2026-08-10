@@ -4,6 +4,8 @@ import 'package:kanairoxo/models/moment_creation_models.dart';
 import 'package:kanairoxo/services/moment_service.dart';
 import 'package:kanairoxo/models/moment.dart';
 import 'package:kanairoxo/widgets/moments/local_media_preview.dart';
+import 'package:kanairoxo/widgets/center_toast.dart';
+import 'package:kanairoxo/services/moments_prefs.dart';
 
 class PostScreen extends StatefulWidget {
   final List<MediaItem> mediaItems;
@@ -11,11 +13,13 @@ class PostScreen extends StatefulWidget {
   final double trimStart;
   final double trimDuration;
   final VoidCallback onComplete;
+  final VoidCallback? onBack;
 
   const PostScreen({
     super.key,
     required this.mediaItems,
     required this.onComplete,
+    this.onBack,
     this.filterId = 'none',
     this.trimStart = 0,
     this.trimDuration = 0,
@@ -41,6 +45,14 @@ class _PostScreenState extends State<PostScreen> {
   void initState() {
     super.initState();
     _fetchEvents();
+    _applyDefaultVisibility();
+  }
+
+  /// Honour the "Public moments by default" setting rather than always
+  /// starting on Public.
+  Future<void> _applyDefaultVisibility() async {
+    final v = await MomentsPrefs.defaultVisibility();
+    if (mounted) setState(() => _visibility = v);
   }
 
   Future<void> _fetchEvents() async {
@@ -75,7 +87,7 @@ class _PostScreenState extends State<PostScreen> {
       if (mounted) widget.onComplete();
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to post: $e')));
+        CenterToast.show(context, 'Sorry, something went wrong', isError: true);
       }
     } finally {
       if (mounted) setState(() => _isPosting = false);
@@ -98,7 +110,7 @@ class _PostScreenState extends State<PostScreen> {
         centerTitle: true,
         leading: IconButton(
           icon: Icon(Icons.arrow_back, color: textColor),
-          onPressed: () => Navigator.pop(context)),
+          onPressed: widget.onBack ?? () => Navigator.pop(context)),
         title: Text('New Moment',
           style: TextStyle(
             fontFamily: 'DMSans', color: textColor,
@@ -174,14 +186,6 @@ class _PostScreenState extends State<PostScreen> {
               ),
               Divider(color: divider, height: 1, indent: 16, endIndent: 16),
               _row(
-                icon: Icons.person_add_alt_1_outlined,
-                child: Text('Tag people',
-                  style: TextStyle(fontFamily: 'DMSans', color: textColor, fontSize: 14)),
-                trailing: Icon(Icons.chevron_right, color: textColor.withOpacity(0.4)),
-                textColor: textColor,
-              ),
-              Divider(color: divider, height: 1, indent: 16, endIndent: 16),
-              _row(
                 icon: Icons.visibility_outlined,
                 child: Text('Visibility',
                   style: TextStyle(fontFamily: 'DMSans', color: textColor, fontSize: 14)),
@@ -191,7 +195,7 @@ class _PostScreenState extends State<PostScreen> {
                   dropdownColor: surface,
                   style: TextStyle(
                     fontFamily: 'DMSans', color: textColor, fontSize: 14, fontWeight: FontWeight.w500),
-                  items: ['Public', 'Connections', 'Close Friends']
+                  items: ['Public', 'Connections']
                     .map((v) => DropdownMenuItem(value: v, child: Text(v))).toList(),
                   onChanged: (v) => setState(() => _visibility = v!)),
                 textColor: textColor),
@@ -240,21 +244,6 @@ class _PostScreenState extends State<PostScreen> {
               ),
             ),
 
-          const SizedBox(height: 36),
-          GestureDetector(
-            onTap: () {}, // Save draft TODO
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              decoration: BoxDecoration(
-                color: Colors.transparent,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(color: _accent.withOpacity(0.6), width: 1.5)),
-              child: const Center(child: Text('Save Draft',
-                style: TextStyle(
-                  fontFamily: 'DMSans', color: _accent,
-                  fontWeight: FontWeight.w700, fontSize: 14))),
-            ),
-          ),
         ],
       ),
     );

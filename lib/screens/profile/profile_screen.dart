@@ -561,18 +561,18 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.07),
+            color: context.surfaceColor,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withOpacity(0.1))),
-          child: Row(children: const [
-            Icon(Icons.photo_library_outlined, color: Color(0xFF9B111E)),
-            SizedBox(width: 12),
+            border: Border.all(color: context.borderColor)),
+          child: Row(children: [
+            const Icon(Icons.photo_library_outlined, color: Color(0xFF9B111E)),
+            const SizedBox(width: 12),
             Expanded(child: Text('Your moments',
-              style: TextStyle(fontFamily: 'DMSans', color: Colors.white,
+              style: TextStyle(fontFamily: 'DMSans', color: context.textColor,
                 fontWeight: FontWeight.w600, fontSize: 14))),
             Text('Manage',
-              style: TextStyle(fontFamily: 'DMSans', color: Colors.white54, fontSize: 12)),
-            Icon(Icons.chevron_right, color: Colors.white38),
+              style: TextStyle(fontFamily: 'DMSans', color: context.mutedColor, fontSize: 12)),
+            Icon(Icons.chevron_right, color: context.mutedColor),
           ]),
         ),
       ),

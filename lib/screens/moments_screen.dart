@@ -221,8 +221,7 @@ class _MomentsScreenState extends State<MomentsScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(_carouselSubtitle,
                   style: AppTypography.caption.copyWith(
-                    color: context.mutedColor,
-                    fontStyle: FontStyle.italic),
+                    color: context.mutedColor),
                   textAlign: TextAlign.center))),
 
             if (_isLoading && _allMoments.isEmpty)

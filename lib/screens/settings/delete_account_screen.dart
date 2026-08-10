@@ -50,7 +50,7 @@ class _DeleteAccountScreenState extends State<DeleteAccountScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Deletion failed: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E)),
         );
       }
     } finally {

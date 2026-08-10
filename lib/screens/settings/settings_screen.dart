@@ -1,5 +1,8 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:kanairoxo/core/theme/app_theme.dart';
+import 'package:kanairoxo/services/moments_prefs.dart';
 import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:kanairoxo/providers/theme_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
@@ -179,12 +182,59 @@ class _MomentsPrivacyTile extends StatefulWidget {
 }
 
 class _MomentsPrivacyTileState extends State<_MomentsPrivacyTile> {
+  // These three were plain in-memory fields initialised to `true`, so every
+  // rebuild of the settings screen reset them — toggling anything off looked
+  // like it silently failed to save. They're now backed by MomentsPrefs.
   bool _publicByDefault = true;
   bool _allowSaves = true;
   bool _allowShares = true;
+  bool _loaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final p = await MomentsPrefs.load();
+    if (!mounted) return;
+    setState(() {
+      _publicByDefault = p.publicByDefault;
+      _allowSaves = p.allowSaves;
+      _allowShares = p.allowShares;
+      _loaded = true;
+    });
+  }
+
+  Future<void> _set(String field, bool value, void Function(bool) apply) async {
+    setState(() => apply(value));
+    await MomentsPrefs.save(
+      publicByDefault: _publicByDefault,
+      allowSaves: _allowSaves,
+      allowShares: _allowShares,
+    );
+    // Best-effort server sync. Saves/shares need server-side enforcement to
+    // mean anything; until the backend carries these fields the PATCH is a
+    // no-op and the local value still drives the UI.
+    unawaited(MomentsPrefs.syncToServer(field, value));
+  }
 
   @override
   Widget build(BuildContext context) {
+    if (!_loaded) {
+      return _Group(surface: widget.surface, divider: widget.divider, children: [
+        const SizedBox(
+          height: 168,
+          child: Center(
+            child: SizedBox(
+              width: 18, height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2)),
+          ),
+        ),
+      ]);
+    }
+
     return _Group(surface: widget.surface, divider: widget.divider, children: [
       _SwitchTile(
         icon: PhosphorIcons.globe(PhosphorIconsStyle.regular),
@@ -192,21 +242,24 @@ class _MomentsPrivacyTileState extends State<_MomentsPrivacyTile> {
         sublabel: _publicByDefault ? 'Everyone can see your moments' : 'Only connections see your moments',
         value: _publicByDefault,
         primary: widget.primary, textColor: widget.textColor,
-        onChanged: (v) => setState(() => _publicByDefault = v)),
+        onChanged: (v) => _set('moments_public_by_default', v,
+            (b) => _publicByDefault = b)),
       _SwitchTile(
         icon: PhosphorIcons.bookmarkSimple(PhosphorIconsStyle.regular),
         label: 'Allow saves',
         sublabel: 'Let others save your moments',
         value: _allowSaves,
         primary: widget.primary, textColor: widget.textColor,
-        onChanged: (v) => setState(() => _allowSaves = v)),
+        onChanged: (v) => _set('moments_allow_saves', v,
+            (b) => _allowSaves = b)),
       _SwitchTile(
         icon: PhosphorIcons.shareFat(PhosphorIconsStyle.regular),
         label: 'Allow shares',
         sublabel: 'Let others share your moments',
         value: _allowShares,
         primary: widget.primary, textColor: widget.textColor,
-        onChanged: (v) => setState(() => _allowShares = v)),
+        onChanged: (v) => _set('moments_allow_shares', v,
+            (b) => _allowShares = b)),
     ]);
   }
 }

@@ -273,14 +273,13 @@ class _MyMomentsScreenState extends State<MyMomentsScreen>
                       Text(m.caption,
                         style: TextStyle(
                           fontFamily: 'DMSans', fontSize: 11,
-                          color: textColor, fontStyle: FontStyle.italic,
+                          color: textColor,
                           height: 1.3),
                         maxLines: 2, overflow: TextOverflow.ellipsis)
                     else
                       Text('No caption',
                         style: TextStyle(fontFamily: 'DMSans',
-                          fontSize: 11, color: mutedColor,
-                          fontStyle: FontStyle.italic)),
+                          fontSize: 11, color: mutedColor)),
                     const SizedBox(height: 4),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
