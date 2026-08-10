@@ -107,7 +107,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {
@@ -130,7 +130,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {
@@ -150,7 +150,7 @@ class _ProfilePreviewScreenState extends State<ProfilePreviewScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red)
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E))
         );
       }
     } finally {

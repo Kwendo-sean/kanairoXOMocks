@@ -66,7 +66,7 @@ class _PhotoUploadScreenState extends State<PhotoUploadScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to upload photos: $e')),
+          const SnackBar(content: Text('Sorry, something went wrong')),
         );
       }
     } finally {

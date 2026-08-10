@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
 import 'package:kanairoxo/services/tickets_service.dart';
 
@@ -93,7 +94,9 @@ class _InviteFriendsScreenState extends State<InviteFriendsScreen> {
         if (mounted) Navigator.of(context).pop();
         if (shareUrl.isNotEmpty) {
           Future.delayed(const Duration(milliseconds: 250), () {
-            Share.share('${widget.eventTitle} — $shareUrl');
+            if (!mounted) return;
+            Share.share('${widget.eventTitle} — $shareUrl',
+              sharePositionOrigin: shareOriginFor(context));
           });
         }
       } else {

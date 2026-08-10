@@ -67,7 +67,7 @@ class _ReportModalState extends State<ReportModal> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit report: $e'), backgroundColor: Colors.red),
+          const SnackBar(content: Text('Sorry, something went wrong'), backgroundColor: Color(0xFF9B111E)),
         );
       }
     } finally {

@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
 import 'package:kanairoxo/services/communities_service.dart';
 
 class CreateCommunityScreen extends StatefulWidget {
@@ -48,7 +49,7 @@ class _CreateCommunityScreenState extends State<CreateCommunityScreen> {
       if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create: $e')));
+        const SnackBar(content: Text('Sorry, something went wrong')));
     } finally {
       if (mounted) setState(() => _busy = false);
     }
@@ -197,7 +198,8 @@ class _InviteSheet extends StatelessWidget {
               IconButton(icon: const Icon(Icons.copy, color: Color(0xFF9B111E)),
                 onPressed: () {
                   Share.share(url.isNotEmpty ? url : 'Join my KanairoXO community with code: $code',
-                    subject: 'Join ${community['name']} on KanairoXO');
+                    subject: 'Join ${community['name']} on KanairoXO',
+                    sharePositionOrigin: shareOriginFor(context));
                 }),
             ]),
           ),
@@ -205,7 +207,8 @@ class _InviteSheet extends StatelessWidget {
           SizedBox(width: double.infinity, height: 50,
             child: ElevatedButton.icon(
               onPressed: () => Share.share(url.isNotEmpty ? url : 'Join with code: $code',
-                subject: 'Join ${community['name']} on KanairoXO'),
+                subject: 'Join ${community['name']} on KanairoXO',
+                sharePositionOrigin: shareOriginFor(context)),
               icon: const Icon(Icons.share, color: Colors.white),
               label: const Text('Share invite',
                 style: TextStyle(fontFamily: 'DMSans', color: Colors.white,

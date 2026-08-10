@@ -69,7 +69,7 @@ class _PremiumScreenState extends State<PremiumScreen> {
       }
     } catch (e) {
       setState(() => _isProcessing = false);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sorry, something went wrong')));
     }
   }
 

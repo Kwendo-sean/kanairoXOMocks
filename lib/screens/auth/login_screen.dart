@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Restore failed: $e'), backgroundColor: Colors.red));
+            content: const Text('Sorry, something went wrong'), backgroundColor: _kRed));
         setState(() => _isRestoring = false);
       }
     }
@@ -115,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google login failed: $e')),
+        const SnackBar(content: Text('Sorry, something went wrong')),
       );
     }
   }

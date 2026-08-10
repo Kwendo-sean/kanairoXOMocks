@@ -64,7 +64,7 @@ class _AddMemoryScreenState extends State<AddMemoryScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Sorry, something went wrong')));
       }
     } finally {
       if (mounted) setState(() => _isSaving = false);

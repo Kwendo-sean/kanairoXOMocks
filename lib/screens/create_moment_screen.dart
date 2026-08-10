@@ -117,7 +117,7 @@ class _CreateMomentScreenState extends State<CreateMomentScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e'), backgroundColor: const Color(0xFF9B111E)),
+          SnackBar(content: const Text('Sorry, something went wrong'), backgroundColor: const Color(0xFF9B111E)),
         );
       }
     } finally {

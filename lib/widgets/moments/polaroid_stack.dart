@@ -17,6 +17,8 @@ import '../../core/theme/app_typography.dart';
 import '../../models/moment.dart';
 import '../../services/api_client.dart';
 import '../safe_network_image.dart';
+import '../center_toast.dart';
+import '../../utils/share_helper.dart';
 import 'comments_bottom_sheet.dart';
 import 'kxo_stamp.dart';
 import 'package:kanairoxo/core/theme/app_icons.dart';
@@ -327,11 +329,7 @@ class _PolaroidStackState extends State<PolaroidStack>
   Future<void> _downloadPolaroid(Moment moment) async {
     void _toast(String msg, {bool isError = false}) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: isError ? Colors.red.shade700 : AppColors.primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))));
+      CenterToast.show(context, msg, isError: isError);
     }
 
     try {
@@ -403,10 +401,12 @@ class _PolaroidStackState extends State<PolaroidStack>
       final dir = await getTemporaryDirectory();
       final pngFile = File('${dir.path}/kanairo_share.png');
       await pngFile.writeAsBytes(pngBytes);
+      final origin = shareOriginFor(context);
 
       if (moment.mediaType != 'video') {
         await Share.shareXFiles([XFile(pngFile.path)],
-          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
+          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment',
+          sharePositionOrigin: origin);
         return;
       }
 
@@ -417,13 +417,15 @@ class _PolaroidStackState extends State<PolaroidStack>
 
       if (composed) {
         await Share.shareXFiles([XFile(composedOut)],
-          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
+          text: 'Shared from KanairoXO', subject: 'KanairoXO Moment',
+          sharePositionOrigin: origin);
         return;
       }
 
       // Fallback: share polaroid PNG only
       await Share.shareXFiles([XFile(pngFile.path)],
-        text: 'Shared from KanairoXO', subject: 'KanairoXO Moment');
+        text: 'Shared from KanairoXO', subject: 'KanairoXO Moment',
+        sharePositionOrigin: origin);
     } catch (e) {
       debugPrint('Share error: $e');
     }

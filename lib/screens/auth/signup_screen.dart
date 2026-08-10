@@ -80,7 +80,7 @@ class _SignupScreenState extends State<SignupScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Google sign-up failed: $e')));
+        const SnackBar(content: Text('Sorry, something went wrong')));
     }
   }
 

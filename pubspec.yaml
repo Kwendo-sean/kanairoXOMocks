@@ -62,7 +62,7 @@ dependencies:
   # Audio
   audioplayers: ^6.0.0
   just_audio: ^0.9.38
-  record: ^5.1.2            # voice notes in chat — capture was never wired up
+  record: ^4.4.4            # voice notes in chat
   
   # Shimmer
   shimmer: ^3.0.0
@@ -89,6 +89,7 @@ dependency_overrides:
     git:
       url: https://github.com/MahMoos/flutter.git
       ref: agent/icondata-final-compat
+
 
 flutter_launcher_icons:
   android: true

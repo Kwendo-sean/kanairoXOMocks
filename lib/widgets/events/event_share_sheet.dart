@@ -8,6 +8,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 import 'package:kanairoxo/services/events_api_service.dart';
+import 'package:kanairoxo/widgets/center_toast.dart';
+import 'package:kanairoxo/utils/share_helper.dart';
 
 /// Spotify-style "share to social" sheet for an event.
 ///
@@ -115,6 +117,7 @@ class _EventShareSheetState extends State<EventShareSheet>
       await Share.shareXFiles(
         [XFile(f.path)],
         text: '${widget.eventTitle} — $_shortShareUrl',
+        sharePositionOrigin: shareOriginFor(context),
       );
     } catch (e) {
       _toast('Share failed: $e');
@@ -136,7 +139,8 @@ class _EventShareSheetState extends State<EventShareSheet>
         // For most users, share_plus to IG is enough: it routes
         // through the system share sheet which IG plugs into.)
         // Fall through to the share sheet — IG appears as a target.
-        await Share.shareXFiles([XFile(f.path)], text: _shortShareUrl);
+        await Share.shareXFiles([XFile(f.path)], text: _shortShareUrl,
+          sharePositionOrigin: shareOriginFor(context));
       } else {
         // Android — set MIME type so IG appears prominently.
         const channel = MethodChannel('plugins.flutter.io/share');
@@ -144,7 +148,8 @@ class _EventShareSheetState extends State<EventShareSheet>
           'paths': [f.path],
           'mimeTypes': [_isTrailerTab ? 'video/mp4' : 'image/png'],
         }).catchError((_) async {
-          await Share.shareXFiles([XFile(f.path)], text: _shortShareUrl);
+          await Share.shareXFiles([XFile(f.path)], text: _shortShareUrl,
+            sharePositionOrigin: shareOriginFor(context));
         });
       }
     } catch (e) {
@@ -162,6 +167,7 @@ class _EventShareSheetState extends State<EventShareSheet>
       await Share.shareXFiles(
         [XFile(f.path)],
         text: '${widget.eventTitle}\n$_shortShareUrl',
+        sharePositionOrigin: shareOriginFor(context),
       );
     } catch (e) {
       _toast('Share failed: $e');
@@ -182,8 +188,9 @@ class _EventShareSheetState extends State<EventShareSheet>
 
   void _toast(String msg) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+    CenterToast.show(context, msg);
   }
+
 
   Widget _actionButton(IconData icon, String label, VoidCallback onTap) {
     return Expanded(child: GestureDetector(
