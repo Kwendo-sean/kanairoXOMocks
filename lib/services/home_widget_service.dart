@@ -25,7 +25,15 @@ class HomeWidgetService {
 
   static const _appGroupId = 'group.com.kanairoxo.kanairoxo';
   static const _iosWidgetName = 'KanairoMomentWidget';
-  static const _androidWidgetName = 'KanairoMomentWidgetProvider';
+  // The Android providers that actually exist. The old single name,
+  // 'KanairoMomentWidgetProvider', matches no class in the project — so
+  // updateWidget silently nudged nothing and the Android widgets never
+  // redrew, however fresh the saved data was.
+  static const _androidProviders = <String>[
+    'MomentsWidgetProvider',
+    'ActivityWidgetProvider',
+    'DropWidgetProvider',
+  ];
   static const _imageKey = 'latest_moment_image_path';
   static const _captionKey = 'latest_moment_caption';
   static const _isVideoKey = 'latest_moment_is_video';
@@ -73,8 +81,7 @@ class HomeWidgetService {
       await HomeWidget.saveWidgetData<String>(
         _userNameKey, (moment['user_name'] ?? moment['username'] ?? '').toString());
 
-      await HomeWidget.updateWidget(
-        name: _androidWidgetName, iOSName: _iosWidgetName);
+      await _pushToWidgets();
     } catch (e) {
       if (kDebugMode) debugPrint('HomeWidget update failed: $e');
     }
@@ -103,10 +110,26 @@ class HomeWidgetService {
 
       await HomeWidget.saveWidgetData<String>(
           _upcomingEventsKey, jsonEncode(payload));
-      await HomeWidget.updateWidget(
-        name: _androidWidgetName, iOSName: _iosWidgetName);
+      await _pushToWidgets();
     } catch (e) {
       if (kDebugMode) debugPrint('HomeWidget upcoming-events update failed: $e');
+    }
+  }
+
+  /// Nudge every widget to redraw. iOS has one extension; Android has three
+  /// separate providers, and each needs telling individually.
+  Future<void> _pushToWidgets() async {
+    if (Platform.isIOS) {
+      await HomeWidget.updateWidget(iOSName: _iosWidgetName);
+      return;
+    }
+    for (final name in _androidProviders) {
+      try {
+        await HomeWidget.updateWidget(name: name);
+      } catch (e) {
+        // One missing provider must not stop the others updating.
+        if (kDebugMode) debugPrint('widget nudge failed for $name: $e');
+      }
     }
   }
 

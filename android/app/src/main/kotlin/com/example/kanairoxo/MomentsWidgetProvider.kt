@@ -25,18 +25,36 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
         fun updateWidget(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, widgetData: SharedPreferences) {
             val views = RemoteViews(context.packageName, R.layout.moments_widget)
 
-            // Change 2: Set Title Bitmap
             views.setImageViewBitmap(R.id.widget_title, createTitleBitmap(context))
 
-            // Change 1: Show only the latest photo
-            val latestPhoto = widgetData.getString("moment_photo_0", null)
-            
+            // The caption strip, matching the iOS polaroid. The view existed
+            // in the layout and was never populated.
+            val caption = widgetData.getString("latest_moment_caption", "") ?: ""
+            val userName = widgetData.getString("latest_moment_user_name", "") ?: ""
+            val firstName = userName.trim().split(" ").firstOrNull().orEmpty()
+            val isVideo = widgetData.getBoolean("latest_moment_is_video", false)
+
+            val stripText = when {
+                caption.isNotBlank() && firstName.isNotBlank() -> "$caption · $firstName"
+                caption.isNotBlank() -> caption
+                firstName.isNotBlank() -> firstName
+                else -> "a moment"
+            }
+            views.setTextViewText(R.id.widget_moment_caption, stripText)
+
+            // Flutter writes this key; the widget was reading "moment_photo_0",
+            // which nothing ever set — so it always fell back to the launcher
+            // icon no matter how many moments had been posted.
+            val latestPhoto = widgetData.getString("latest_moment_image_path", null)
+
             if (latestPhoto != null) {
                 val file = File(latestPhoto)
                 if (file.exists()) {
                     val bitmap = loadScaledBitmap(latestPhoto)
                     if (bitmap != null) {
-                        views.setImageViewBitmap(R.id.widget_moment_image, bitmap)
+                        views.setImageViewBitmap(
+                            R.id.widget_moment_image,
+                            if (isVideo) withPlayBadge(bitmap) else bitmap)
                     } else {
                         views.setImageViewResource(R.id.widget_moment_image, R.mipmap.ic_launcher)
                     }
@@ -56,6 +74,7 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             views.setOnClickPendingIntent(R.id.widget_moment_image, pendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_moment_caption, pendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }
@@ -74,6 +93,34 @@ class MomentsWidgetProvider : HomeWidgetProvider() {
             val canvas = Canvas(bmp)
             canvas.drawText(text, 8f, 44f, paint)
             return bmp
+        }
+
+        /** Video moments ship the server's first-frame still, so without a
+         *  badge they are indistinguishable from photos — same as iOS. */
+        private fun withPlayBadge(src: Bitmap): Bitmap {
+            return try {
+                val out = src.copy(Bitmap.Config.ARGB_8888, true)
+                val canvas = Canvas(out)
+                val r = minOf(out.width, out.height) * 0.11f
+                val cx = out.width - r - r * 0.6f
+                val cy = out.height - r - r * 0.6f
+
+                canvas.drawCircle(cx, cy, r, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.argb(150, 0, 0, 0)
+                })
+                val tri = Path().apply {
+                    moveTo(cx - r * 0.28f, cy - r * 0.40f)
+                    lineTo(cx + r * 0.44f, cy)
+                    lineTo(cx - r * 0.28f, cy + r * 0.40f)
+                    close()
+                }
+                canvas.drawPath(tri, Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = Color.WHITE
+                })
+                out
+            } catch (e: Exception) {
+                src
+            }
         }
 
         private fun loadScaledBitmap(path: String): Bitmap? {
