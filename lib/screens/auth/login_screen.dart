@@ -5,6 +5,7 @@ import 'package:kanairoxo/providers/auth_provider.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:kanairoxo/services/notification_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/screens/auth/forgot_password_screen.dart';
 
 const _kCream = Color(0xFFFAF7F4);
 const _kRed = Color(0xFF9B111E);
@@ -227,7 +228,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 Align(
                     alignment: Alignment.centerRight,
                     child: TextButton(
-                        onPressed: () {},
+                        onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => ForgotPasswordScreen(
+                                    initialIdentifier:
+                                        _phoneController.text.trim()))),
                         style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 4)),
                         child: const Text('Forgot password?',
