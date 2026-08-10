@@ -3,7 +3,8 @@ import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/widgets/moments/network_media_preview.dart';
 import 'package:kanairoxo/widgets/skeletons.dart';
 import 'package:kanairoxo/screens/events/event_detail_screen.dart';
-import 'package:kanairoxo/screens/dates/plan_date_screen.dart';
+import 'package:kanairoxo/screens/messages/date_planner_screen.dart';
+import 'package:kanairoxo/models/date_plan_model.dart';
 
 /// TikTok-style vertical PageView mixing event trailers and date venues.
 class EventsFeedTab extends StatefulWidget {
@@ -98,7 +99,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       if (trailer.isNotEmpty)
         NetworkMediaPreview(
           url: trailer, mediaType: 'video',
-          fit: BoxFit.cover, autoPlay: index < 2, muted: false)
+          fit: BoxFit.cover, autoPlay: true, muted: false)
       else if ((c['cover_url'] ?? '').toString().isNotEmpty)
         NetworkMediaPreview(
           url: c['cover_url'], mediaType: 'image', fit: BoxFit.cover)
@@ -166,6 +167,27 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
   }
 
 
+  /// Rebuild the feed card as a Venue so the planner can start from it.
+  ///
+  /// The venue id is what lets the planner load this venue's packages and skip
+  /// the discovery step; without one it falls back to asking normally.
+  Venue _venueFrom(Map<String, dynamic> c) {
+    int? asInt(dynamic v) => int.tryParse(v?.toString() ?? '');
+    return Venue(
+      id: (c['id'] ?? c['venue_id'] ?? '').toString(),
+      name: (c['name'] ?? 'A venue').toString(),
+      imageUrl: (c['image_url'] ?? '').toString(),
+      rating: double.tryParse(c['rating']?.toString() ?? '') ?? 0,
+      location: (c['location'] ?? '').toString(),
+      priceRange: (c['price_range'] ?? '').toString(),
+      category: (c['category'] ?? '').toString(),
+      neighborhood: c['neighborhood']?.toString(),
+      priceMin: asInt(c['price_min'] ?? c['from_price']),
+      priceMax: asInt(c['price_max']),
+      trailerUrl: (c['trailer_url'] ?? '').toString(),
+    );
+  }
+
   /// Date venues in the same feed as event trailers. The server only sends
   /// venues that have both a trailer and a bookable package, so this card
   /// never has to handle "nothing to play" or "nothing to book".
@@ -187,7 +209,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       if (trailer.isNotEmpty)
         NetworkMediaPreview(
           url: trailer, mediaType: 'video',
-          fit: BoxFit.cover, autoPlay: index < 2, muted: false)
+          fit: BoxFit.cover, autoPlay: true, muted: false)
       else if ((c['image_url'] ?? '').toString().isNotEmpty)
         NetworkMediaPreview(
           url: c['image_url'], mediaType: 'image', fit: BoxFit.cover)
@@ -231,7 +253,8 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
       Positioned(left: 20, right: 20, bottom: 100,
         child: GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(
-            builder: (_) => PlanDateScreen(preselectedVenue: c))),
+            builder: (_) => DatePlannerScreen(
+              preselectedVenue: _venueFrom(c)))),
           child: Container(
             height: 54,
             decoration: BoxDecoration(
@@ -265,7 +288,7 @@ class _EventsFeedTabState extends State<EventsFeedTab> with AutomaticKeepAliveCl
     return Stack(fit: StackFit.expand, children: [
       if (media.isNotEmpty)
         NetworkMediaPreview(url: media, mediaType: mediaType,
-          fit: BoxFit.cover, autoPlay: mediaType == 'video' && index < 2)
+          fit: BoxFit.cover, autoPlay: mediaType == 'video')
       else
         Container(color: Colors.black),
 

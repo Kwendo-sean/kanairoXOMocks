@@ -58,6 +58,16 @@ class DatePlanProvider extends ChangeNotifier {
     }
   }
 
+  /// Jump straight to a step. Used when the planner is opened with a venue
+  /// already chosen, so the vibe and venue-discovery steps can be skipped
+  /// rather than asking for answers we were handed.
+  void goToStep(int step) {
+    final clamped = step.clamp(0, 5);
+    if (clamped == _currentStep) return;
+    _currentStep = clamped;
+    notifyListeners();
+  }
+
   void updatePlan({
     String? personId,
     String? personName,
