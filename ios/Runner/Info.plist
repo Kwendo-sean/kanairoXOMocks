@@ -6,19 +6,6 @@
 	<true/>
 	<key>GIDClientID</key>
 	<string>512106408043-dthhcr5j239sdpdu6elfj1p3sd3hatu2.apps.googleusercontent.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.googleusercontent.apps.512106408043-dthhcr5j239sdpdu6elfj1p3sd3hatu2</string>
-			</array>
-		</dict>
-	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>KanairoXO needs the microphone so you can send voice notes in chat.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -68,7 +55,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>KanairoXO needs access to your camera to take profile photos and capture moments.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>KanairoXO needs access to your microphone to record audio with video moments.</string>
+	<string>KanairoXO needs the microphone so you can send voice notes in chat and record audio with video moments.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>KanairoXO needs permission to save photos and polaroids to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
