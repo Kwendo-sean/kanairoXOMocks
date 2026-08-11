@@ -23,6 +23,9 @@ class AuthGate extends StatefulWidget {
 class _AuthGateState extends State<AuthGate> {
   bool _splashFinished = false;
   bool _onboardingComplete = false;
+  /// Set when the user backs out of profile setup, so it isn't shown again
+  /// for the rest of the session.
+  bool _profileSetupDismissed = false;
 
   @override
   void initState() {
@@ -104,15 +107,28 @@ class _AuthGateState extends State<AuthGate> {
       );
     }
 
-    // Only prompt for gender if:
-    // 1. Gender is not set AND
-    // 2. User signed in with Google (phone starts with +2540 placeholder or is empty)
+    // Profile setup, only for accounts that just signed up on this run:
+    // signup → verify → profile. justRegistered lives in memory, so an
+    // existing user reopening the app goes straight through.
+    //
+    // A photo check alone was wrong: it matched every account without a
+    // main photo, so returning users were sent to the editor on every launch.
+    //
+    // Google users are the separate case — Google gives us no gender, and the
+    // app needs one.
     final phone = authProvider.user?.phoneNumber ?? '';
     final gender = authProvider.user?.gender ?? '';
     final isGoogleUser = phone.isEmpty || phone.startsWith('+2540');
-    if (isGoogleUser && gender.isEmpty) {
+
+    final needsProfile = isGoogleUser
+        ? gender.isEmpty
+        : authProvider.justRegistered;
+
+    if (needsProfile && !_profileSetupDismissed) {
       return ProfileEditorScreen(
         onClose: () {
+          setState(() => _profileSetupDismissed = true);
+          authProvider.clearJustRegistered();
           authProvider.refreshProfile();
         },
       );

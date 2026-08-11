@@ -79,25 +79,37 @@ class _KanairoXOAppState extends State<KanairoXOApp> {
         return null;
       },
       routes: {
+        // Hand back to AuthGate rather than jumping to the app. Going straight
+        // to /main_single skipped the gate, and with it the email-verification
+        // step — so a new account landed in an app where the backend 403s
+        // every call. The gate decides what comes next: verify, then in.
         '/onboarding': (context) => OnboardingScreen(
               onComplete: () {
-                Navigator.of(context).pushReplacementNamed('/main_single');
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
             ),
         '/login': (context) => LoginScreen(
+              // popUntil rather than pushReplacementNamed('/'): there is no
+              // '/' in routes, only home:, so pushing it built a second
+              // AuthGate on top of the first instead of returning to it.
               onLoginSuccess: () {
-                Navigator.of(context).pushReplacementNamed('/');
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               onSignupTap: () => Navigator.pushNamed(context, '/signup'),
             ),
         '/signup': (context) => SignupScreen(
+              // Back to the gate, which routes to email verification and only
+              // then into the app. Pushing onboarding here left that route
+              // stacked above the gate, so the OTP screen it wanted to show
+              // was never visible.
               onSignupSuccess: () {
-                Navigator.pushReplacementNamed(context, '/onboarding');
+                Navigator.of(context).popUntil((route) => route.isFirst);
               },
               onLoginTap: () => Navigator.pushNamed(context, '/login'),
             ),
         '/profile_editor': (context) => ProfileEditorScreen(
-              onClose: () => Navigator.of(context).pushReplacementNamed('/'),
+              onClose: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
             ),
         '/partner_selection': (context) => const PartnerSelectionScreen(),
         '/main_single': (context) => const MainAppScreen(),
