@@ -1,5 +1,8 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:dio/dio.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/user_model.dart';
 import '../models/profile_model.dart';
@@ -10,15 +13,49 @@ class ProfileApiService {
 
   // --- NEW REPOSITORY METHODS ---
 
+  static const _profileCacheKey = 'cached_profile_json';
+
   Future<ProfileModel> getProfile() async {
-    final response = await _apiClient.get('api/v1/profiles/edit/');
-    
-    final data = response;
-    final profileData = data is Map<String, dynamic>
-      ? (data.containsKey('profile') ? data['profile'] as Map<String, dynamic> : data)
-      : data as Map<String, dynamic>;
-      
-    return ProfileModel.fromJson(profileData);
+    try {
+      final response = await _apiClient.get('api/v1/profiles/edit/');
+
+      final data = response;
+      final profileData = data is Map<String, dynamic>
+        ? (data.containsKey('profile') ? data['profile'] as Map<String, dynamic> : data)
+        : data as Map<String, dynamic>;
+
+      // Cache the raw body rather than a serialised model — nothing to keep
+      // in sync as the model changes.
+      unawaited(_cacheProfile(profileData));
+      return ProfileModel.fromJson(profileData);
+    } catch (e) {
+      // Offline, or the server is unreachable: show the last profile we saw
+      // rather than an error screen with nothing on it.
+      final cached = await _readCachedProfile();
+      if (cached != null) return ProfileModel.fromJson(cached);
+      rethrow;
+    }
+  }
+
+  Future<void> _cacheProfile(Map<String, dynamic> json) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_profileCacheKey, jsonEncode(json));
+    } catch (_) {
+      // A cache write failing must never break the fetch that succeeded.
+    }
+  }
+
+  Future<Map<String, dynamic>?> _readCachedProfile() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_profileCacheKey);
+      if (raw == null || raw.isEmpty) return null;
+      final decoded = jsonDecode(raw);
+      return decoded is Map<String, dynamic> ? decoded : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   Future<List<GalleryPhotoModel>> getGallery({String? userId}) async {

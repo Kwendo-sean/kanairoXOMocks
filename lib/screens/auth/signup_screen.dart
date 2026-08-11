@@ -10,6 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class SignupScreen extends StatefulWidget {
   final VoidCallback onSignupSuccess;
@@ -123,7 +124,7 @@ class _SignupScreenState extends State<SignupScreen> {
       await authProvider.register(data);
       widget.onSignupSuccess();
     } catch (e) {
-      setState(() => _errorMessage = e.toString());
+      setState(() => _errorMessage = friendlySignInError(e));
     } finally {
       setState(() => _isLoading = false);
     }

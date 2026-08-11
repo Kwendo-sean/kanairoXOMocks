@@ -6,6 +6,7 @@ import 'package:kanairoxo/services/auth_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
 import 'package:kanairoxo/services/notification_service.dart';
 import 'package:kanairoxo/utils/auth_storage.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class AuthProvider with ChangeNotifier {
   final AuthService _authService = AuthService();
@@ -18,6 +19,13 @@ class AuthProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   bool _initialized = false;
+  /// True only between registering and finishing profile setup, on this run.
+  /// In memory on purpose: a returning user must not be sent to the editor.
+  bool _justRegistered = false;
+  /// Whether the last auth failure was the server rejecting credentials, as
+  /// opposed to a network problem. The login screen offers account restore on
+  /// this rather than matching text in the message.
+  bool _lastErrorWasAuth = false;
 
   final StreamController<User?> _userController =
   StreamController<User?>.broadcast();
@@ -33,6 +41,14 @@ class AuthProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get initialized => _initialized;
+  bool get justRegistered => _justRegistered;
+  bool get lastErrorWasAuth => _lastErrorWasAuth;
+
+  void clearJustRegistered() {
+    if (!_justRegistered) return;
+    _justRegistered = false;
+    notifyListeners();
+  }
 
   // Routing helpers — use these in AuthGate / GoRouter redirect
   String get accountType => _user?.accountType ?? 'single';
@@ -154,17 +170,27 @@ class AuthProvider with ChangeNotifier {
   Future<void> login(String phoneNumber, String password) async {
     _setLoading(true);
     _error = null;
+    _lastErrorWasAuth = false;
     try {
-      // Login response already contains the full user — use it directly so we
-      // don't need a second getProfile() round-trip (which could hang and leave
-      // the loading indicator stuck indefinitely).
+      // Prefer the user the login response carries — it saves a round-trip.
+      // But never depend on it: tokens are saved before the body is parsed, so
+      // a response without a usable `user` left the app authenticated on disk
+      // while the UI sat on the login screen, and only a restart picked it up.
       final response = await _authService.login(
         phoneNumber: phoneNumber,
         password: password,
       );
-      _setUser(response.user);
+      if (response.user != null) {
+        _setUser(response.user);
+      } else {
+        await _checkLoginStatus();
+      }
+      if (_user == null) {
+        throw Exception('Signed in, but your profile could not be loaded.');
+      }
     } catch (e) {
-      _error = e.toString();
+      _error = friendlySignInError(e);
+      _lastErrorWasAuth = isAuthError(e);
       notifyListeners();
       rethrow;
     } finally {
@@ -175,12 +201,21 @@ class AuthProvider with ChangeNotifier {
   Future<bool> googleLogin(String idToken) async {
     _setLoading(true);
     _error = null;
+    _lastErrorWasAuth = false;
     try {
       final response = await _authService.googleLogin(idToken);
-      _setUser(response.user);
+      if (response.user != null) {
+        _setUser(response.user);
+      } else {
+        await _checkLoginStatus();
+      }
+      if (_user == null) {
+        throw Exception('Signed in, but your profile could not be loaded.');
+      }
       return response.isNewUser;
     } catch (e) {
-      _error = e.toString();
+      _error = friendlySignInError(e);
+      _lastErrorWasAuth = isAuthError(e);
       notifyListeners();
       rethrow;
     } finally {
@@ -191,6 +226,7 @@ class AuthProvider with ChangeNotifier {
   Future<void> register(Map<String, dynamic> data) async {
     _setLoading(true);
     _error = null;
+    _lastErrorWasAuth = false;
     try {
       DateTime? dateOfBirth = data['dateOfBirth'] != null
           ? DateTime.parse(data['dateOfBirth'])
@@ -212,9 +248,15 @@ class AuthProvider with ChangeNotifier {
         partnerLastName: data['partnerLastName'],
         partnerEmail: data['partnerEmail'],
       );
-      _setUser(response.user);
+      if (response.user != null) {
+        _setUser(response.user);
+      } else {
+        await _checkLoginStatus();
+      }
+      _justRegistered = true;
     } catch (e) {
-      _error = e.toString();
+      _error = friendlySignInError(e);
+      _lastErrorWasAuth = isAuthError(e);
       notifyListeners();
       rethrow;
     } finally {
@@ -258,6 +300,7 @@ class AuthProvider with ChangeNotifier {
     _coupleStatus = null;
     _coupleUsers = null;
     _selectedPartner = null;
+    _justRegistered = false;
     _setUser(null);
   }
 

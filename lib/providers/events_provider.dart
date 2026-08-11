@@ -4,6 +4,7 @@ import '../models/data_models.dart';
 import '../services/events_api_service.dart';
 import '../services/home_widget_service.dart';
 import './auth_provider.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class EventsProvider with ChangeNotifier {
   final EventsApiService _eventsApiService = EventsApiService();
@@ -47,7 +48,7 @@ class EventsProvider with ChangeNotifier {
       unawaited(HomeWidgetService.instance
           .updateFromUpcomingEvents(_feed.values.expand((e) => e).toList()));
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       debugPrint('Error fetching feed: $e');
     } finally {
       _isLoading = false;

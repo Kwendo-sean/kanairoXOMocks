@@ -18,6 +18,7 @@ import 'package:kanairoxo/widgets/couple_bottom_nav_bar.dart';
 import 'package:kanairoxo/widgets/liquid_glass_button.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class CoupleHomeScreen extends StatefulWidget {
   const CoupleHomeScreen({super.key});
@@ -163,7 +164,7 @@ class _CoupleDashboardPageState extends State<_CoupleDashboardPage> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _error = e.toString();
+          _error = friendlyError(e);
           _isLoading = false;
         });
       }

@@ -28,6 +28,7 @@ import 'package:kanairoxo/screens/profile/saved_screen.dart';
 import 'package:kanairoxo/utils/feature_flags.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? publicId;
@@ -852,10 +853,23 @@ class _ProfileScreenState extends State<ProfileScreen> with AutomaticKeepAliveCl
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline, size: 48, color: context.primaryColor),
+            Icon(
+                error == kOfflineMessage
+                    ? Icons.wifi_off_rounded
+                    : Icons.error_outline,
+                size: 48,
+                color: context.primaryColor),
             const SizedBox(height: 12),
-            Text('Could not load profile', style: AppTypography.bodyMedium.copyWith(color: context.textColor)),
+            Text(
+                error == kOfflineMessage
+                    ? "You're offline"
+                    : 'Could not load profile',
+                style: AppTypography.bodyMedium
+                    .copyWith(color: context.textColor)),
             const SizedBox(height: 8),
+            // `error` is already a safe, chosen message — provider errors run
+            // through friendlyError(). It used to be the raw exception, which
+            // for a ClientException printed the API host on screen.
             Padding(padding: const EdgeInsets.symmetric(horizontal: 32), child: Text(error, style: AppTypography.caption.copyWith(color: context.mutedColor), textAlign: TextAlign.center)),
             const SizedBox(height: 16),
             LiquidGlassButton(size: LiquidButtonSize.md, onPressed: _refreshData, child: Text('Retry', style: AppTypography.buttonText)),

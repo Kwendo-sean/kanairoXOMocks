@@ -5,6 +5,7 @@ import '../models/user_model.dart';
 import '../models/profile_model.dart';
 import '../services/profile_api_service.dart';
 import './auth_provider.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class ProfileProvider with ChangeNotifier {
   final ProfileApiService _profileApiService = ProfileApiService();
@@ -66,7 +67,7 @@ class ProfileProvider with ChangeNotifier {
       bustImageCache();
       _error = null;
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       debugPrint('Error refreshing profile: $e');
     } finally {
       _isLoading = false;
@@ -102,7 +103,7 @@ class ProfileProvider with ChangeNotifier {
       }
       _checkIfProfileSaved(id);
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -118,7 +119,7 @@ class ProfileProvider with ChangeNotifier {
       await _profileApiService.updateProfile(update);
       await refreshMyProfile();
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       rethrow;
     } finally {
       _isLoading = false;
@@ -147,7 +148,7 @@ class ProfileProvider with ChangeNotifier {
       // but it's good practice to keep everything in sync eventually.
       // For immediate response, the local state update is enough.
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       debugPrint('Photo upload error: $e');
       rethrow;
     } finally {
@@ -164,7 +165,7 @@ class ProfileProvider with ChangeNotifier {
       await _profileApiService.uploadProfilePhotos(images);
       await refreshMyProfile();
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       rethrow;
     } finally {
       _isLoading = false;
@@ -179,7 +180,7 @@ class ProfileProvider with ChangeNotifier {
       await _profileApiService.reorderProfilePhotos(photos);
       await refreshMyProfile();
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -193,7 +194,7 @@ class ProfileProvider with ChangeNotifier {
       await _profileApiService.deleteProfilePhoto(photoUrl);
       await refreshMyProfile();
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -207,7 +208,7 @@ class ProfileProvider with ChangeNotifier {
       await _profileApiService.setMainProfilePhoto(photoUrl);
       await refreshMyProfile();
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();

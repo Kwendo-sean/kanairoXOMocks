@@ -155,8 +155,26 @@ class AuthService {
 // Response models — live here alongside AuthService, not in api_models.dart
 // ---------------------------------------------------------------------------
 
+
+/// Parse a `user` object out of an auth response without letting a shape
+/// mismatch take down the whole sign-in.
+///
+/// Tokens are saved before the body is parsed, so a throw here used to leave
+/// the caller authenticated on disk but with no user in memory: the UI stayed
+/// on the login screen while a restart came up signed in.
+User? _tryParseUser(dynamic raw) {
+  if (raw is! Map) return null;
+  try {
+    return User.fromJson(Map<String, dynamic>.from(raw));
+  } catch (_) {
+    return null;
+  }
+}
+
 class LoginResponse {
-  final User user;
+  /// Null when the response didn't carry a usable user — the caller should
+  /// fall back to fetching the profile.
+  final User? user;
   final String access;
   final String refresh;
 
@@ -168,15 +186,15 @@ class LoginResponse {
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) {
     return LoginResponse(
-      user: User.fromJson(json['user']),
-      access: json['access'],
-      refresh: json['refresh'],
+      user: _tryParseUser(json['user']),
+      access: json['access'] ?? '',
+      refresh: json['refresh'] ?? '',
     );
   }
 }
 
 class GoogleLoginResponse {
-  final User user;
+  final User? user;
   final String access;
   final String refresh;
   final bool isNewUser;
@@ -190,16 +208,16 @@ class GoogleLoginResponse {
 
   factory GoogleLoginResponse.fromJson(Map<String, dynamic> json) {
     return GoogleLoginResponse(
-      user: User.fromJson(json['user']),
-      access: json['access'],
-      refresh: json['refresh'],
+      user: _tryParseUser(json['user']),
+      access: json['access'] ?? '',
+      refresh: json['refresh'] ?? '',
       isNewUser: json['is_new_user'] ?? false,
     );
   }
 }
 
 class RegisterResponse {
-  final User user;
+  final User? user;
   final String access;
   final String refresh;
 
@@ -211,9 +229,9 @@ class RegisterResponse {
 
   factory RegisterResponse.fromJson(Map<String, dynamic> json) {
     return RegisterResponse(
-      user: User.fromJson(json['user']),
-      access: json['access'],
-      refresh: json['refresh'],
+      user: _tryParseUser(json['user']),
+      access: json['access'] ?? '',
+      refresh: json['refresh'] ?? '',
     );
   }
 }

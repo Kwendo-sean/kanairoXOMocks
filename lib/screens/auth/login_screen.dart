@@ -169,8 +169,10 @@ class _LoginScreenState extends State<LoginScreen> {
                               color: _kRed))),
                   const SizedBox(height: 12),
                 ],
-                if (auth.error != null &&
-                    auth.error!.toLowerCase().contains('unauthorized'))
+                // Keyed off the provider flag, not the message text — the
+                // message is now a sanitised, user-facing string and no longer
+                // contains 'unauthorized' to match against.
+                if (auth.error != null && auth.lastErrorWasAuth)
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: GestureDetector(

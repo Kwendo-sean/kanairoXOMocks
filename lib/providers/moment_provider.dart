@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/moment.dart';
 import '../services/moment_service.dart';
 import 'auth_provider.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class MomentProvider with ChangeNotifier {
   final MomentService _momentService = MomentService();
@@ -47,7 +48,7 @@ class MomentProvider with ChangeNotifier {
       final fetched = await _momentService.getMoments(type: type);
       _moments = fetched;
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
     } finally {
       _isLoading = false;
       notifyListeners();

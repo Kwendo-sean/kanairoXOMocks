@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:kanairoxo/models/notification_model.dart';
 import 'package:kanairoxo/services/notification_service.dart';
 import 'package:kanairoxo/services/api_client.dart';
+import 'package:kanairoxo/utils/error_messages.dart';
 
 class NotificationProvider with ChangeNotifier {
   final NotificationService _notificationService = NotificationService();
@@ -52,7 +53,7 @@ class NotificationProvider with ChangeNotifier {
       _all = result['notifications'] as List<NotificationModel>;
       _unreadCount = result['unread_count'] as int;
     } catch (e) {
-      _error = e.toString();
+      _error = friendlyError(e);
       debugPrint('Error loading notifications: $e');
     } finally {
       _isLoading = false;
